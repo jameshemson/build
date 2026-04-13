@@ -1,0 +1,25 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "build",
+  "metadata": {
+    "description": "Structured build workflow that plans, reviews, implements with parallel agents, verifies with real evidence, and runs architect review."
+  },
+  "owner": {
+    "name": "James Hemson",
+    "email": "REDACTED"
+  },
+  "plugins": [
+    {
+      "name": "build",
+      "description": "Structured build workflow: plan, review, implement, verify, architect review. 5 skills that work standalone or as an orchestrated pipeline.",
+      "version": "1.0.0",
+      "author": {
+        "name": "James Hemson"
+      },
+      "source": "./",
+      "category": "development",
+      "homepage": "https://github.com/jameshemson/build",
+      "tags": ["build", "workflow", "planning", "review", "verification", "implementation", "agents"]
+    }
+  ]
+}
