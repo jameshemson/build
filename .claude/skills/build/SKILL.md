@@ -88,7 +88,8 @@ After the Sonnet agent returns:
 3. **Deploy agents per workstream**: Look at the plan's parallel workstreams and spin up agents simultaneously:
    - Each independent workstream gets its own agent running in an **isolated worktree** (`isolation: "worktree"`)
    - Give each agent a clear scope: which files to create/modify, which tests to write, and what "done" looks like
-   - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why), SCOPE_CHANGE (the plan is wrong or incomplete - you discovered something that changes the approach. Describe what you found and why the plan can't proceed as written)."
+   - **Spec compliance**: Each agent must verify its output against its assigned spec from the plan before reporting done. Include in every dispatch prompt: "Before reporting DONE, check your work against the plan's spec for this workstream. Every file, behavior, and test listed in your spec must be accounted for. If you built something the spec didn't ask for, or skipped something it did, report that."
+   - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass, spec satisfied), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why), SCOPE_CHANGE (the plan is wrong or incomplete - you discovered something that changes the approach. Describe what you found and why the plan can't proceed as written)."
    - Run agents for independent workstreams in parallel (single message, multiple Agent tool calls)
    - For workstreams with dependencies, wait for the dependency to complete before launching the dependent agent
    - **Model guidance**: Prefer sonnet for single-file mechanical tasks with clear specs. Prefer opus for multi-file integration, design judgment, or complex logic. This is guidance, not rigid - use judgment.
@@ -108,10 +109,7 @@ After the Sonnet agent returns:
      b. If conflicts are in non-overlapping sections of the same file, git's default merge handles them - accept the auto-resolution.
      c. If conflicts require judgment (overlapping changes to the same lines), spawn an Opus agent with both worktrees' diffs, the plan context for the affected workstreams, and instructions to resolve the conflict. The agent must explain its resolution choices in its response. If the resolution agent fails, escalate to the user rather than retrying - merge conflicts requiring human judgment are a reasonable escalation point.
      d. After all merges complete, run the full test suite to verify the integrated code works. If tests fail, treat as a verification failure (return to implement phase for the affected area).
-7. **For complex changes** (state says `complexity: complex`):
-   - After completing each major workstream, spawn a **Sonnet agent** for mid-review (Phase 3b)
-   - Pass it the plan, review, and state file paths plus a summary of what's done/remaining
-   - When the agent returns, address any fixes needed and continue implementing
+7. **Mid-review gate**: After all workstreams complete and merge (before verify), spawn a **Sonnet agent** for mid-review (Phase 3b). Pass it the plan, review, and state file paths plus a summary of what was built. For complex changes (state says `complexity: complex`), also run mid-reviews after each major workstream completes. When the agent returns, address any fixes needed. If it returns RETHINK, treat as a scope change — return to Phase 1 with rework notes.
 8. Commit working chunks with clear messages as you go.
 9. When all implementation is done and tests pass:
    - Update state to `phase: verify`
@@ -127,12 +125,14 @@ After the Sonnet agent returns:
 1. Read the plan, review, and state (which notes what's done/remaining)
 2. Review changes made so far against the plan
 3. Run tests, check for issues
-4. Update state:
+4. **Rethink check**: Given what was learned during implementation (surprises, unexpected complexity, assumptions that turned out wrong), is the plan still the right approach? If the remaining work would be better served by a revised plan, return RETHINK with reasons.
+5. Update state:
    - Good: `phase: implement`, note what's done and what's remaining
    - Issues: `phase: implement`, add `fixes_needed:` field
-5. Append to history
+   - Structural problems: return RETHINK with what changed and why the current plan no longer fits
+6. Append to history
 
-**Return to caller**: whether progress looks good or issues need fixing, with specifics.
+**Return to caller**: PROCEED (with optional fixes), or RETHINK (plan is no longer valid, describe what changed).
 
 ---
 

@@ -56,7 +56,7 @@ The orchestrator's agent parameters take precedence over skill frontmatter.
 
 ## Roadmap
 
-- **v1.1** - Spec compliance checks per workstream, retrospective/rethink gate for structural problems
+- **v1.3** - Workflow memory: pattern extraction at completion, pattern surfacing at plan phase
 
 ## License
 
