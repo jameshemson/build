@@ -88,7 +88,7 @@ After the Sonnet agent returns:
 3. **Deploy agents per workstream**: Look at the plan's parallel workstreams and spin up agents simultaneously:
    - Each independent workstream gets its own agent running in an **isolated worktree** (`isolation: "worktree"`)
    - Give each agent a clear scope: which files to create/modify, which tests to write, and what "done" looks like
-   - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why)."
+   - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why), SCOPE_CHANGE (the plan is wrong or incomplete - you discovered something that changes the approach. Describe what you found and why the plan can't proceed as written)."
    - Run agents for independent workstreams in parallel (single message, multiple Agent tool calls)
    - For workstreams with dependencies, wait for the dependency to complete before launching the dependent agent
    - **Model guidance**: Prefer sonnet for single-file mechanical tasks with clear specs. Prefer opus for multi-file integration, design judgment, or complex logic. This is guidance, not rigid - use judgment.
@@ -98,8 +98,16 @@ After the Sonnet agent returns:
    - **DONE_WITH_CONCERNS**: Log the concerns. Continue, but surface them in mid-review or architect review.
    - **NEEDS_CONTEXT**: Provide the missing information and re-dispatch the agent.
    - **BLOCKED**: Escalate to the user immediately. Do not guess or work around it.
+   - **SCOPE_CHANGE**: Halt all running agents for the affected workstreams. Log the discovery to the state file under `scope_changes:` with the agent's description of what was found. If the scope change affects other workstreams (shared assumptions, shared interfaces), halt those too. Update state to `phase: plan` with `rework_notes:` describing the scope change. Return to Phase 1 to revise the plan. Do not continue implementing against a known-broken plan.
 5. **Test as you build** - every agent must write and pass tests for its workstream. Do not batch tests to the end.
-6. **Merge and integrate**: After parallel agents return, integrate their work. Run the full test suite to catch integration issues.
+6. **Merge and integrate**: After parallel agents return, integrate their work using this protocol:
+   - Merge each worktree's changes sequentially, in dependency order from the plan (workstreams that others depend on merge first).
+   - If a merge succeeds cleanly, continue to the next worktree.
+   - If a merge produces conflicts:
+     a. Log which files conflict and which workstreams produced them to the state file under `merge_conflicts:`.
+     b. If conflicts are in non-overlapping sections of the same file, git's default merge handles them - accept the auto-resolution.
+     c. If conflicts require judgment (overlapping changes to the same lines), spawn an Opus agent with both worktrees' diffs, the plan context for the affected workstreams, and instructions to resolve the conflict. The agent must explain its resolution choices in its response. If the resolution agent fails, escalate to the user rather than retrying - merge conflicts requiring human judgment are a reasonable escalation point.
+     d. After all merges complete, run the full test suite to verify the integrated code works. If tests fail, treat as a verification failure (return to implement phase for the affected area).
 7. **For complex changes** (state says `complexity: complex`):
    - After completing each major workstream, spawn a **Sonnet agent** for mid-review (Phase 3b)
    - Pass it the plan, review, and state file paths plus a summary of what's done/remaining
@@ -192,6 +200,16 @@ Agent(
 
 ---
 
+## Circuit breakers
+
+- **Agent retry limit**: If an agent for the same workstream fails and is re-dispatched more than 2 times, stop retrying and escalate to the user. Log all failure reasons to the state file under `agent_failures:`. The problem is likely in the plan or the codebase, not a transient failure.
+- **Phase loop limit**: If the workflow cycles back to the same phase more than 3 times (e.g., implement -> verify -> fail -> implement -> verify -> fail -> implement), halt the workflow and escalate. Log the full cycle history. The problem is systemic.
+- **Scope change limit**: If SCOPE_CHANGE is reported more than twice in a single workflow, halt and escalate. The original feature description is likely underspecified - re-planning won't help without more input from the user.
+
+When any circuit breaker fires, update the state file with `halted: true`, `halt_reason: [which breaker]`, and `halt_context: [summary of failures/changes]`. The user can resume by updating the state file after addressing the root cause.
+
+---
+
 ## Rules
 
 - **Always read state first.** Never assume which phase you're in.
@@ -200,7 +218,8 @@ Agent(
 - **Never skip phases.** The review exists for a reason. The verify gate exists for a reason.
 - **Tests are mandatory.** Every phase that writes code must write or update tests. If tests don't pass at the end of your phase, you're not done.
 - **Verify before architect review.** Phase 3c is not optional. No verification evidence = no architect review.
-- **Handle agent statuses explicitly.** DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT, BLOCKED. Don't ignore concerns or work around blocks.
+- **Handle agent statuses explicitly.** DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT, BLOCKED, SCOPE_CHANGE. Don't ignore concerns or work around blocks.
 - **Use agents aggressively.** Parallel exploration, parallel implementation of independent pieces, background test runs, and phase transitions. Work like Claude Code works.
 - **Commit often.** Small, working commits > one big commit at the end.
 - **Keep history honest.** Every phase transition gets a timestamped entry. Include what happened, not just "phase changed".
+- **Respect circuit breakers.** Retry limits exist to prevent runaway agents burning tokens on a broken approach. When a limit is hit, escalate to the user with full context of what failed and why - don't work around it or increase the limit.

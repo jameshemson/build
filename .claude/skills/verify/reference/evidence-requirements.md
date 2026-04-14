@@ -16,6 +16,10 @@ Every claim requires specific evidence. No exceptions.
 | "Migration runs cleanly" | Migration command output showing success | SQL looks correct |
 | "API returns correct response" | Actual request/response output (curl, httpie, test) | "The handler returns the right thing" |
 | "Bug is fixed" | Test that reproduces the original bug now passes | Code change that addresses the cause |
+| "Auth is enforced" | Test showing unauthenticated request returns 401/403 | "The middleware is applied", code inspection |
+| "No injection vulnerabilities" | Test with malicious input (SQL injection string, XSS payload, path traversal) showing it's rejected or escaped | "Input is validated", "we use parameterized queries" |
+| "Secrets are not exposed" | Grep output showing no hardcoded secrets, API keys, or credentials in committed files | "We use environment variables" |
+| "CSRF protection works" | Test showing cross-origin request without valid token is rejected | "The CSRF middleware is enabled" |
 
 ## Common Verification Commands by Stack
 

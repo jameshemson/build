@@ -18,6 +18,8 @@ The following patterns are NEVER acceptable in a plan. Each is a plan failure - 
 - "update tests accordingly" - specify WHICH tests, testing WHAT behavior, with WHAT assertions
 - "follow existing patterns" - name the PATTERN, WHERE it's used, and WHAT to replicate
 - "similar to Task N" - repeat the specifics, the reader may be reading tasks out of order
+- "add monitoring" / "add observability" - specify WHAT metrics, WHERE they're emitted (which service, which endpoint), WHAT thresholds trigger alerts, and WHO gets paged
+- "add appropriate dependencies" / "pull in a library for X" - name EACH dependency, its VERSION, its LICENSE, and WHY it's needed over alternatives already in the project
 
 **Missing substance:**
 - Steps that describe intent without showing the concrete change
@@ -68,5 +70,11 @@ Every file in the map has at least one implementation step. Every file touched i
 
 ### 5. All sections present
 Every required section exists. Sections that don't apply say "N/A" with a brief explanation - they are not silently omitted.
+
+### 6. Observability coverage
+For production-deployed features: every user-facing behaviour change has metrics, alerting, and failure signatures defined. Plans for local tools or CLIs should say "N/A - no production deployment."
+
+### 7. Dependency justification
+Every new package or library has license, maintenance status, size impact, and necessity documented. If no new dependencies, "None" is stated explicitly.
 
 If you find issues, fix them inline. Then move on.

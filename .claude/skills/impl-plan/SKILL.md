@@ -3,6 +3,8 @@ name: impl-plan
 description: Create a detailed implementation plan. Reads the codebase, traces code paths, maps files, identifies parallel workstreams. Use before building any non-trivial feature.
 user-invocable: true
 argument-hint: "<feature description>"
+model: opus
+effort: high
 ---
 
 You are creating an implementation plan. Read the [plan quality rules](reference/plan-quality.md) first - they contain banned patterns and the self-review checklist you must run before delivering.
@@ -43,6 +45,17 @@ Schema changes with exact SQL. Migrations needed. Effect on existing records - w
 ### What existing behavior changes
 List anything that currently works one way and will work differently after this. Include subtle things - does a query get slower? Does an API response shape change? Does an existing page get a new element? If nothing changes for existing users, say so explicitly.
 
+### New dependencies
+
+List every new package, library, or tool this feature introduces. For each:
+- **Name and version**: exact package name and version constraint
+- **License**: the license type and whether it's compatible with this project
+- **Maintenance**: last release date, open issue count, bus factor (sole maintainer?)
+- **Size impact**: approximate addition to bundle size (frontend) or binary size (backend)
+- **Justification**: why this dependency is needed and why an existing dependency in the project doesn't cover the need
+
+If no new dependencies are introduced, write "None" and move on.
+
 ### Access control and authorization
 Who can access this? Who can't? Does this respect existing subscription/plan gating? Are there new public endpoints? If so, what's exposed and to whom?
 
@@ -54,6 +67,16 @@ What are we explicitly not doing? What's the obvious next feature someone will a
 
 ### Risks and rollback
 What's most likely to go wrong? What's hardest to reverse? How do we undo this if it ships and breaks? Order by severity.
+
+### Observability & monitoring
+
+How will you know this feature is working in production? For each user-facing behaviour:
+- **Metrics**: what to measure (request count, latency, error rate, business metric)
+- **Alerting**: what thresholds trigger alerts, who gets paged, what's the runbook
+- **Dashboards**: what graphs or views should exist for ongoing monitoring
+- **Failure signature**: what does it look like when this feature breaks? What's the first signal?
+
+If this is a local tool, CLI, or has no production deployment, write "N/A - no production deployment" and move on.
 
 ### Open questions
 What don't we know? What assumptions are we making? For each assumption, explain why you believe it's true based on what you've seen in the code. If you can't verify an assumption from the codebase, flag it as unverified. What decisions should be confirmed before coding starts?
@@ -88,6 +111,8 @@ After writing the complete plan, run these checks. Do NOT deliver until all pass
 - [ ] **Type consistency**: same types, interfaces, and function names used identically throughout
 - [ ] **File map matches steps**: every file in the map appears in the steps, and vice versa
 - [ ] **All sections present**: every section above exists (or says "N/A" with a reason)
+- [ ] **Observability coverage**: every user-facing behaviour in a production-deployed feature has monitoring defined, or the section says "N/A" with justification
+- [ ] **Dependency justification**: every new dependency has license, maintenance status, size impact, and necessity stated
 
 If you find issues, fix them inline. Then move on.
 

@@ -12,11 +12,15 @@ Claude Code plugin providing a structured build workflow: plan, review, implemen
 
 ## Conventions
 
-- Each skill has a SKILL.md with frontmatter (name, description, user-invocable, argument-hint)
+- Each skill has a SKILL.md with frontmatter (name, description, user-invocable, argument-hint, model, effort, context)
 - Reference files go in `reference/` subdirectories within the skill that owns them
 - Cross-skill references use the `/build:skillname` invocation format
 - The orchestrator is the only skill that manages state files
 - All skills must work both standalone and when called by the orchestrator
+
+## Versioning
+
+Version is in `.claude-plugin/plugin.json`. Bump the `version` field before pushing updates so `claude plugin add` detects the change.
 
 ## Testing
 

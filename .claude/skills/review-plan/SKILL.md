@@ -3,6 +3,8 @@ name: review-plan
 description: Review an implementation plan as a skeptical senior engineer. Scans for placeholders, verifies accuracy, finds gaps, assigns severity levels to findings.
 user-invocable: true
 argument-hint: "[plan description or path]"
+model: sonnet
+context: fork
 ---
 
 Review the implementation plan as a skeptical senior engineer. Your job is to find everything that would cause problems during implementation.
@@ -24,6 +26,8 @@ For each section of the plan, check whether the content is accurate, complete, a
 3. **Test the assumptions.** For each item in "Open questions" and "Risks" - are the stated mitigations actually sufficient? Are the severity ratings honest?
 4. **Verify the scope boundaries.** Does "out of scope" actually stay out, or does the approach quietly depend on something listed as out of scope?
 5. **Stress the edge cases.** For each case listed under "Abuse and edge cases" - is the mitigation real or hand-wavy? Are there obvious cases not listed?
+6. **Verify workstream independence.** If the plan has a "Parallel workstreams" section, cross-reference the file map against the workstream assignments. For each file, check which workstream(s) claim it. If any file appears in more than one independent workstream, flag as **Critical** - parallel worktree agents will produce merge conflicts on that file. Suggest either: (a) moving the shared file into its own sequential step that runs after both workstreams, or (b) merging the conflicting workstreams into one. If no parallel workstreams section exists, note its absence as a **Minor** finding.
+7. **Map test coverage.** For each behaviour change listed in "What existing behavior changes" and each new capability in the implementation steps, check that the "Verification" section names a specific test covering that behaviour. Flag untested behaviour changes as **Important** - these are gaps that will pass verification (no test = no failure) but leave the feature unproven.
 
 ## Part 2 - Open review
 
