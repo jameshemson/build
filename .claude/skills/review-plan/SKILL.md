@@ -19,7 +19,9 @@ Every placeholder violation is a **Critical** finding. If you find more than 3 v
 
 ## Part 1 - Verify what's stated
 
-For each section of the plan, check whether the content is accurate, complete, and consistent with the codebase:
+First, check section completeness. The impl-plan skill requires these sections: Problem, Approach, Who uses this and how, Files to change, Data impact, What existing behavior changes, New dependencies, Access control and authorization, Abuse and edge cases, Out of scope, Risks and rollback, Observability & monitoring, Open questions, Parallel workstreams, Implementation order, Verification. Any missing section (not present, or present without "N/A" justification) is an **Important** finding.
+
+Then, for each section of the plan, check whether the content is accurate, complete, and consistent with the codebase:
 
 1. **Trace the code.** Do the files listed actually exist? Do the described behaviors match what the code does today? Are there files or code paths the plan misses?
 2. **Check the data impact.** Will the migration work against the current schema? Are there existing queries, indexes, or constraints that conflict?
@@ -49,5 +51,7 @@ Tag each finding by severity:
 - **Minor** - note for later. Won't block progress.
 
 Order findings by impact, highest first. Include the placeholder violation count from Part 0.
+
+End with an explicit verdict: "Proceed to implementation" (no critical findings), "Proceed with fixes" (no critical, but important findings to address), or "Do not proceed" (critical findings that block implementation). One line, no ambiguity.
 
 Do not start coding. Just critique the plan.

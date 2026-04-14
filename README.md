@@ -11,6 +11,7 @@ A Claude Code plugin for structured software development. Plan before you build,
 | `/build:review-plan` | Reviews a plan as a skeptical senior engineer with severity-tagged findings |
 | `/build:architect-review` | Principal architect review of completed work across 10 lenses with structured verdict |
 | `/build:verify` | Runs tests, build, type checks and reports actual evidence |
+| `/build:eval` | Runs test cases against build skills, grades outputs against assertions |
 
 Every skill works standalone. Run `/build:impl-plan add user authentication` without the full pipeline. Or run `/build add user authentication` to get the complete workflow.
 

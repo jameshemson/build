@@ -9,6 +9,7 @@ Claude Code plugin providing a structured build workflow: plan, review, implemen
 - `.claude/skills/review-plan/` - Skeptical plan review. Standalone or called by orchestrator.
 - `.claude/skills/architect-review/` - Post-implementation architect review. Standalone or called by orchestrator.
 - `.claude/skills/verify/` - Evidence-before-claims verification gate. Standalone or called by orchestrator.
+- `.claude/skills/eval/` - Eval runner. Tests skills against defined test cases with assertions.
 
 ## Conventions
 
