@@ -1,0 +1,50 @@
+{
+  "evals": [
+    {
+      "id": "impl-plan-health-endpoint",
+      "skill": "impl-plan",
+      "prompt": "add a /health endpoint to this project that returns JSON {status: 'ok', version: string from package.json}",
+      "target": ".",
+      "assertions": [
+        "has-all-sections",
+        "zero-placeholders",
+        "file-map-matches-steps",
+        "steps-are-specific",
+        "workstreams-defined"
+      ]
+    },
+    {
+      "id": "review-plan-catches-flaws",
+      "skill": "review-plan",
+      "input_fixture": "fixtures/flawed-plan.md",
+      "assertions": [
+        "catches-placeholder-language",
+        "catches-missing-observability",
+        "catches-workstream-overlap",
+        "findings-have-severity",
+        "verdict-is-structured"
+      ]
+    },
+    {
+      "id": "review-plan-no-false-positives",
+      "skill": "review-plan",
+      "input_fixture": "fixtures/clean-plan.md",
+      "assertions": [
+        "no-critical-findings",
+        "findings-have-severity",
+        "verdict-is-structured"
+      ]
+    },
+    {
+      "id": "verify-reports-evidence",
+      "skill": "verify",
+      "target": ".",
+      "assertions": [
+        "zero-banned-phrases",
+        "commands-shown",
+        "output-included",
+        "verdict-present"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # build
 
-A Claude Code plugin for structured software development. Plan before you build, review before you ship, verify before you claim.
+A structured build workflow for Claude Code (and four portable skills for OpenCode and Codex). Plan before you build, review before you ship, verify before you claim.
 
 ## Skills
 
@@ -17,11 +17,32 @@ Every skill works standalone. Run `/build:impl-plan add user authentication` wit
 
 ## Install
 
+**Claude Code**
+
 ```
 claude plugin add jameshemson/build
 ```
 
-## How it works
+**OpenCode** — copy `.opencode/skills/` into your project root.
+
+**Codex** — copy `.agents/skills/` into your project root. Codex discovers skills from `.agents/skills/` automatically.
+
+Four skills are available in OpenCode and Codex: `impl-plan`, `review-plan`, `verify`, and `architect-review`. The `build` orchestrator and `eval` runner are Claude Code only (they depend on sub-agent spawning and Task tools not available elsewhere).
+
+## Compatibility
+
+| Skill | Claude Code | OpenCode | Codex |
+|-------|:-----------:|:--------:|:-----:|
+| `build` (orchestrator) | ✓ | — | — |
+| `impl-plan` | ✓ | ✓ | ✓ |
+| `review-plan` | ✓ | ✓ | ✓ |
+| `verify` | ✓ | ✓ | ✓ |
+| `architect-review` | ✓ | ✓ | ✓ |
+| `eval` | ✓ | — | — |
+
+See [HARNESSES.md](HARNESSES.md) for the full capability matrix and install story.
+
+## How it works (Claude Code)
 
 `/build` drives a 5-phase cycle:
 
@@ -54,10 +75,6 @@ Each skill sets its own model for standalone runs:
 | `/build:verify` | inherited | inherited | inherited |
 
 The orchestrator's agent parameters take precedence over skill frontmatter.
-
-## Roadmap
-
-- **v1.3** - Workflow memory: pattern extraction at completion, pattern surfacing at plan phase
 
 ## License
 
