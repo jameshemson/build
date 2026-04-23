@@ -18,8 +18,10 @@ Claude Code plugin providing a structured build workflow: plan, review, implemen
   - `verify/` — Evidence-before-claims verification gate. Standalone or called by orchestrator.
   - `eval/` — Eval runner. Tests skills against defined test cases with assertions. Claude-only.
 - `.opencode/skills/` — OpenCode output. Contains only the 4 portable skills (impl-plan, review-plan, verify, architect-review). Claude-only fields stripped, $ARGUMENTS and /build: references rewritten.
+- `.opencode/commands/` — OpenCode slash commands. Four flat `.md` files, each a thin `@.opencode/skills/<name>/SKILL.md` include so users can invoke the portable skills as `/impl-plan`, `/review-plan`, `/verify`, `/architect-review`. Do not edit directly.
 - `.agents/skills/` — Codex output for repo-local discovery. Same 4 portable skills.
-- `plugins/build/skills/` — Codex output for Plugins UI install packaging. Byte-identical to `.agents/skills/` (enforced by a sandbox test in `builder.test.js`). Do not edit directly.
+- `plugins/build/skills/` — Codex output for Plugins UI install packaging. Byte-identical to `.agents/skills/` (enforced by a 3-way sandbox test in `builder.test.js`). Do not edit directly.
+- `.codex/skills/` — Codex cross-harness bridge. Byte-identical to `.agents/skills/` via shared `codexRewrites` by reference. Exists so tools that cross-read `.codex/skills/` (notably Cursor) can discover our skills. Do not edit directly.
 
 ### Static manifests (hand-authored, committed)
 

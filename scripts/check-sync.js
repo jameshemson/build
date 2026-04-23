@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ROOT } from './transformers/utils.js';
-import { PROVIDERS } from './transformers/providers.js';
+import { PROVIDERS, COMMAND_PROVIDERS } from './transformers/providers.js';
 import { VERSION_CARRIERS } from './transformers/version-carriers.js';
 
 // Two checks, in order:
@@ -45,7 +45,10 @@ try {
   process.exit(1);
 }
 
-const outputDirs = Object.values(PROVIDERS).map((p) => p.outputDir);
+const outputDirs = [
+  ...Object.values(PROVIDERS).map((p) => p.outputDir),
+  ...Object.values(COMMAND_PROVIDERS).map((p) => p.outputDir),
+];
 let dirty = false;
 
 for (const dir of outputDirs) {

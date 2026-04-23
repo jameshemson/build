@@ -76,8 +76,39 @@ export function buildProvider({ root, sourceDir, providerName, config }) {
   }
 }
 
+export function buildCommandProvider({ root, sourceDir, providerName, config }) {
+  const outBase = join(root, config.outputDir);
+  mkdirSync(outBase, { recursive: true });
+
+  const emitted = new Set();
+
+  for (const entry of readdirSync(sourceDir)) {
+    const sourcePath = join(sourceDir, entry);
+    if (!statSync(sourcePath).isFile()) continue;
+    if (!entry.endsWith('.md')) continue;
+
+    const outPath = join(outBase, entry);
+    emitted.add(outPath);
+
+    const content = readFileSync(sourcePath, 'utf8');
+    writeFile(outPath, transform(content, providerName, config));
+  }
+
+  for (const existing of listAllFiles(outBase)) {
+    if (!emitted.has(existing)) {
+      unlinkSync(existing);
+    }
+  }
+}
+
 export function build({ root, sourceDir, providers }) {
   for (const [name, config] of Object.entries(providers)) {
     buildProvider({ root, sourceDir, providerName: name, config });
+  }
+}
+
+export function buildCommands({ root, sourceDir, providers }) {
+  for (const [name, config] of Object.entries(providers)) {
+    buildCommandProvider({ root, sourceDir, providerName: name, config });
   }
 }

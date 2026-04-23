@@ -8,6 +8,21 @@ import { VERSION_CARRIERS } from './version-carriers.js';
 const codexPluginPath = join(ROOT, 'plugins/build/.codex-plugin/plugin.json');
 const marketplacePath = join(ROOT, '.agents/plugins/marketplace.json');
 const codexSkillsDir = join(ROOT, 'plugins/build/skills');
+const codexCrossSkillsDir = join(ROOT, '.codex/skills');
+const opencodeCommandsDir = join(ROOT, '.opencode/commands');
+const sourceCommandsDir = join(ROOT, 'source/commands');
+const sourceSkillsDir = join(ROOT, 'source/skills');
+
+const PORTABLE_SKILLS = ['architect-review', 'impl-plan', 'review-plan', 'verify'];
+
+function readDescription(mdPath) {
+  const content = readFileSync(mdPath, 'utf8');
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) throw new Error(`No frontmatter in ${mdPath}`);
+  const line = match[1].split('\n').find((l) => l.startsWith('description:'));
+  if (!line) throw new Error(`No description in ${mdPath}`);
+  return line.slice('description:'.length).trim();
+}
 
 // Known-good Codex manifest enum values, verified against
 // https://developers.openai.com/codex/plugins/build on 2026-04-22.
@@ -116,4 +131,49 @@ test('Codex plugin.json category and marketplace category are non-empty strings'
   assert.ok(plugin.interface.category.length > 0);
   assert.equal(typeof market.plugins[0].category, 'string');
   assert.ok(market.plugins[0].category.length > 0);
+});
+
+test('.codex/skills/ contains exactly the four portable skills', () => {
+  const entries = readdirSync(codexCrossSkillsDir).sort();
+  assert.deepEqual(entries, PORTABLE_SKILLS);
+});
+
+test('.opencode/commands/ contains exactly the four expected command files', () => {
+  const entries = readdirSync(opencodeCommandsDir).sort();
+  assert.deepEqual(
+    entries,
+    PORTABLE_SKILLS.map((n) => `${n}.md`),
+  );
+});
+
+test('each source/commands/*.md description matches the corresponding source/skills/<name>/SKILL.md description', () => {
+  // Command descriptions are maintained by hand; this test locks in
+  // skill/command description parity so the OpenCode TUI shows the same
+  // description as the skill's own SKILL.md frontmatter.
+  for (const name of PORTABLE_SKILLS) {
+    const cmd = readDescription(join(sourceCommandsDir, `${name}.md`));
+    const skill = readDescription(join(sourceSkillsDir, name, 'SKILL.md'));
+    assert.equal(
+      cmd,
+      skill,
+      `description mismatch for ${name}: command="${cmd}" skill="${skill}"`,
+    );
+  }
+});
+
+test('source/commands/ name set matches portable skill name set', () => {
+  // Parity gate promised by the "rename scenario" in the plan: if a
+  // contributor renames a skill but forgets to rename its command wrapper,
+  // this test fires.
+  const skillNames = readdirSync(sourceSkillsDir)
+    .filter((n) => !['build', 'eval'].includes(n))
+    .sort();
+  const commandNames = readdirSync(sourceCommandsDir)
+    .map((f) => f.replace(/\.md$/, ''))
+    .sort();
+  assert.deepEqual(
+    commandNames,
+    skillNames,
+    'source/commands/ must have one .md file per portable skill (build and eval are Claude-only and excluded)',
+  );
 });

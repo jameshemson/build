@@ -23,7 +23,7 @@ Every skill works standalone. Run `/build:impl-plan add user authentication` wit
 claude plugin add jameshemson/build
 ```
 
-**OpenCode** — copy the `.opencode/` directory (preserving the leading dot) into your project so the final layout is `<your-project>/.opencode/skills/<skill-name>/SKILL.md`. OpenCode discovers skills from that path.
+**OpenCode** — copy the `.opencode/` directory (preserving the leading dot) into your project so the final layout is `<your-project>/.opencode/skills/<skill-name>/SKILL.md` and `<your-project>/.opencode/commands/<command-name>.md`. OpenCode discovers skills from those paths. Once copied, the four portable skills are invocable as flat slash commands: `/impl-plan`, `/review-plan`, `/verify`, `/architect-review`. Each command thin-wraps the matching bundled skill.
 
 **Codex** (two paths, either works):
 

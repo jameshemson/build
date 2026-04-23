@@ -12,8 +12,8 @@ import {
 } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { buildProvider, build } from './builder.js';
-import { PROVIDERS as REAL_PROVIDERS } from './providers.js';
+import { buildProvider, build, buildCommandProvider, buildCommands } from './builder.js';
+import { PROVIDERS as REAL_PROVIDERS, COMMAND_PROVIDERS as REAL_COMMAND_PROVIDERS } from './providers.js';
 import { ROOT } from './utils.js';
 
 const PROVIDERS = {
@@ -179,10 +179,10 @@ test('empty skill dir after rebuild: all files swept, dir may remain', () => {
   assert.ok(existsSync(join(sandbox, '.claude/skills/alpha/SKILL.md')));
 });
 
-test('codex and codex-plugin sandbox outputs are byte-identical (via real PROVIDERS)', () => {
+test('codex, codex-plugin, and codex-cross sandbox outputs are byte-identical (via real PROVIDERS)', () => {
   // Fixture: a portable skill with $ARGUMENTS (both forms) and a /build: ref,
   // so that all three rewrite paths are exercised. Any divergence between
-  // codex and codex-plugin would surface here.
+  // the three codex-family providers would surface here.
   const sample =
     '---\n' +
     'name: portable\n' +
@@ -198,18 +198,14 @@ test('codex and codex-plugin sandbox outputs are byte-identical (via real PROVID
     writeSource(`${n}/SKILL.md`, sample);
   }
 
-  buildProvider({
-    root: sandbox,
-    sourceDir: join(sandbox, 'source/skills'),
-    providerName: 'codex',
-    config: REAL_PROVIDERS.codex,
-  });
-  buildProvider({
-    root: sandbox,
-    sourceDir: join(sandbox, 'source/skills'),
-    providerName: 'codex-plugin',
-    config: REAL_PROVIDERS['codex-plugin'],
-  });
+  for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {
+    buildProvider({
+      root: sandbox,
+      sourceDir: join(sandbox, 'source/skills'),
+      providerName,
+      config: REAL_PROVIDERS[providerName],
+    });
+  }
 
   for (const n of names) {
     const agents = readFileSync(
@@ -220,10 +216,19 @@ test('codex and codex-plugin sandbox outputs are byte-identical (via real PROVID
       join(sandbox, 'plugins/build/skills', n, 'SKILL.md'),
       'utf8',
     );
+    const cross = readFileSync(
+      join(sandbox, '.codex/skills', n, 'SKILL.md'),
+      'utf8',
+    );
     assert.equal(
       plugin,
       agents,
       `Divergence in ${n}/SKILL.md between codex and codex-plugin`,
+    );
+    assert.equal(
+      cross,
+      agents,
+      `Divergence in ${n}/SKILL.md between codex and codex-cross`,
     );
   }
 });
@@ -286,4 +291,69 @@ test('real source/skills: each provider emits expected skill set with no Claude-
       }
     }
   }
+});
+
+test('real source/commands: opencode emits exactly the four expected commands with @include bodies', () => {
+  cpSync(join(ROOT, 'source/skills'), join(sandbox, 'source/skills'), {
+    recursive: true,
+  });
+  cpSync(join(ROOT, 'source/commands'), join(sandbox, 'source/commands'), {
+    recursive: true,
+  });
+
+  buildCommands({
+    root: sandbox,
+    sourceDir: join(sandbox, 'source/commands'),
+    providers: REAL_COMMAND_PROVIDERS,
+  });
+
+  const emitted = readdirSync(join(sandbox, '.opencode/commands')).sort();
+  assert.deepEqual(
+    emitted,
+    ['architect-review.md', 'impl-plan.md', 'review-plan.md', 'verify.md'],
+    `Unexpected command file set: ${JSON.stringify(emitted)}`,
+  );
+
+  for (const file of emitted) {
+    const full = readFileSync(join(sandbox, '.opencode/commands', file), 'utf8');
+    // Strip leading frontmatter block, then the trailing body should be exactly one @include.
+    const body = full.split('---\n').slice(2).join('---\n').trim();
+    assert.match(
+      body,
+      /^@\.opencode\/skills\/[a-z-]+\/SKILL\.md$/,
+      `${file}: body should be a single @include line, got ${JSON.stringify(body)}`,
+    );
+  }
+});
+
+test('buildCommandProvider sweeps stale command files', () => {
+  const sourceDir = join(sandbox, 'source/commands');
+  mkdirSync(sourceDir, { recursive: true });
+  writeFileSync(
+    join(sourceDir, 'alpha.md'),
+    '---\ndescription: a\n---\n@.opencode/skills/alpha/SKILL.md\n',
+    'utf8',
+  );
+
+  const cfg = { outputDir: '.opencode/commands', rewrites: null };
+  buildCommandProvider({
+    root: sandbox,
+    sourceDir,
+    providerName: 'opencode',
+    config: cfg,
+  });
+
+  // Inject a ghost file as if from a previous build's stale state.
+  writeFileSync(join(sandbox, '.opencode/commands/ghost.md'), 'stale', 'utf8');
+  assert.ok(existsSync(join(sandbox, '.opencode/commands/ghost.md')));
+
+  buildCommandProvider({
+    root: sandbox,
+    sourceDir,
+    providerName: 'opencode',
+    config: cfg,
+  });
+
+  assert.ok(!existsSync(join(sandbox, '.opencode/commands/ghost.md')), 'ghost.md should be swept');
+  assert.ok(existsSync(join(sandbox, '.opencode/commands/alpha.md')), 'alpha.md should persist');
 });

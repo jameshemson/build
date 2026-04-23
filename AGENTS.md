@@ -21,8 +21,10 @@ The `build` orchestrator and `eval` runner are Claude Code only. They depend on 
 
 Invoke skills using your harness's native mechanism:
 
-- **OpenCode**: use the built-in skill tool with the skill name.
-- **Codex**: `$skill <name>` or `/skills <name>` per the Codex docs.
+- **OpenCode**: two paths.
+  - **Slash commands (recommended for explicit control).** Once you've copied `.opencode/` into your project, the four portable skills are callable as flat slash commands: `/impl-plan`, `/review-plan`, `/verify`, `/architect-review`. Pass your task as arguments, e.g. `/impl-plan refactor the payments flow`. These commands are thin wrappers — each one `@`-includes the matching bundled `SKILL.md` so the full skill protocol runs. Defined in `.opencode/commands/`.
+  - **Skill tool (agent-selected).** The OpenCode agent can also invoke skills programmatically by name from `.opencode/skills/`. Useful when you want the agent to decide whether a skill applies.
+- **Codex**: `$<name>` or `$build:<name>` (namespaced) for plugin-installed skills; `/skills <name>` to browse-and-pick.
 
 Provide your task, plan path, or spec as the invoking message — the skill will treat it as input.
 
