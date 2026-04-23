@@ -8,10 +8,13 @@ import {
   rmSync,
   statSync,
   readdirSync,
+  cpSync,
 } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { buildProvider, build } from './builder.js';
+import { PROVIDERS as REAL_PROVIDERS } from './providers.js';
+import { ROOT } from './utils.js';
 
 const PROVIDERS = {
   claude: { outputDir: '.claude/skills', exclude: [], rewrites: null },
@@ -162,7 +165,7 @@ test('buildProvider alone is callable (unit of build)', () => {
 });
 
 test('empty skill dir after rebuild: all files swept, dir may remain', () => {
-  writeSource('alpha/SKILL.md', '---\nname: alpha\ndescription: A\n---\nbody');
+  writeSource('alpha/SKILL.md', '---\nname: alpha\ndescription: B\n---\nbody');
   writeSource('beta/SKILL.md', '---\nname: beta\ndescription: B\n---\nbody');
   runBuild();
 
@@ -174,4 +177,113 @@ test('empty skill dir after rebuild: all files swept, dir may remain', () => {
   // Directory may or may not be present; only the file sweep is guaranteed.
   // alpha must still exist
   assert.ok(existsSync(join(sandbox, '.claude/skills/alpha/SKILL.md')));
+});
+
+test('codex and codex-plugin sandbox outputs are byte-identical (via real PROVIDERS)', () => {
+  // Fixture: a portable skill with $ARGUMENTS (both forms) and a /build: ref,
+  // so that all three rewrite paths are exercised. Any divergence between
+  // codex and codex-plugin would surface here.
+  const sample =
+    '---\n' +
+    'name: portable\n' +
+    'description: fixture\n' +
+    '---\n' +
+    '\n' +
+    '$ARGUMENTS\n' +
+    '\n' +
+    'See also $ARGUMENTS and /build:verify.\n';
+
+  const names = ['architect-review', 'impl-plan', 'review-plan', 'verify'];
+  for (const n of names) {
+    writeSource(`${n}/SKILL.md`, sample);
+  }
+
+  buildProvider({
+    root: sandbox,
+    sourceDir: join(sandbox, 'source/skills'),
+    providerName: 'codex',
+    config: REAL_PROVIDERS.codex,
+  });
+  buildProvider({
+    root: sandbox,
+    sourceDir: join(sandbox, 'source/skills'),
+    providerName: 'codex-plugin',
+    config: REAL_PROVIDERS['codex-plugin'],
+  });
+
+  for (const n of names) {
+    const agents = readFileSync(
+      join(sandbox, '.agents/skills', n, 'SKILL.md'),
+      'utf8',
+    );
+    const plugin = readFileSync(
+      join(sandbox, 'plugins/build/skills', n, 'SKILL.md'),
+      'utf8',
+    );
+    assert.equal(
+      plugin,
+      agents,
+      `Divergence in ${n}/SKILL.md between codex and codex-plugin`,
+    );
+  }
+});
+
+// Ground-truth integration test: copy the REAL source/skills tree into a
+// sandbox, run every provider from REAL_PROVIDERS, and assert invariants
+// that matter to consumers (exact skill set, no Claude-syntax leakage).
+// This is the regression gate C2 in the v1.4.0 architect review was asking
+// for — it exercises every rewrite branch any real skill actually hits.
+function walkFiles(dir, acc = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(p, acc);
+    else if (entry.isFile()) acc.push(p);
+  }
+  return acc;
+}
+
+test('real source/skills: each provider emits expected skill set with no Claude-syntax leakage', () => {
+  cpSync(join(ROOT, 'source/skills'), join(sandbox, 'source/skills'), {
+    recursive: true,
+  });
+
+  for (const [name, config] of Object.entries(REAL_PROVIDERS)) {
+    buildProvider({
+      root: sandbox,
+      sourceDir: join(sandbox, 'source/skills'),
+      providerName: name,
+      config,
+    });
+
+    const outDir = join(sandbox, config.outputDir);
+    const emittedSkills = readdirSync(outDir).sort();
+    const sourceSkills = readdirSync(join(sandbox, 'source/skills'))
+      .filter((s) => !config.exclude.includes(s))
+      .sort();
+    assert.deepEqual(
+      emittedSkills,
+      sourceSkills,
+      `${name}: emitted skills ${JSON.stringify(emittedSkills)} != expected ${JSON.stringify(sourceSkills)}`,
+    );
+
+    // Only non-Claude providers strip Claude syntax; the claude provider is
+    // identity and legitimately retains $ARGUMENTS and /build: references.
+    if (config.rewrites) {
+      for (const file of walkFiles(outDir)) {
+        const body = readFileSync(file, 'utf8');
+        assert.ok(
+          !body.includes('$ARGUMENTS'),
+          `${name}: $ARGUMENTS leaked into ${file}`,
+        );
+        assert.ok(
+          !/\/build:[a-z-]+/.test(body),
+          `${name}: /build: reference leaked into ${file}`,
+        );
+        assert.ok(
+          !body.includes('<!-- claude-only'),
+          `${name}: <!-- claude-only --> block leaked into ${file}`,
+        );
+      }
+    }
+  }
 });

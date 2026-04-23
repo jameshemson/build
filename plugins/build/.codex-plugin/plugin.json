@@ -1,0 +1,20 @@
+{
+  "name": "build",
+  "version": "1.4.0",
+  "description": "Structured build workflow — 4 portable skills: impl-plan, review-plan, verify, architect-review.",
+  "author": {
+    "name": "James Hemson"
+  },
+  "homepage": "https://github.com/jameshemson/build",
+  "repository": "https://github.com/jameshemson/build",
+  "license": "MIT",
+  "keywords": ["build", "planning", "review", "verification", "skills"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "build",
+    "shortDescription": "Plan before you build, review before you ship, verify before you claim.",
+    "longDescription": "Four portable skills that work standalone or chained: impl-plan creates a detailed implementation plan from the codebase; review-plan runs a skeptical senior-engineer review of the plan; verify runs tests and reports real evidence; architect-review runs a principal-architect review of completed work across 10 lenses.",
+    "developerName": "James Hemson",
+    "category": "Developer Tools"
+  }
+}

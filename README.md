@@ -23,9 +23,18 @@ Every skill works standalone. Run `/build:impl-plan add user authentication` wit
 claude plugin add jameshemson/build
 ```
 
-**OpenCode** — copy `.opencode/skills/` into your project root.
+**OpenCode** — copy the `.opencode/` directory (preserving the leading dot) into your project so the final layout is `<your-project>/.opencode/skills/<skill-name>/SKILL.md`. OpenCode discovers skills from that path.
 
-**Codex** — copy `.agents/skills/` into your project root. Codex discovers skills from `.agents/skills/` automatically.
+**Codex** (two paths, either works):
+
+Via Plugins UI / CLI:
+
+```
+codex plugin marketplace add jameshemson/build
+codex plugin install build/build
+```
+
+Or via repo-local discovery: copy the `.agents/` directory into your project so the final layout is `<your-project>/.agents/skills/<skill-name>/SKILL.md`. Codex picks it up automatically.
 
 Four skills are available in OpenCode and Codex: `impl-plan`, `review-plan`, `verify`, and `architect-review`. The `build` orchestrator and `eval` runner are Claude Code only (they depend on sub-agent spawning and Task tools not available elsewhere).
 

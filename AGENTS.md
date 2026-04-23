@@ -28,8 +28,21 @@ Provide your task, plan path, or spec as the invoking message — the skill will
 
 ## OpenCode note
 
-OpenCode reads both `.opencode/skills/` and `.claude/skills/`. If you are running OpenCode against this repo root directly, the Claude-only `build` and `eval` skills will appear. They will not function correctly outside Claude Code. The intended OpenCode usage is to copy `.opencode/skills/` into your target project.
+OpenCode reads both `.opencode/skills/` and `.claude/skills/`. If you are running OpenCode against this repo root directly, the Claude-only `build` and `eval` skills will appear. They will not function correctly outside Claude Code. The intended OpenCode usage is to copy this repo's `.opencode/` directory into your target project (preserving the leading dot), so the final layout is `<your-project>/.opencode/skills/<skill-name>/SKILL.md`. Do not flatten to `<your-project>/skills/` — OpenCode will not find skills there.
 
 ## Codex note
 
-Codex discovers skills from `.agents/skills/`. The four portable skills are available there and require no build step.
+Two install paths, both supported:
+
+**Repo-local discovery.** Clone the repo and open it as your Codex workspace. Codex reads skills directly from `.agents/skills/`. No build step.
+
+**Plugins UI / CLI install.** Register this repo as a Codex marketplace and install the plugin:
+
+```sh
+codex plugin marketplace add jameshemson/build
+codex plugin install build/build
+```
+
+The plugin installs into `~/.codex/plugins/cache/build/build/<version>/` and makes the four portable skills available globally, independent of which workspace you're in.
+
+If you do both (clone AND install), you will see duplicate skill entries in Codex's listing. The two copies are byte-identical and behave identically — only the UI listing is noisier. `.agents/skills/` and `plugins/build/skills/` are both regenerated from the same `source/skills/` tree by `npm run build` and share the same rewrite config by reference in `scripts/transformers/providers.js`.
