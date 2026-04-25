@@ -33,7 +33,7 @@ Create the `.build/plans/` directory if it doesn't exist.
    - Agent 3: Existing tests, test patterns, CI configuration
    - Add more agents if the task spans multiple domains (frontend/backend, multiple services, etc.)
    Wait for all agents to return before proceeding.
-2. Invoke `/build:impl-plan` via the Skill tool for: $ARGUMENTS
+2. Invoke `/build:impl-plan` via the Skill tool for: [orchestrated] $ARGUMENTS
 3. The plan MUST include:
    - **Parallel Workstreams**: Identify which implementation steps are independent and can be assigned to separate agents during Phase 3. Group related work into named workstreams.
    - **Test Strategy**: What tests to write at each step, framework/tooling, manual vs automated.

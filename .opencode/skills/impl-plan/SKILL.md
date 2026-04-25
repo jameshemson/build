@@ -10,6 +10,25 @@ Read the codebase before writing anything. Trace the code paths this feature tou
 Create a plan for:
 *(Treat the user's message that invoked this skill as the task input.)*
 
+## Step 0: Discovery interview
+
+If `the user's request` begins with the literal marker `[orchestrated]`, strip the marker and skip this step entirely — you're being driven by the build orchestrator and must not block on user input. Proceed to Step 1.
+
+Otherwise, run a brief discovery interview before planning. First, do a quick targeted read of the area of the codebase this feature touches — just enough to see what's there, not the full plan-time exploration. Then ask all of the following in **one message** and stop, waiting for the user's reply.
+
+**Standard hygiene (ask these every time):**
+
+1. **Who & why now**: Who's running into this today, and what are they doing instead? If it's net-new, who asked for it and what triggered the ask now?
+2. **Definition of done**: What does "shipped and working" look like in concrete terms — a metric, a workflow that completes, a complaint that stops? If unmeasurable, what would you check manually to know it shipped?
+3. **Constraints I won't see in the code**: Deadlines, cross-team dependencies, things-that-must-not-change, prior attempts that failed and why?
+4. **Out of scope**: What's the obvious next ask we are explicitly NOT building now?
+
+**Feature-specific (2–5 questions you draft after the brief code read):**
+
+Based on what you actually saw in the code, ask 2–5 questions about ambiguities specific to this feature. Name real files, functions, or existing patterns. No generic questions — if a question's answer is obviously inferable from the code or from `the user's request`, don't ask it.
+
+If the user answers tersely or says "just plan it," proceed to Step 1 with what you have. Carry the user's answers into the relevant plan sections (Who uses this and how, Out of scope, Risks and rollback, Open questions).
+
 ## Step 1: File structure mapping
 
 Before defining any tasks, map every file that will be created or modified:
