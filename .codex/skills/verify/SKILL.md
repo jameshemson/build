@@ -9,7 +9,16 @@ Read the [evidence requirements](reference/evidence-requirements.md) for the ful
 
 ## Protocol
 
-### 1. Detect available checks
+### 1. Read workflow artifacts when present
+
+If `.build/plans/*-state.md` exists, read the active state file first. Then read these artifacts when present:
+- `.build/plans/{slug}-requirements.md`
+- `.build/plans/{slug}-plan.md`
+- `.build/plans/{slug}-implementation-summary.md`
+
+If an active workflow is present and one of those required artifacts is missing, record it as missing context and make the final verdict `PARTIAL` unless a command fails. From the plan, extract any `execution_manifest` tasks. Use their `requirements`, `must_haves`, and `verify` fields as plan-declared evidence requirements.
+
+### 2. Detect available checks
 
 Look for project configuration to determine what can be verified:
 - **Tests**: `package.json` scripts (test, jest, vitest), `pytest.ini`, `Cargo.toml`, `go.mod`, test directories
@@ -17,7 +26,7 @@ Look for project configuration to determine what can be verified:
 - **Type check**: `tsconfig.json`, `mypy.ini`, `pyproject.toml` (mypy/pyright config)
 - **Lint**: `package.json` scripts (lint), `.eslintrc`, `ruff.toml`, `Cargo.toml` (clippy)
 
-### 2. Run each available check
+### 3. Run each available check
 
 For each check that's available:
 1. Identify the exact command
@@ -27,7 +36,15 @@ For each check that's available:
 
 For checks that aren't available, record `N/A` with a brief note (e.g., "no test suite found").
 
-### 3. Report what actually happened
+### 4. Run plan-declared verification
+
+For each unique `verify` command in `execution_manifest`, run the command once. When identical commands appear in multiple tasks, union all associated `requirements` lists and report the combined coverage. For each task, report whether each `must_haves` item has observable evidence in command output, test names, manual evidence text, or changed files.
+
+If no `execution_manifest` is present, this section is a no-op; rely solely on the available-checks results from step 3.
+
+If a command fails, final verdict is `FAILED`. If commands pass but any `REQ-*` has no fresh evidence, any `must_haves` item lacks evidence, or required workflow artifacts are missing, final verdict is `PARTIAL` with an `uncovered requirements` section. If all available checks and plan-declared evidence pass, final verdict is `VERIFIED`.
+
+### 5. Report what actually happened
 
 ## Banned phrases
 
@@ -69,6 +86,12 @@ Command: [exact command run]
 Result: PASS / FAIL / N/A
 Output:
 [actual output]
+
+### Plan-declared evidence
+Required artifacts: [present / missing list]
+Manifest commands: [commands run, de-duplicated]
+Requirement coverage: [REQ-* covered / uncovered requirements]
+must_haves evidence: [covered / missing]
 
 ### Verdict
 VERIFIED - all available checks pass

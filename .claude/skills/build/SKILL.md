@@ -14,10 +14,15 @@ Look in `.build/plans/` for any `*-state.md` file. If one exists, read it to det
 
 If no state file exists, this is a fresh workflow - generate a short slug from $ARGUMENTS (e.g. "holding-page", "auth-refactor", "api-v2") and start at Phase 1. All files for this workflow use the slug as a prefix:
 - `{slug}-state.md` - workflow state
+- `{slug}-context.md` - repo conventions, user constraints, discovered patterns, assumptions, out-of-scope notes
+- `{slug}-requirements.md` - canonical requirements, decisions, assumptions, acceptance criteria, must_haves
 - `{slug}-plan.md` - implementation plan
 - `{slug}-review.md` - review notes
+- `{slug}-implementation-summary.md` - completed waves, task IDs, files changed, deviations, blockers
+- `{slug}-verify.md` - verification report
+- `{slug}-architect-review.md` - architect review findings
 
-Also read the plan and review files if they exist - these carry context from previous phases.
+Also read the artifacts required for the current phase - these carry context from previous phases. Always write the artifact the next phase needs before updating state to that phase.
 
 Create the `.build/plans/` directory if it doesn't exist.
 
@@ -35,27 +40,39 @@ Create the `.build/plans/` directory if it doesn't exist.
    Wait for all agents to return before proceeding.
 2. Invoke `/build:impl-plan` via the Skill tool for: [orchestrated] $ARGUMENTS
 3. The plan MUST include:
+   - **Requirements and Decisions**: `REQ-*`, `D-*`, and `A-*` inventories with acceptance criteria.
+   - **Execution Manifest**: `execution_manifest` tasks with `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`.
+   - **Wave 0 Validation Design**: tests, fixtures, commands, or manual evidence for each `REQ-*` before feature implementation.
+   - **Workflow Artifacts**: which `{slug}-*.md` files each phase writes and reads.
    - **Parallel Workstreams**: Identify which implementation steps are independent and can be assigned to separate agents during Phase 3. Group related work into named workstreams.
    - **Test Strategy**: What tests to write at each step, framework/tooling, manual vs automated.
    - **Dependencies**: Which workstreams must complete before others can start.
-4. Save the plan to `.build/plans/{slug}-plan.md`
-5. Write `.build/plans/{slug}-state.md`:
+4. Save the full plan to `.build/plans/{slug}-plan.md`.
+5. Write `.build/plans/{slug}-context.md` with repo conventions, user constraints, discovered patterns, assumptions, and out-of-scope notes from the plan.
+6. Write `.build/plans/{slug}-requirements.md` with canonical `REQ-*`, `D-*`, `A-*`, acceptance criteria, and `must_haves`.
+7. Write `.build/plans/{slug}-state.md`. Capture `base_ref` by running `git rev-parse HEAD` before writing state:
 
 ```
 slug: {slug}
+base_ref: {full git SHA from git rev-parse HEAD}
 phase: review
 task: [one-line description]
 started: [YYYY-MM-DD]
 last_updated: [YYYY-MM-DD]
 complexity: [simple|complex]
+requirements: [REQ-* list]
+decisions: [D-* list]
+assumptions_confirmed: [A-* list with status inferred|confirmed]
 workstreams: [list of named parallel workstreams from the plan]
+execution_manifest: [summary of task IDs, waves, depends_on, files_modified]
+completed_tasks: []
 history:
   - [YYYY-MM-DD HH:MM] Plan created
 ```
 
 Set complexity to `complex` if the plan touches 5+ files or has multiple independent workstreams.
 
-6. **Auto-continue**: Spawn a **Sonnet agent** to run Phase 2 (Review). Pass it the plan file path and instructions to review it. See [Auto-continue](#auto-continue-between-phases).
+8. **Auto-continue**: Spawn a **Sonnet agent** to run Phase 2 (Review). Pass it the slug and artifact paths for `{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`, with instructions to run Phase 2 review from those files. See [Auto-continue](#auto-continue-between-phases).
 
 ---
 
@@ -63,7 +80,7 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
 
 **Trigger**: State says `phase: review`
 
-1. Read `.build/plans/{slug}-plan.md`
+1. Read `.build/plans/{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`
 2. Invoke `/build:review-plan` via the Skill tool
 3. Save review to `.build/plans/{slug}-review.md`
 4. Update state:
@@ -83,15 +100,17 @@ After the Sonnet agent returns:
 
 **Trigger**: State says `phase: implement`
 
-1. Read the plan and review. If there are rework notes from a previous review, address those first.
+1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, and `{slug}-review.md`. If there are rework notes from a previous review, address those first.
 2. Create tasks for each implementation step from the plan. Mark them as you go.
-3. **Deploy agents per workstream**: Look at the plan's parallel workstreams and spin up agents simultaneously:
+3. **Deploy agents per workstream**: Prefer the plan's `execution_manifest`. Route tasks by `wave`, `depends_on`, and `files_modified`. If the manifest is absent or malformed, report that and fall back to the prose implementation order and parallel workstreams:
    - Each independent workstream gets its own agent running in an **isolated worktree** (`isolation: "worktree"`)
-   - Give each agent a clear scope: which files to create/modify, which tests to write, and what "done" looks like
+   - Give each agent only its assigned task IDs, files, `must_haves`, verification commands, and what "done" looks like
    - **Spec compliance**: Each agent must verify its output against its assigned spec from the plan before reporting done. Include in every dispatch prompt: "Before reporting DONE, check your work against the plan's spec for this workstream. Every file, behavior, and test listed in your spec must be accounted for. If you built something the spec didn't ask for, or skipped something it did, report that."
    - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass, spec satisfied), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why), SCOPE_CHANGE (the plan is wrong or incomplete - you discovered something that changes the approach. Describe what you found and why the plan can't proceed as written)."
    - Run agents for independent workstreams in parallel (single message, multiple Agent tool calls)
    - For workstreams with dependencies, wait for the dependency to complete before launching the dependent agent
+   - On resume, skip task IDs already in `completed_tasks` unless `verification_failures`, `architect_fixes`, or `rework_notes` names those task IDs
+   - `completed_tasks` is task-ID memory only. It does not detect post-completion file reverts or edits; if files are reverted, clear the affected task IDs from state or add `rework_notes` naming them before resuming.
    - **Model guidance**: Prefer sonnet for single-file mechanical tasks with clear specs. Prefer opus for multi-file integration, design judgment, or complex logic. This is guidance, not rigid - use judgment.
    - Use background agents for: running tests, linting, typechecking
 4. **Handle agent statuses**:
@@ -100,7 +119,7 @@ After the Sonnet agent returns:
    - **NEEDS_CONTEXT**: Provide the missing information and re-dispatch the agent.
    - **BLOCKED**: Escalate to the user immediately. Do not guess or work around it.
    - **SCOPE_CHANGE**: Halt all running agents for the affected workstreams. Log the discovery to the state file under `scope_changes:` with the agent's description of what was found. If the scope change affects other workstreams (shared assumptions, shared interfaces), halt those too. Update state to `phase: plan` with `rework_notes:` describing the scope change. Return to Phase 1 to revise the plan. Do not continue implementing against a known-broken plan.
-5. **Test as you build** - every agent must write and pass tests for its workstream. Do not batch tests to the end.
+5. **Test as you build** - every agent must write and pass tests for its workstream. Do not batch tests to the end. After each wave completes and its wave-level verification passes, write or update `.build/plans/{slug}-implementation-summary.md` with provisional wave results, files changed, verification commands run, deviations, blockers, and remaining task IDs. Do not append to `completed_tasks` until the wave's worktrees have been merged and integrated verification has passed.
 6. **Merge and integrate**: After parallel agents return, integrate their work using this protocol:
    - Merge each worktree's changes sequentially, in dependency order from the plan (workstreams that others depend on merge first).
    - If a merge succeeds cleanly, continue to the next worktree.
@@ -109,9 +128,11 @@ After the Sonnet agent returns:
      b. If conflicts are in non-overlapping sections of the same file, git's default merge handles them - accept the auto-resolution.
      c. If conflicts require judgment (overlapping changes to the same lines), spawn an Opus agent with both worktrees' diffs, the plan context for the affected workstreams, and instructions to resolve the conflict. The agent must explain its resolution choices in its response. If the resolution agent fails, escalate to the user rather than retrying - merge conflicts requiring human judgment are a reasonable escalation point.
      d. After all merges complete, run the full test suite to verify the integrated code works. If tests fail, treat as a verification failure (return to implement phase for the affected area).
-7. **Mid-review gate**: After all workstreams complete and merge (before verify), spawn a **Sonnet agent** for mid-review (Phase 3b). Pass it the plan, review, and state file paths plus a summary of what was built. For complex changes (state says `complexity: complex`), also run mid-reviews after each major workstream completes. When the agent returns, address any fixes needed. If it returns RETHINK, treat as a scope change — return to Phase 1 with rework notes.
+   - After a wave's worktrees are merged and integrated verification passes in the main worktree, append that wave's task IDs to `completed_tasks` and update `.build/plans/{slug}-implementation-summary.md` with final integrated status. Store task IDs only, such as `T-001`; do not store checksums or commit IDs.
+7. **Mid-review gate**: After all workstreams complete and merge (before verify), spawn a **Sonnet agent** for mid-review (Phase 3b). Pass it the plan, review, state, requirements, context, and implementation-summary paths plus a summary of what was built. For complex changes (state says `complexity: complex`), also run mid-reviews after each major workstream completes. When the agent returns, address any fixes needed. If it returns RETHINK, treat as a scope change — return to Phase 1 with rework notes.
 8. Commit working chunks with clear messages as you go.
 9. When all implementation is done and tests pass:
+   - Update `.build/plans/{slug}-implementation-summary.md` with final implementation state, completed waves, completed task IDs, files changed, deviations from plan, blockers, and verification commands run during implementation
    - Update state to `phase: verify`
    - Append to history
    - **Auto-continue**: Proceed to Phase 3c (Verify).
@@ -122,7 +143,7 @@ After the Sonnet agent returns:
 
 **Trigger**: State says `phase: mid-review`, or spawned inline during Phase 3
 
-1. Read the plan, review, and state (which notes what's done/remaining)
+1. Read the plan, review, requirements, context, implementation summary if present, and state (which notes what's done/remaining)
 2. Review changes made so far against the plan
 3. Run tests, check for issues
 4. **Rethink check**: Given what was learned during implementation (surprises, unexpected complexity, assumptions that turned out wrong), is the plan still the right approach? If the remaining work would be better served by a revised plan, return RETHINK with reasons.
@@ -140,12 +161,13 @@ After the Sonnet agent returns:
 
 **Trigger**: State says `phase: verify`
 
-1. Invoke `/build:verify` via the Skill tool
-2. If **VERIFIED**: Update state to `phase: architect-review`. Auto-continue to Phase 4.
-3. If **FAILED**: Update state back to `phase: implement` with `verification_failures:` field listing what failed. Address failures and re-verify.
-4. If **PARTIAL** (some checks unavailable): Note what's unavailable. Proceed to Phase 4 - missing check categories are not blockers, but the architect reviewer should know.
-5. Save the verification report to `.build/plans/{slug}-verify.md`
-6. Append to history
+1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-plan.md`, and `{slug}-implementation-summary.md`
+2. Invoke `/build:verify` via the Skill tool
+3. Save the verification report to `.build/plans/{slug}-verify.md` before changing phase.
+4. If **VERIFIED**: Update state to `phase: architect-review`. Auto-continue to Phase 4.
+5. If **FAILED**: Update state back to `phase: implement` with `verification_failures:` field listing what failed. Address failures and re-verify.
+6. If **PARTIAL** (some checks unavailable, artifacts missing, uncovered requirements, or missing `must_haves` evidence): Note what's unavailable. Proceed to Phase 4 - gaps are not hidden, and architect review must account for them.
+7. Append to history
 
 ---
 
@@ -153,10 +175,10 @@ After the Sonnet agent returns:
 
 **Trigger**: State says `phase: architect-review`
 
-1. Read the full diff since the workflow started (use git log/diff against the base)
-2. Read the original plan and review for intent
-3. Read the verification report from Phase 3c
-4. Invoke `/build:architect-review` via the Skill tool
+1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. Stop and report any missing artifact before reviewing.
+2. Read the full diff since the workflow started. If `base_ref` exists in state, use `git diff {base_ref}...HEAD`; otherwise fall back to current diff behavior and report `base_ref unavailable`.
+3. Invoke `/build:architect-review` via the Skill tool
+4. Save the review to `.build/plans/{slug}-architect-review.md` before changing phase.
 5. Update state:
    - **PASS** or **PASS_WITH_NOTES**: `phase: complete`
    - **FAIL**: `phase: implement`, add `architect_fixes:` field with specific issues

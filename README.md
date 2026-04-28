@@ -55,13 +55,28 @@ See [HARNESSES.md](HARNESSES.md) for the full capability matrix and install stor
 
 `/build` drives a 5-phase cycle:
 
-1. **Plan** (Opus) - Read the codebase, create an implementation plan with parallel workstreams, observability requirements, and dependency audit
-2. **Review** (Sonnet, forked context) - Adversarial senior engineer review: placeholder scan, workstream independence check, test coverage mapping
-3. **Implement** - Parallel agents in isolated worktrees, with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans. Circuit breakers prevent runaway retries.
-4. **Verify** - Run tests, build, type checks. Security-specific evidence for auth, injection, secrets, CSRF. No claims without fresh output.
-5. **Architect Review** (Opus, forked context) - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, test quality, dependency audit
+1. **Plan** (Opus) - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit an `execution_manifest` with `wave`, `depends_on`, `files_modified`, `must_haves`, `verify`, and `done`
+2. **Review** (Sonnet, forked context) - Adversarial senior engineer review: placeholder scan, workstream independence check, requirement/decision coverage, wave graph validation, test coverage mapping
+3. **Implement** - Parallel agents in isolated worktrees, routed by the manifest when available, with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans. Circuit breakers prevent runaway retries.
+4. **Verify** - Run tests, build, type checks, and plan-declared verification commands. Requirement coverage and missing `must_haves` evidence are reported explicitly. No claims without fresh output.
+5. **Architect Review** (Opus, forked context) - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, weak-test audit, dependency audit
 
 The orchestrator manages state, auto-continues between phases, and deploys model-appropriate agents. It resolves merge conflicts through a structured protocol. Give it a feature description; it builds it.
+
+`/build` is file-backed. Each workflow writes durable artifacts under `.build/plans/` so later phases and fresh agents do not depend on chat history alone:
+
+- `{slug}-state.md` - current phase, `base_ref`, task IDs, completed tasks, blockers, history
+- `{slug}-context.md` - repo conventions, user constraints, discovered patterns, assumptions, out-of-scope notes
+- `{slug}-requirements.md` - canonical requirements, decisions, assumptions, acceptance criteria, `must_haves`
+- `{slug}-plan.md` - full implementation plan plus execution manifest
+- `{slug}-review.md` - plan review findings and verdict
+- `{slug}-implementation-summary.md` - completed waves, files changed, deviations, blockers
+- `{slug}-verify.md` - command evidence, requirement coverage, verification verdict
+- `{slug}-architect-review.md` - final architecture review findings and verdict
+
+Skill prompts are intentionally kept compact. Detailed planning rules live in reference files, and `npm test` enforces hard line ceilings for the main skill prompts.
+
+Generated skill outputs are committed artifacts. When changing `source/skills/`, run `npm run build` and commit the source changes, regenerated provider outputs, and any test updates together. `npm run check-sync` intentionally fails on an uncommitted source/output change set because it compares generated outputs against git.
 
 ## Standalone use
 

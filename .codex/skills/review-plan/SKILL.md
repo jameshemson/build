@@ -15,7 +15,7 @@ Every placeholder violation is a **Critical** finding. If you find more than 3 v
 
 ## Part 1 - Verify what's stated
 
-First, check section completeness. The impl-plan skill requires these sections: Problem, Approach, Who uses this and how, Files to change, Data impact, What existing behavior changes, New dependencies, Access control and authorization, Abuse and edge cases, Out of scope, Risks and rollback, Observability & monitoring, Open questions, Parallel workstreams, Implementation order, Verification. Any missing section (not present, or present without "N/A" justification) is an **Important** finding.
+First, check section completeness. The impl-plan skill requires these sections: Discovery level, Requirements and decisions, Problem, Approach, Who uses this and how, Files to change, Data impact, What existing behavior changes, New dependencies, Access control and authorization, Abuse and edge cases, Out of scope, Risks and rollback, Observability & monitoring, Open questions, Wave 0 validation design, Execution manifest, Workflow artifacts, UI contract, Parallel workstreams, Implementation order, Verification. Any missing section (not present, or present without "N/A" justification) is an **Important** finding.
 
 Then, for each section of the plan, check whether the content is accurate, complete, and consistent with the codebase:
 
@@ -26,6 +26,12 @@ Then, for each section of the plan, check whether the content is accurate, compl
 5. **Stress the edge cases.** For each case listed under "Abuse and edge cases" - is the mitigation real or hand-wavy? Are there obvious cases not listed?
 6. **Verify workstream independence.** If the plan has a "Parallel workstreams" section, cross-reference the file map against the workstream assignments. For each file, check which workstream(s) claim it. If any file appears in more than one independent workstream, flag as **Critical** - parallel worktree agents will produce merge conflicts on that file. Suggest either: (a) moving the shared file into its own sequential step that runs after both workstreams, or (b) merging the conflicting workstreams into one. If no parallel workstreams section exists, note its absence as a **Minor** finding.
 7. **Map test coverage.** For each behaviour change listed in "What existing behavior changes" and each new capability in the implementation steps, check that the "Verification" section names a specific test covering that behaviour. Flag untested behaviour changes as **Important** - these are gaps that will pass verification (no test = no failure) but leave the feature unproven.
+8. **Verify requirement and decision coverage.** Every `REQ-*` and `D-*` in "Requirements and decisions" must appear in the `execution_manifest`, implementation order, and verification plan. If any ID is missing from one of those places, flag it as **Important**. If the missing ID affects authorization, data integrity, security, or destructive behavior, flag it as **Critical**.
+9. **Validate the execution_manifest.** Every manifest task must include `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`. Each `must_haves` item must be observable in code, test output, command output, manual evidence, or changed files. Missing required fields are **Important**; missing `files_modified` or `requirements` is **Critical** because workers cannot be routed safely.
+10. **Check the wave graph.** Dependencies must point to existing task IDs and cannot point to later-wave tasks. Same-wave tasks must not share `files_modified`; shared files must move to a later dependent task or the tasks must be merged. Same-wave file overlap is **Critical**.
+11. **Check Wave 0 validation design.** Each `REQ-*` must have a test, fixture, command, or explicit first implementation task that makes it testable before feature work proceeds. Missing Wave 0 evidence is **Important**.
+12. **Check workflow artifacts for `/build` plans.** If the plan is for `/build`, it must describe `.build/plans/{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, `{slug}-verify.md`, and `{slug}-architect-review.md`. Missing required artifact responsibilities are **Important**.
+13. **Check UI contract when UI files change.** If planned files look like UI/frontend files, the UI contract must name the affected screen or component, required states, responsive checks, and verification method. Missing UI state coverage is **Important**.
 
 ## Part 2 - Open review
 
@@ -36,6 +42,10 @@ Now step back from the checklist. Read the plan as a whole and react to it.
 3. What assumptions might be wrong?
 4. What's the riskiest part?
 5. What would you do differently?
+
+## Test-quality audit
+
+When the plan adds or changes tests, look for weak tests: skipped tests, assertion-free tests, snapshot-only tests for behavior changes, tautological mocks that only assert their own configured return value, and tests that would pass if the production code were removed. Weak tests are **Important** unless they are explicitly limited to non-behavioral rendering snapshots.
 
 ## Output
 
