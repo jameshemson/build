@@ -22,6 +22,8 @@ If `.build/plans/*-state.md` exists, read the active state file first. Then read
 
 If an active workflow is present and one of those required artifacts is missing, record it as missing context and make the final verdict `PARTIAL` unless a command fails. From the plan, extract any `execution_manifest` tasks. Use their `requirements`, `must_haves`, and `verify` fields as plan-declared evidence requirements.
 
+If no active workflow state exists, record workflow artifacts as `N/A - standalone verification`. Missing `.build/plans/` artifacts must not make standalone verification `PARTIAL`.
+
 ### 2. Detect available checks
 
 Look for project configuration to determine what can be verified:
@@ -102,6 +104,8 @@ VERIFIED - all available checks pass
 FAILED - [list what failed]
 PARTIAL - [list what passed], [list what's unavailable]
 ```
+
+This report is fresh verification evidence for `architect-review` in the same conversation. When invoked by `/build`, the orchestrator saves the report to `.build/plans/{slug}-verify.md`; standalone runs do not need to write a disk artifact.
 
 ## Rules
 

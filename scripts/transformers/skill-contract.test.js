@@ -45,6 +45,8 @@ const REQUIRED_TERMS = {
     'PARTIAL',
     'must_haves',
     '{slug}-implementation-summary.md',
+    'N/A - standalone verification',
+    'same conversation',
   ],
   'source/skills/architect-review/SKILL.md': [
     'base_ref',
@@ -53,6 +55,9 @@ const REQUIRED_TERMS = {
     'assertion-free tests',
     'tautological',
     '{slug}-architect-review.md',
+    'current conversation',
+    'standalone review',
+    'Archived plans',
   ],
 };
 

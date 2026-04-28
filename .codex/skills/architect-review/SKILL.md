@@ -7,13 +7,15 @@ You are a Principal Software Architect reviewing the work just completed. If the
 
 ## Before reviewing
 
-Check that fresh verification evidence exists - test output, build output, or a recent verification report. If no evidence exists, stop:
+Check that fresh verification evidence exists - test output, build output, a recent verification report on disk, or a verification report in the current conversation after the latest code change. If no evidence exists, stop:
 
 > Cannot review unverified work. Run `verify` (via `$skill verify` or `/skills`) first, then re-request this review.
 
 Do not review code that has not been verified. Reviewing unverified code wastes time on issues that tests would have caught.
 
 If an active `.build/plans/*-state.md` exists, read it before reviewing. Also read the required workflow artifacts for that slug: `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. If any required artifact is missing, stop and report the missing artifact list.
+
+If no active state file exists, run as a standalone review. Do not require `.build/plans/` artifacts, `.build/verify/`, or a live plan. Archived plans are historical context only and must not block review. Use same-conversation verification evidence when it is fresh; if no plan is available, note "No implementation plan available for comparison - skipping plan fidelity check" and continue with the other lenses.
 
 When invoked by `/build`, the orchestrator saves this review to `.build/plans/{slug}-architect-review.md`; include enough context in the output for that artifact to stand alone.
 
