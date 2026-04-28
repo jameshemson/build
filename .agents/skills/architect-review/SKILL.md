@@ -13,7 +13,7 @@ Check that fresh verification evidence exists - test output, build output, a rec
 
 Do not review code that has not been verified. Reviewing unverified code wastes time on issues that tests would have caught.
 
-If an active `.build/plans/*-state.md` exists, read it before reviewing. Also read the required workflow artifacts for that slug: `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. If any required artifact is missing, stop and report the missing artifact list.
+If an active `.build/plans/*-state.md` exists, read it before reviewing. Treat a state file as active only when the current request is part of that workflow or the state task matches the current work. If the state appears stale or unrelated, report it as ignored and continue in standalone mode. Also read the required workflow artifacts for that slug: `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. If any required artifact is missing, stop and report the missing artifact list.
 
 If no active state file exists, run as a standalone review. Do not require `.build/plans/` artifacts, `.build/verify/`, or a live plan. Archived plans are historical context only and must not block review. Use same-conversation verification evidence when it is fresh; if no plan is available, note "No implementation plan available for comparison - skipping plan fidelity check" and continue with the other lenses.
 

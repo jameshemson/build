@@ -15,7 +15,7 @@ Read the [evidence requirements](reference/evidence-requirements.md) for the ful
 
 ### 1. Read workflow artifacts when present
 
-If `.build/plans/*-state.md` exists, read the active state file first. Then read these artifacts when present:
+If `.build/plans/*-state.md` exists, read the active state file first. Treat a state file as active only when the current request is part of that workflow or the state task matches the current work. If the state appears stale or unrelated, report it as ignored and continue in standalone mode. Then read these artifacts when present:
 - `.build/plans/{slug}-requirements.md`
 - `.build/plans/{slug}-plan.md`
 - `.build/plans/{slug}-implementation-summary.md`

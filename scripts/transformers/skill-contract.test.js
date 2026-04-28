@@ -47,6 +47,7 @@ const REQUIRED_TERMS = {
     '{slug}-implementation-summary.md',
     'N/A - standalone verification',
     'same conversation',
+    'stale or unrelated',
   ],
   'source/skills/architect-review/SKILL.md': [
     'base_ref',
@@ -58,6 +59,7 @@ const REQUIRED_TERMS = {
     'current conversation',
     'standalone review',
     'Archived plans',
+    'stale or unrelated',
   ],
 };
 
