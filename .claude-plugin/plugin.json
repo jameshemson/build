@@ -1,7 +1,7 @@
 {
   "name": "build",
   "description": "Structured build workflow: plan, review, implement, verify, architect review. 6 skills that work standalone or as an orchestrated pipeline.",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "author": {
     "name": "James Hemson"
   },

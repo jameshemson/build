@@ -12,19 +12,29 @@ You are a Principal Software Architect reviewing the work just completed. If the
 
 ## Before reviewing
 
-Check that fresh verification evidence exists - test output, build output, a recent verification report on disk, or a verification report in the current conversation after the latest code change. If no evidence exists, stop:
+First identify both the review target and verification evidence. The current conversation is valid input: do not ignore a user-named target, pasted diff, implementation summary, or earlier `## Verification Report` just because no `.build/plans/` artifact exists.
+
+If an active `.build/plans/*-state.md` exists, read it before reviewing. Treat a state file as active only when the current request is part of that workflow or the state task matches the current work. If the state appears stale or unrelated, report it as ignored and continue in standalone mode. Also read the required workflow artifacts for that slug: `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. If any required artifact is missing, stop and report the missing artifact list.
+
+For an active workflow, `{slug}-verify.md` is the primary verification evidence. A `VERIFIED` or `PARTIAL` report satisfies the precondition; review the work and account for any `PARTIAL` gaps in the findings. Stop only if `{slug}-verify.md` is missing, reports `FAILED`, or is older than the latest code change.
+
+If no active state file exists, run as a standalone review. Do not require `.build/plans/` artifacts, `.build/verify/`, or a live plan. Use the user's request as the review brief. Review current repository changes by running `git status --short` and `git diff HEAD`, plus any untracked files named by status or the user. If there is no repo diff, review any diff, file list, plan, or implementation summary in the current conversation. Archived plans are historical context only and must not block review.
+
+If standalone mode has neither repository changes nor a review target in the current conversation, stop:
+
+> Cannot identify work to review. Provide a diff, file list, implementation summary, or make code changes, then re-request this review.
+
+Use same-conversation verification evidence when it is fresh, including a `## Verification Report` from `verify` after the latest code change. If no plan is available, note "No implementation plan available for comparison - skipping plan fidelity check" and continue with the other lenses.
+
+If, after resolving workflow or standalone mode, no fresh verification evidence exists, stop:
 
 > Cannot review unverified work. Run /build:verify first, then re-request this review.
 
 Do not review code that has not been verified. Reviewing unverified code wastes time on issues that tests would have caught.
 
-If an active `.build/plans/*-state.md` exists, read it before reviewing. Treat a state file as active only when the current request is part of that workflow or the state task matches the current work. If the state appears stale or unrelated, report it as ignored and continue in standalone mode. Also read the required workflow artifacts for that slug: `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. If any required artifact is missing, stop and report the missing artifact list.
-
-If no active state file exists, run as a standalone review. Do not require `.build/plans/` artifacts, `.build/verify/`, or a live plan. Archived plans are historical context only and must not block review. Use same-conversation verification evidence when it is fresh; if no plan is available, note "No implementation plan available for comparison - skipping plan fidelity check" and continue with the other lenses.
-
 When invoked by `/build`, the orchestrator saves this review to `.build/plans/{slug}-architect-review.md`; include enough context in the output for that artifact to stand alone.
 
-For diffs, use `base_ref` from state when available: run `git diff {base_ref}...HEAD`. If `base_ref` is missing, fall back to the current diff behavior and report `base_ref unavailable`.
+For diffs, use `base_ref` from state when available: run `git diff {base_ref}...HEAD`. If `base_ref` is missing, use `git diff HEAD` and report `base_ref unavailable`.
 
 ## Review lenses
 

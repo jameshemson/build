@@ -176,8 +176,8 @@ After the Sonnet agent returns:
 **Trigger**: State says `phase: architect-review`
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. Stop and report any missing artifact before reviewing.
-2. Read the full diff since the workflow started. If `base_ref` exists in state, use `git diff {base_ref}...HEAD`; otherwise fall back to current diff behavior and report `base_ref unavailable`.
-3. Invoke `/build:architect-review` via the Skill tool
+2. Read the full diff since the workflow started. If `base_ref` exists in state, use `git diff {base_ref}...HEAD`; otherwise use `git diff HEAD` and report `base_ref unavailable`.
+3. Invoke `/build:architect-review` via the Skill tool with explicit context: workflow slug, state path, `{slug}-verify.md` path, verification verdict, and review target `git diff {base_ref}...HEAD` (or `git diff HEAD` if `base_ref` is unavailable).
 4. Save the review to `.build/plans/{slug}-architect-review.md` before changing phase.
 5. Update state:
    - **PASS** or **PASS_WITH_NOTES**: `phase: complete`

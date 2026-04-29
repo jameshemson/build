@@ -1,6 +1,6 @@
 {
   "name": "build-plugin",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.js",

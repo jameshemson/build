@@ -1,6 +1,6 @@
 {
   "name": "build",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Structured build workflow — 4 portable skills: impl-plan, review-plan, verify, architect-review.",
   "author": {
     "name": "James Hemson"

@@ -52,6 +52,10 @@ const REQUIRED_TERMS = {
   'source/skills/architect-review/SKILL.md': [
     'base_ref',
     'files_modified',
+    'review target',
+    'git status --short',
+    'git diff HEAD',
+    '## Verification Report',
     'skipped tests',
     'assertion-free tests',
     'tautological',
@@ -126,6 +130,25 @@ test('impl-plan execution_manifest example includes a routable task shape', () =
       `execution_manifest example must include ${JSON.stringify(field)}`,
     );
   }
+});
+
+test('architect-review resolves chat/workflow context before stopping for missing verification', () => {
+  const content = readRel('source/skills/architect-review/SKILL.md');
+  const contextIndex = content.indexOf('First identify both the review target and verification evidence');
+  const standaloneIndex = content.indexOf('Use the user\'s request as the review brief');
+  const stopIndex = content.indexOf('Cannot review unverified work');
+
+  assert.ok(contextIndex >= 0, 'architect-review must start by resolving review context');
+  assert.ok(standaloneIndex >= 0, 'architect-review must define standalone chat review input');
+  assert.ok(stopIndex >= 0, 'architect-review must retain the unverified-work stop');
+  assert.ok(
+    contextIndex < stopIndex,
+    'architect-review must resolve context before the verification stop',
+  );
+  assert.ok(
+    standaloneIndex < stopIndex,
+    'architect-review must consider chat-provided review targets before the verification stop',
+  );
 });
 
 test('source skills stay below hard prompt-size ceilings', () => {
