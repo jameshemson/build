@@ -5,8 +5,7 @@
     "description": "Structured build workflow that plans, reviews, implements with parallel agents, verifies with real evidence, and runs architect review."
   },
   "owner": {
-    "name": "James Hemson",
-    "email": "REDACTED"
+    "name": "James Hemson"
   },
   "plugins": [
     {
