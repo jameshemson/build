@@ -34,6 +34,8 @@ Match heading text case-insensitively. A section headed "## risks and rollback" 
 **Pass**: all 22 sections found.
 **Fail**: one or more sections missing. List which ones.
 
+If the output opens with a line matching `Tier: compact`, required sections are instead: Discovery level, Requirements and decisions, Problem, Approach, Files to change, What existing behavior changes, Execution manifest, Implementation order, Verification (plus triggered extras). Grade against that list.
+
 ### zero-placeholders
 Scan the output for banned placeholder patterns. The full banned list is in `impl-plan/reference/plan-quality.md`. Key patterns to scan for:
 - "TBD", "TODO", "to be determined"

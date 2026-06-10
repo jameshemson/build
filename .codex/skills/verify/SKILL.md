@@ -109,5 +109,6 @@ This report is fresh verification evidence for `architect-review` in the same co
 - If a test fails, report the failure. Do not fix it. Fixing is the implementation phase's job.
 - Evidence from before the most recent code change is stale. Re-run.
 - A project with no tests gets `Tests: N/A`. That's an honest report, not a failure.
+- Use non-interactive command variants: `npx vitest run` not `npx vitest`, `npx jest --ci`, `CI=1 npm test`. A watch-mode command that never exits is not evidence — if a command waits for input or file changes, kill it and re-run the non-interactive variant.
 
 *(Treat the user's message that invoked this skill as the task input.)*

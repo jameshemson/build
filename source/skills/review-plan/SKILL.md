@@ -11,6 +11,8 @@ Review the implementation plan as a skeptical senior engineer. Your job is to fi
 
 $ARGUMENTS
 
+If the argument names a file path, read that file — it is the plan under review. If sibling artifacts exist beside it (`{slug}-requirements.md`, `{slug}-context.md`), read those too before reviewing.
+
 ## Part 0 - Placeholder scan
 
 Before reviewing substance, scan the entire plan for banned placeholder language. Reference the [plan quality rules](../impl-plan/reference/plan-quality.md) for the full list of banned patterns.
@@ -20,6 +22,8 @@ Every placeholder violation is a **Critical** finding. If you find more than 3 v
 ## Part 1 - Verify what's stated
 
 First, check section completeness. The impl-plan skill requires these sections: Discovery level, Requirements and decisions, Problem, Approach, Who uses this and how, Files to change, Data impact, What existing behavior changes, New dependencies, Access control and authorization, Abuse and edge cases, Out of scope, Risks and rollback, Observability & monitoring, Open questions, Wave 0 validation design, Execution manifest, Workflow artifacts, UI contract, Parallel workstreams, Implementation order, Verification. Any missing section (not present, or present without "N/A" justification) is an **Important** finding.
+
+Exception: if the plan opens with `Tier: compact`, the required sections are: Discovery level, Requirements and decisions, Problem, Approach, Files to change, What existing behavior changes, Execution manifest, Implementation order, Verification, plus any triggered extras the plan's own file map implies (data, dependency, UI, or access-control changes). A compact tier claimed for a change whose file map spans multiple non-trivial files is itself an **Important** finding — compactness is for skip/quick_verify discovery levels only.
 
 Then, for each section of the plan, check whether the content is accurate, complete, and consistent with the codebase:
 

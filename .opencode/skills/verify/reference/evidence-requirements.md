@@ -25,7 +25,7 @@ Every claim requires specific evidence. No exceptions.
 
 ### Node.js / TypeScript
 ```
-Tests:      npm test / npx jest / npx vitest
+Tests:      CI=1 npm test / npx jest --ci / npx vitest run
 Build:      npm run build / npx tsc
 Types:      npx tsc --noEmit
 Lint:       npm run lint / npx eslint .
@@ -61,6 +61,15 @@ If unsure, check these files in order:
 3. `Cargo.toml` / `pyproject.toml` / `go.mod`
 4. CI config (`.github/workflows/`, `.gitlab-ci.yml`)
 5. `README.md` (often documents how to run tests)
+
+## Non-Interactive Execution
+
+Evidence requires a command that exits. Watch modes (`vitest` default, `jest --watch`, `tsc --watch`, dev servers) do not exit and produce no verdict.
+
+- Prefer explicit run-once forms: `npx vitest run`, `npx jest --ci`, `tsc --noEmit`.
+- Set `CI=1` when invoking package scripts you didn't write — most runners disable watch under CI.
+- If a command produces output then sits idle waiting for keys or file changes, kill it, record nothing from that run, and re-run the non-interactive variant.
+- Long suites: let them finish. If a suite genuinely cannot finish in the session, record the exact command, how long it ran, and report that check as N/A with that note — never report a partial run as PASS.
 
 ## Freshness Rules
 
