@@ -6,6 +6,8 @@ Each assertion has an ID, a target skill type, and exact checking instructions. 
 
 ### has-all-sections
 Check that the output contains headings for all required impl-plan sections:
+- Discovery level
+- Requirements and decisions
 - Problem
 - Approach
 - Who uses this and how
@@ -19,13 +21,17 @@ Check that the output contains headings for all required impl-plan sections:
 - Risks and rollback
 - Observability (or "Observability & monitoring")
 - Open questions
+- Wave 0 validation design
+- Execution manifest
+- Workflow artifacts
+- UI contract
 - Parallel workstreams
 - Implementation order
 - Verification
 
 Match heading text case-insensitively. A section headed "## risks and rollback" or "## Risks & Rollback" both count. If a section says "N/A" with a reason, that counts as present.
 
-**Pass**: all 16 sections found.
+**Pass**: all 22 sections found.
 **Fail**: one or more sections missing. List which ones.
 
 ### zero-placeholders
@@ -65,6 +71,16 @@ Check that a "Parallel workstreams" section exists and contains at least one nam
 **Pass**: section exists with at least one fully-defined workstream.
 **Fail**: section missing, or workstreams lack required fields.
 
+### manifest-valid
+Find a fenced ```yaml block containing `execution_manifest:`. For each task entry (lines beginning `- id:`), check all eight fields are present: `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, `done`.
+**Pass**: block exists and every task has all eight fields.
+**Fail**: no block found, or list each task ID with its missing fields.
+
+### requirements-covered
+Extract every `REQ-*` ID from the "Requirements and decisions" section. For each ID, check (a) it appears in at least one manifest task's `requirements` list, and (b) it appears in the "Verification" or "Wave 0 validation design" section.
+**Pass**: every REQ ID satisfies both (a) and (b).
+**Fail**: list each REQ ID and which check it fails.
+
 ## review-plan assertions
 
 ### catches-placeholder-language
@@ -86,7 +102,7 @@ The flawed plan fixture lists `src/api/routes.ts` in both the "api-endpoints" an
 **Fail**: overlap not flagged.
 
 ### findings-have-severity
-Check that every distinct finding in the review output is tagged with a severity level: Critical, Important, or Minor.
+Check that every distinct finding in the review output is tagged with a severity level: Critical, Important, or Minor. Also applied to architect-review outputs.
 
 **Pass**: every finding has a severity tag.
 **Fail**: list findings without severity tags.
@@ -102,6 +118,20 @@ Check that the review output contains zero findings tagged as Critical.
 
 **Pass**: no Critical-severity findings.
 **Fail**: list the Critical findings.
+
+## architect-review assertions
+
+### architect-verdict-present
+Check the output contains a Verdict heading or line with exactly one of: PASS, PASS_WITH_NOTES, FAIL.
+**Pass**: exactly one verdict keyword as the verdict. **Fail**: none or ambiguous.
+
+### catches-tautological-test
+The fixture diff adds `tests/clamp.test.js` containing a test whose mock returns 7 and whose only assertion checks that the mock returned 7. Check the review flags this test as tautological, self-asserting, mock-only, or testing the mock instead of the code.
+**Pass**: the test or file is flagged with one of those characterizations. **Fail**: not flagged.
+
+### catches-unplanned-file
+The fixture plan's file map does not include `src/extra-helper.js`, but the diff creates it. Check the review flags it as created-but-not-planned, an undocumented scope change, or a plan-fidelity deviation.
+**Pass**: extra-helper is flagged. **Fail**: not flagged.
 
 ## verify assertions
 
@@ -133,3 +163,11 @@ Check that the output contains one of the three verify verdicts: VERIFIED, FAILE
 
 **Pass**: exactly one verdict keyword present.
 **Fail**: no verdict found, or verdict is ambiguous.
+
+### verdict-failed
+Check the verdict is FAILED (not VERIFIED, not PARTIAL).
+**Pass**: verdict is FAILED. **Fail**: any other or missing verdict.
+
+### failure-evidence-shown
+Check the output quotes real failing test-runner output: a nonzero fail count, an assertion error, or a stack trace from the executed command — not a prose claim that tests failed.
+**Pass**: actual failure output quoted. **Fail**: failure only described, never shown.

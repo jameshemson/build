@@ -1,0 +1,5 @@
+{
+  "name": "eval-failing-fixture",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}

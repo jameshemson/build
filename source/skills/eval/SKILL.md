@@ -51,9 +51,19 @@ You are running an eval for the review-plan skill.
 ```
 You are running an eval for the verify skill.
 
-1. Invoke /build:verify via the Skill tool.
+1. Invoke /build:verify via the Skill tool. If the test case's "target" is not ".", pass this argument: "Verify the project at {this-skill-dir}/{target}. Run all commands inside that directory." Otherwise pass no argument.
 2. Save the complete verification output to {run-dir}/{eval-id}/output.md using the Write tool.
 3. Report DONE when the file is written.
+```
+
+**For `architect-review` test cases** (has `"input_fixture"` field, skill is "architect-review"):
+```
+You are running an eval for the architect-review skill.
+
+1. Read all three files in {this-skill-dir}/{input_fixture}: plan.md, verify-report.md, diff.patch.
+2. Invoke /build:architect-review via the Skill tool with this argument: "Review the diff provided in this conversation (diff.patch content) against the plan provided (plan.md content). The verification report in context is fresh evidence for this work. This is a standalone review of fixture content - do not run git commands to find a target."
+3. Save the complete review output to {run-dir}/{eval-id}/output.md using the Write tool.
+4. Report DONE when the file is written.
 ```
 
 ## Step 6: Spawn grader agents (parallel, after all runners complete)

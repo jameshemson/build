@@ -10,7 +10,9 @@
         "zero-placeholders",
         "file-map-matches-steps",
         "steps-are-specific",
-        "workstreams-defined"
+        "workstreams-defined",
+        "manifest-valid",
+        "requirements-covered"
       ]
     },
     {
@@ -45,6 +47,18 @@
         "output-included",
         "verdict-present"
       ]
+    },
+    {
+      "id": "verify-reports-failure",
+      "skill": "verify",
+      "target": "fixtures/failing-project",
+      "assertions": ["verdict-failed", "failure-evidence-shown", "commands-shown"]
+    },
+    {
+      "id": "architect-review-catches-flaws",
+      "skill": "architect-review",
+      "input_fixture": "fixtures/architect-review",
+      "assertions": ["architect-verdict-present", "findings-have-severity", "catches-tautological-test", "catches-unplanned-file"]
     }
   ]
 }
