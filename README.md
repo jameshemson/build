@@ -93,13 +93,12 @@ Each skill sets its own model for standalone runs:
 
 | Skill | Model | Effort | Context |
 |-------|-------|--------|---------|
-| `/build:impl-plan` | Fable | High | inherited |
+| `/build:impl-plan` | Opus | High | inherited |
 | `/build:review-plan` | Sonnet | default | fork |
-| `/build:architect-review` | Fable | High | fork |
+| `/build:architect-review` | Opus | High | fork |
 | `/build:verify` | inherited | inherited | inherited |
 
-The orchestrator's agent parameters take precedence over skill frontmatter.
-Fable pins require Fable model access. Without it, change `model: fable` back to `model: opus` in `source/skills/impl-plan/SKILL.md` and `source/skills/architect-review/SKILL.md` and run `npm run build` (or edit the two installed `.claude/skills/*/SKILL.md` copies directly).
+Skill frontmatter takes precedence: a skill invoked from inside an orchestrator-spawned agent still runs on its own pinned model, not the agent's (verified empirically — a Haiku agent invoking `review-plan` executes on Sonnet). The orchestrator's `build/{slug}` dispatch agents (implementation, merge-conflict resolution) accept Fable via the Agent model parameter; skill frontmatter does not currently resolve the `fable` alias (it falls back silently to the invoking model), which is why the two judgment skills pin Opus.
 
 ## License
 
