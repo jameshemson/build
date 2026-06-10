@@ -41,6 +41,9 @@ const REQUIRED_TERMS = {
     'state-schema.md',
     'Multiple state files',
     'aborted',
+    'git status --porcelain',
+    'build/{slug}',
+    'Never push',
   ],
   'source/skills/verify/SKILL.md': [
     'execution_manifest',
