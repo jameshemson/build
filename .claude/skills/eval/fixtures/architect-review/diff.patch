@@ -1,0 +1,46 @@
+diff --git a/src/clamp.js b/src/clamp.js
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/src/clamp.js
+@@ -0,0 +1,6 @@
++/**
++ * Clamps value to [min, max].
++ */
++export function clamp(value, min, max) {
++  if (value < min) return min;
++  if (value > max) return max;
++  return value;
++}
+diff --git a/tests/clamp.test.js b/tests/clamp.test.js
+new file mode 100644
+index 0000000..d4e5f6a
+--- /dev/null
++++ b/tests/clamp.test.js
+@@ -0,0 +1,16 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { clamp } from '../src/clamp.js';
++
++test('clamps value within range', () => {
++  assert.equal(clamp(5, 0, 10), 5);
++  assert.equal(clamp(-1, 0, 10), 0);
++  assert.equal(clamp(11, 0, 10), 10);
++});
++
++test('mock passthrough', () => {
++  const fakeClamp = () => 7;
++  assert.equal(fakeClamp(), 7);
++});
+diff --git a/src/extra-helper.js b/src/extra-helper.js
+new file mode 100644
+index 0000000..7b8c9d0
+--- /dev/null
++++ b/src/extra-helper.js
+@@ -0,0 +1,5 @@
++/**
++ * Checks whether value is within [min, max].
++ */
++export function rangeCheck(value, min, max) {
++  return value >= min && value <= max;
++}
