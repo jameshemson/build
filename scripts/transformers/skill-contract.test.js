@@ -18,7 +18,7 @@ const REQUIRED_TERMS = {
     'depends_on',
     'Workflow artifacts',
     'UI contract',
-    'model: fable',
+    'model: opus',
     'Tier: compact',
     'Saving the plan',
   ],
@@ -78,7 +78,7 @@ const REQUIRED_TERMS = {
     'standalone review',
     'Archived plans',
     'stale or unrelated',
-    'model: fable',
+    'model: opus',
     'Forces FAIL',
   ],
 };
