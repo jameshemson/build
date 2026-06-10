@@ -19,6 +19,8 @@ const REQUIRED_TERMS = {
     'Workflow artifacts',
     'UI contract',
     'model: fable',
+    'Tier: compact',
+    'Saving the plan',
   ],
   'source/skills/review-plan/SKILL.md': [
     'REQ-',
@@ -29,6 +31,7 @@ const REQUIRED_TERMS = {
     'files_modified',
     'must_haves',
     'required artifact',
+    'Tier: compact',
   ],
   'source/skills/build/SKILL.md': [
     'base_ref',
@@ -58,6 +61,7 @@ const REQUIRED_TERMS = {
     'N/A - standalone verification',
     'same conversation',
     'stale or unrelated',
+    'vitest run',
   ],
   'source/skills/architect-review/SKILL.md': [
     'base_ref',
@@ -75,6 +79,7 @@ const REQUIRED_TERMS = {
     'Archived plans',
     'stale or unrelated',
     'model: fable',
+    'Forces FAIL',
   ],
 };
 

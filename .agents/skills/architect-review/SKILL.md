@@ -48,6 +48,14 @@ For diffs, use `base_ref` from state when available: run `git diff {base_ref}...
 
 If the plan has an `execution_manifest`, compare changed files against each task's `files_modified`. If `files_modified` is malformed or absent, compare changed files against the prose "Files to change" section and report `execution_manifest unavailable for file-fidelity check`. Check that completed task IDs in state line up with changed files, verification evidence, and `must_haves`.
 
+## Severity and scale
+
+- **Critical**: would cause data loss, security exposure, or broken user-visible behavior if shipped. Forces FAIL.
+- **Important**: must be resolved before ship (correctness risk, missing tests for changed behavior, unjustified scope change). Forces FAIL while unresolved.
+- **Minor**: note for later; compatible with PASS_WITH_NOTES.
+
+If the diff exceeds roughly 2,000 lines, review it in passes — grouped by the plan's workstreams, or by directory when no plan exists — and name each pass and its files in the output so nothing is skipped silently.
+
 ## Output
 
 ```
