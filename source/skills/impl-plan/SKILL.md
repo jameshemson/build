@@ -3,7 +3,7 @@ name: impl-plan
 description: Create a detailed implementation plan. Reads the codebase, traces code paths, maps files, identifies parallel workstreams. Use before building any non-trivial feature.
 user-invocable: true
 argument-hint: "<feature description>"
-model: opus
+model: fable
 effort: high
 ---
 

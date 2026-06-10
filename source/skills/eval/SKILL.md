@@ -125,5 +125,5 @@ Print the summary table to the user. Tell them where the full report is.
 - **All graders in one message.** Don't spawn them one at a time.
 - **Graders run after runners.** Don't spawn graders until all runners have returned.
 - **Don't grade it yourself.** The grader agents grade the output. You just read their grading.json files and compile the report.
-- **Sonnet for everything.** Runners and graders use `model: "sonnet"`. The skills being tested may override this internally (impl-plan forces Opus via frontmatter), but the eval agent itself is Sonnet.
+- **Sonnet for everything.** Runners and graders use `model: "sonnet"`. The skills being tested may override this internally (impl-plan forces Fable via frontmatter), but the eval agent itself is Sonnet.
 - **Don't fix failures.** If a test case fails, report it. Don't modify the skill or rerun. The user reads the report and decides what to change.

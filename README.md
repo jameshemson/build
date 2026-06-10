@@ -93,12 +93,13 @@ Each skill sets its own model for standalone runs:
 
 | Skill | Model | Effort | Context |
 |-------|-------|--------|---------|
-| `/build:impl-plan` | Opus | High | inherited |
+| `/build:impl-plan` | Fable | High | inherited |
 | `/build:review-plan` | Sonnet | default | fork |
-| `/build:architect-review` | Opus | High | fork |
+| `/build:architect-review` | Fable | High | fork |
 | `/build:verify` | inherited | inherited | inherited |
 
 The orchestrator's agent parameters take precedence over skill frontmatter.
+Fable pins require Fable model access. Without it, change `model: fable` back to `model: opus` in `source/skills/impl-plan/SKILL.md` and `source/skills/architect-review/SKILL.md` and run `npm run build` (or edit the two installed `.claude/skills/*/SKILL.md` copies directly).
 
 ## License
 
