@@ -1,5 +1,7 @@
 .DS_Store
 .build/
+# Local working plans (impl-plans, review notes) — not part of the published plugin
+/plans/
 node_modules/
 
 npm-debug.log*

@@ -196,7 +196,6 @@ After the agent returns:
 
 1. Summarise: what was built, what was tested, key decisions made
 2. Archive: move the `{slug}-*.md` files to `.build/plans/archive/[date]-{slug}/`
-3. If the project keeps session digests, save one
 
 **Say**: "Workflow complete. [summary]"
 

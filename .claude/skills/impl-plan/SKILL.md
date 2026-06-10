@@ -161,19 +161,7 @@ How do we know this works? Automated tests, manual checks, and what specifically
 
 ## Self-review
 
-After writing the complete plan, run these checks. Do NOT deliver until all pass:
-
-- [ ] **Spec coverage**: does every requirement in $ARGUMENTS have at least one implementation step?
-- [ ] **Requirement/decision coverage**: every `REQ-*` and `D-*` appears in the execution manifest and verification plan
-- [ ] **Placeholder scan**: zero violations against the banned patterns in plan-quality.md
-- [ ] **Type consistency**: same types, interfaces, and function names used identically throughout
-- [ ] **File map matches steps**: every file in the map appears in the steps, and vice versa
-- [ ] **All sections present**: every section above exists (or says "N/A" with a reason)
-- [ ] **Execution manifest validity**: every task has `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`
-- [ ] **Observability coverage**: every user-facing behaviour in a production-deployed feature has monitoring defined, or the section says "N/A" with justification
-- [ ] **Dependency justification**: every new dependency has license, maintenance status, size impact, and necessity stated
-
-If you find issues, fix them inline. Then move on.
+After writing the complete plan, run every check in the Self-Review Checklist in [plan quality rules](reference/plan-quality.md). Do NOT deliver until all pass. If you find issues, fix them inline, then re-run the failed check.
 
 ---
 

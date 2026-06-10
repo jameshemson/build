@@ -84,25 +84,6 @@ For `/build` workflows, phase artifacts under `.build/plans/` are durable memory
 
 Every phase must write the artifact the next phase needs before updating state to that next phase.
 
-## Skill Size Guidance
-
-Skill size targets guide authoring. Hard ceilings are enforced by `scripts/transformers/skill-contract.test.js`. If the two differ, the hard ceiling is the enforcement boundary and the target is the maintainability goal.
-
-Target ranges:
-- Simple skill: 40-90 lines
-- Review/verify skill: 70-120 lines
-- `impl-plan`: 150-190 lines
-- Claude-only `build`: 230-280 lines
-- Reference file: 80-150 lines
-
-Hard ceilings:
-- `source/skills/build/SKILL.md`: 320 lines
-- `source/skills/impl-plan/SKILL.md`: 230 lines
-- `source/skills/review-plan/SKILL.md`: 160 lines
-- `source/skills/verify/SKILL.md`: 150 lines
-- `source/skills/architect-review/SKILL.md`: 130 lines
-- `source/skills/impl-plan/reference/plan-quality.md`: 220 lines
-
 ## Self-Review Checklist
 
 Run these checks after writing the plan. All must pass before delivering.
