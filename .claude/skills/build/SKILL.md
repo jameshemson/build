@@ -78,27 +78,23 @@ history:
 
 Set complexity to `complex` if the plan touches 5+ files or has multiple independent workstreams.
 
-9. **Auto-continue**: Spawn a **Sonnet agent** to run Phase 2 (Review). Pass it the slug and artifact paths for `{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`, with instructions to run Phase 2 review from those files. See [Auto-continue](#auto-continue-between-phases).
+9. **Auto-continue**: Proceed directly to Phase 2 in this session. `/build:review-plan` pins its own model and context (`model: sonnet`, `context: fork`), so no agent wrapper is needed.
 
 ---
 
-## Phase 2: Review (Sonnet agent)
+## Phase 2: Review
 
 **Trigger**: State says `phase: review`
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`
-2. Invoke `/build:review-plan` via the Skill tool
-3. Save review to `.build/plans/{slug}-review.md`
-4. Update state:
-   - No critical issues: `phase: implement`
-   - Critical issues: `phase: plan`, note what needs rework under a `rework_notes:` field
-5. Append to history
-
-**Return to caller**: whether review passed or needs rework, and a summary of findings.
-
-After the Sonnet agent returns:
-- **Passed**: Continue to Phase 3 (Implement) in the current session.
-- **Rework**: Re-enter Phase 1 to revise the plan, addressing the rework notes.
+2. Invoke `/build:review-plan` via the Skill tool, passing the plan path
+3. Save the review to `.build/plans/{slug}-review.md`
+4. Map the review's one-line verdict:
+   - **"Proceed to implementation"**: update state to `phase: implement`.
+   - **"Proceed with fixes"**: revise `{slug}-plan.md` now, addressing every Important finding; record each change under `review_fixes_applied:` in state and append a history entry; then `phase: implement`. Do not re-run the full review — the mid-review gate covers the revisions.
+   - **"Do not proceed"**: update state to `phase: plan` with `rework_notes:` listing each Critical finding, and re-enter Phase 1.
+   - **No verdict line found**: treat as a phase-agent failure (see Circuit breakers).
+5. Append to history, then continue to the phase the state now names.
 
 ---
 
@@ -171,9 +167,9 @@ After the Sonnet agent returns:
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-plan.md`, and `{slug}-implementation-summary.md`
 2. Invoke `/build:verify` via the Skill tool
 3. Save the verification report to `.build/plans/{slug}-verify.md` before changing phase.
-4. If **VERIFIED**: Update state to `phase: architect-review`. Auto-continue to Phase 4.
+4. If **VERIFIED**: Update state to `phase: architect-review`. Record `verify_verdict: VERIFIED`. Auto-continue to Phase 4.
 5. If **FAILED**: Update state back to `phase: implement` with `verification_failures:` field listing what failed. Address failures and re-verify.
-6. If **PARTIAL** (some checks unavailable, artifacts missing, uncovered requirements, or missing `must_haves` evidence): Note what's unavailable. Proceed to Phase 4 - gaps are not hidden, and architect review must account for them.
+6. If **PARTIAL** (some checks unavailable, artifacts missing, uncovered requirements, or missing `must_haves` evidence): Note what's unavailable. Record `verify_verdict: PARTIAL` and the gap list under `uncovered_requirements:` in state. Proceed to Phase 4 - gaps are not hidden, and architect review must account for them.
 7. Append to history
 
 ---
@@ -201,7 +197,7 @@ After the agent returns:
 
 **Trigger**: State says `phase: complete`
 
-1. Summarise: what was built, what was tested, key decisions made, the workflow branch name, and the merge command for the user (e.g. `git checkout main && git merge build/{slug}`). Do not merge or push yourself.
+1. Summarise: what was built, what was tested, key decisions made, the workflow branch name, and the merge command for the user (e.g. `git checkout main && git merge build/{slug}`). Do not merge or push yourself. If `verify_verdict:` is PARTIAL, the summary MUST include an "Uncovered requirements" heading listing every uncovered `REQ-*` and missing must-have — completion never hides gaps.
 2. Archive: move the `{slug}-*.md` files to `.build/plans/archive/[date]-{slug}/`
 
 **Say**: "Workflow complete. [summary]"
@@ -216,19 +212,12 @@ When the user asks to stop or abandon the workflow: set `phase: aborted` with `h
 
 ## Auto-continue between phases
 
-When a phase completes and the next phase needs a different model, **spawn an Agent** rather than asking the user to switch sessions:
+Skills with pinned frontmatter (`/build:review-plan` → sonnet, `/build:verify`, `/build:architect-review` → opus) are invoked directly via the Skill tool — their frontmatter handles model and context, so no agent wrapper is needed. Spawn an Agent with a model override only where no skill frontmatter applies:
 
-```
-Agent(
-  model: "sonnet",   // or "opus" for implementation phases
-  prompt: "Read .build/plans/{slug}-state.md and run the current phase of /build. [context summary]"
-)
-```
+- **Sonnet agent** for: Mid-Review (Phase 3b)
+- **Opus agents** for: implementation workstreams that need design judgment (see Phase 3 model guidance)
 
-- **Sonnet** for: Review (Phase 2), Mid-Review (Phase 3b)
-- **Opus** for: Plan (Phase 1), Implement (Phase 3), fixes after review
-- Pass the agent a summary of relevant context and file paths so it can work autonomously
-- Wait for the agent result and continue the workflow based on its output
+Pass any spawned agent a summary of relevant context and file paths so it can work autonomously, wait for its result, and continue the workflow from its output.
 
 **Never stop and ask the user to start a new session.** The build loop drives itself.
 
@@ -237,6 +226,7 @@ Agent(
 ## Circuit breakers
 
 - **Agent retry limit**: If an agent for the same workstream fails and is re-dispatched more than 2 times, stop retrying and escalate to the user. Log all failure reasons to the state file under `agent_failures:`. The problem is likely in the plan or the codebase, not a transient failure.
+- **Phase agent failure**: If a spawned phase agent (e.g. mid-review) errors or returns output missing its required verdict, re-dispatch once with the expected output format restated verbatim. On a second failure, run that phase inline in the current session and log both failures under `agent_failures:`. A phase is never skipped because its agent failed.
 - **Phase loop limit**: If the workflow cycles back to the same phase more than 3 times (e.g., implement -> verify -> fail -> implement -> verify -> fail -> implement), halt the workflow and escalate. Log the full cycle history. The problem is systemic.
 - **Scope change limit**: If SCOPE_CHANGE is reported more than twice in a single workflow, halt and escalate. The original feature description is likely underspecified - re-planning won't help without more input from the user.
 

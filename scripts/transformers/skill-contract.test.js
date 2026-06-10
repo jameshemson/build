@@ -44,6 +44,9 @@ const REQUIRED_TERMS = {
     'git status --porcelain',
     'build/{slug}',
     'Never push',
+    'Proceed with fixes',
+    'uncovered_requirements',
+    'review_fixes_applied',
   ],
   'source/skills/verify/SKILL.md': [
     'execution_manifest',
