@@ -3,8 +3,7 @@ name: verify
 description: Evidence-before-claims gate. Runs tests, build, type checks. Reports actual output. No completion claims without fresh evidence.
 user-invocable: true
 argument-hint: "[what to verify]"
-allowed-tools:
-  - Bash(*)
+allowed-tools: Read, Glob, Grep, Bash
 ---
 
 No completion claims without fresh verification evidence.
