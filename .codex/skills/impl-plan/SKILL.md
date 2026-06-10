@@ -46,6 +46,13 @@ This map is the skeleton for the implementation order. Every file here must appe
 
 ## Required sections
 
+### Plan tiers
+
+The discovery level sets the tier:
+
+- **skip** or **quick_verify** → **compact plan**. Open with the line `Tier: compact (discovery level: {level})`. Required sections: Discovery level, Requirements and decisions, Problem, Approach, Files to change (with the Step 1 file map), What existing behavior changes, Execution manifest, Implementation order, Verification. Add these only when triggered: Data impact (schema, migration, or data files change), New dependencies (a dependency is added), UI contract (UI files change), Access control and authorization (routes or permissions change). Omit untriggered sections entirely — do not write "N/A" rows in a compact plan. If `[orchestrated]`, also include Workflow artifacts and Wave 0 validation design.
+- **standard_research** or **deep_dive** → **full plan**: every section below, with "N/A + reason" where one doesn't apply.
+
 ### Discovery level
 State `skip`, `quick_verify`, `standard_research`, or `deep_dive`, and justify it with codebase evidence.
 
@@ -161,4 +168,8 @@ After writing the complete plan, run every check in the Self-Review Checklist in
 
 ---
 
-Every section is required. If a section doesn't apply, say so and briefly explain why - don't skip it silently. The goal is that a reviewer reading this plan can verify what's stated rather than discover what's missing.
+## Saving the plan
+
+Standalone runs (no `[orchestrated]` marker): write the finished plan to `.build/plans/{slug}-plan.md` — derive a short slug from the feature description, create the directory if needed — and tell the user the path. Orchestrated runs: return the plan in your response; the orchestrator saves all artifacts.
+
+Every section required by the tier must be present. If a section doesn't apply, say so and briefly explain why - don't skip it silently. The goal is that a reviewer reading this plan can verify what's stated rather than discover what's missing.
