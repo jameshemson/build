@@ -38,6 +38,9 @@ const REQUIRED_TERMS = {
     '{slug}-context.md',
     '{slug}-requirements.md',
     '{slug}-implementation-summary.md',
+    'state-schema.md',
+    'Multiple state files',
+    'aborted',
   ],
   'source/skills/verify/SKILL.md': [
     'execution_manifest',

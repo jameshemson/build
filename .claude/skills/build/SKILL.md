@@ -10,9 +10,13 @@ You are orchestrating a structured build workflow. You act like Claude Code itse
 
 ## First: Read State
 
-Look in `.build/plans/` for any `*-state.md` file. If one exists, read it to determine the current phase and the workflow slug (the filename prefix, e.g. `holding-page` from `holding-page-state.md`).
+Look in `.build/plans/` for `*-state.md` files (ignore `archive/`). Field formats and lifecycle rules are defined in [state schema](reference/state-schema.md).
 
-If no state file exists, this is a fresh workflow - generate a short slug from $ARGUMENTS (e.g. "holding-page", "auth-refactor", "api-v2") and start at Phase 1. All files for this workflow use the slug as a prefix:
+- **No state file**: fresh workflow. Generate a short slug from $ARGUMENTS (e.g. "holding-page", "auth-refactor"). If the slug collides with an existing state file or archive directory, append `-2` (then `-3`, …). Start at Phase 1.
+- **One state file**: read it. If $ARGUMENTS is empty or describes the same work as its `task:` field, resume at the recorded phase. If $ARGUMENTS describes different work, leave that workflow untouched and start a fresh one with a new slug.
+- **Multiple state files**: read each `task:` field. Resume the one $ARGUMENTS describes. If $ARGUMENTS is non-empty and matches none, start a fresh workflow. If $ARGUMENTS is empty, list the in-flight workflows and ask the user which to resume — choosing between live workflows is the user's call, not a session-switch stop.
+
+All files for a workflow use the slug as a prefix:
 - `{slug}-state.md` - workflow state
 - `{slug}-context.md` - repo conventions, user constraints, discovered patterns, assumptions, out-of-scope notes
 - `{slug}-requirements.md` - canonical requirements, decisions, assumptions, acceptance criteria, must_haves
@@ -141,7 +145,7 @@ After the Sonnet agent returns:
 
 ## Phase 3b: Mid-Review (Sonnet agent)
 
-**Trigger**: State says `phase: mid-review`, or spawned inline during Phase 3
+**Trigger**: Spawned inline during Phase 3 (step 7). This phase never appears in the state file's `phase:` field.
 
 1. Read the plan, review, requirements, context, implementation summary if present, and state (which notes what's done/remaining)
 2. Review changes made so far against the plan
@@ -201,6 +205,12 @@ After the agent returns:
 
 ---
 
+## Aborting a workflow
+
+When the user asks to stop or abandon the workflow: set `phase: aborted` with `halted: true` and `halt_reason: user-abort`, append a history entry, move the `{slug}-*.md` files to `.build/plans/archive/[date]-{slug}-aborted/` (if the directory already exists from a same-day abort, append `-2`), and summarize what was completed, what branch/commits exist, and what was left undone. Never delete state — an aborted workflow must remain reconstructable.
+
+---
+
 ## Auto-continue between phases
 
 When a phase completes and the next phase needs a different model, **spawn an Agent** rather than asking the user to switch sessions:
@@ -244,3 +254,4 @@ When any circuit breaker fires, update the state file with `halted: true`, `halt
 - **Commit often.** Small, working commits > one big commit at the end.
 - **Keep history honest.** Every phase transition gets a timestamped entry. Include what happened, not just "phase changed".
 - **Respect circuit breakers.** Retry limits exist to prevent runaway agents burning tokens on a broken approach. When a limit is hit, escalate to the user with full context of what failed and why - don't work around it or increase the limit.
+- **The schema is the contract.** Field formats and who-writes/who-clears rules live in [state schema](reference/state-schema.md). Reconcile stale fields before acting on them.
