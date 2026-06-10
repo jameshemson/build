@@ -13,7 +13,7 @@ You are orchestrating a structured build workflow. You act like Claude Code itse
 Look in `.build/plans/` for `*-state.md` files (ignore `archive/`). Field formats and lifecycle rules are defined in [state schema](reference/state-schema.md).
 
 - **No state file**: fresh workflow. Generate a short slug from $ARGUMENTS (e.g. "holding-page", "auth-refactor"). If the slug collides with an existing state file or archive directory, append `-2` (then `-3`, …). Start at Phase 1.
-- **One state file**: read it. If $ARGUMENTS is empty or describes the same work as its `task:` field, resume at the recorded phase. If $ARGUMENTS describes different work, leave that workflow untouched and start a fresh one with a new slug.
+- **One state file**: read it. If $ARGUMENTS is empty or describes the same work as its `task:` field, resume at the recorded phase. When resuming, compare `git branch --show-current` with the state's `branch:` field; if they differ, check out the workflow branch before doing anything else. If state has no `branch:` field (pre-upgrade workflow), note that and continue on the current branch. If $ARGUMENTS describes different work, leave that workflow untouched and start a fresh one with a new slug.
 - **Multiple state files**: read each `task:` field. Resume the one $ARGUMENTS describes. If $ARGUMENTS is non-empty and matches none, start a fresh workflow. If $ARGUMENTS is empty, list the in-flight workflows and ask the user which to resume — choosing between live workflows is the user's call, not a session-switch stop.
 
 All files for a workflow use the slug as a prefix:
@@ -36,14 +36,15 @@ Create the `.build/plans/` directory if it doesn't exist.
 
 **Trigger**: No state file, or state says `phase: plan`
 
-1. **Parallel codebase exploration**: Deploy multiple Explore agents simultaneously to understand the codebase. Split by concern area, e.g.:
+1. **Git preflight**: Run `git status --porcelain`. If output is non-empty, stop and show the user the dirty files — the workflow needs a clean tree so `base_ref` diffs and worktree merges contain only workflow changes. (This stop and the multiple-workflow choice are the only allowed pre-start stops.) Then run `git rev-parse HEAD` to capture `base_ref`, and create the workflow branch: `git checkout -b build/{slug}`.
+2. **Parallel codebase exploration**: Deploy multiple Explore agents simultaneously to understand the codebase. Split by concern area, e.g.:
    - Agent 1: Architecture, project structure, build system, existing patterns
    - Agent 2: The specific area(s) of code relevant to $ARGUMENTS
    - Agent 3: Existing tests, test patterns, CI configuration
    - Add more agents if the task spans multiple domains (frontend/backend, multiple services, etc.)
    Wait for all agents to return before proceeding.
-2. Invoke `/build:impl-plan` via the Skill tool for: [orchestrated] $ARGUMENTS
-3. The plan MUST include:
+3. Invoke `/build:impl-plan` via the Skill tool for: [orchestrated] $ARGUMENTS
+4. The plan MUST include:
    - **Requirements and Decisions**: `REQ-*`, `D-*`, and `A-*` inventories with acceptance criteria.
    - **Execution Manifest**: `execution_manifest` tasks with `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`.
    - **Wave 0 Validation Design**: tests, fixtures, commands, or manual evidence for each `REQ-*` before feature implementation.
@@ -51,14 +52,15 @@ Create the `.build/plans/` directory if it doesn't exist.
    - **Parallel Workstreams**: Identify which implementation steps are independent and can be assigned to separate agents during Phase 3. Group related work into named workstreams.
    - **Test Strategy**: What tests to write at each step, framework/tooling, manual vs automated.
    - **Dependencies**: Which workstreams must complete before others can start.
-4. Save the full plan to `.build/plans/{slug}-plan.md`.
-5. Write `.build/plans/{slug}-context.md` with repo conventions, user constraints, discovered patterns, assumptions, and out-of-scope notes from the plan.
-6. Write `.build/plans/{slug}-requirements.md` with canonical `REQ-*`, `D-*`, `A-*`, acceptance criteria, and `must_haves`.
-7. Write `.build/plans/{slug}-state.md`. Capture `base_ref` by running `git rev-parse HEAD` before writing state:
+5. Save the full plan to `.build/plans/{slug}-plan.md`.
+6. Write `.build/plans/{slug}-context.md` with repo conventions, user constraints, discovered patterns, assumptions, and out-of-scope notes from the plan.
+7. Write `.build/plans/{slug}-requirements.md` with canonical `REQ-*`, `D-*`, `A-*`, acceptance criteria, and `must_haves`.
+8. Write `.build/plans/{slug}-state.md`. `base_ref` and `branch` were captured during the git preflight; write both into state:
 
 ```
 slug: {slug}
 base_ref: {full git SHA from git rev-parse HEAD}
+branch: build/{slug}
 phase: review
 task: [one-line description]
 started: [YYYY-MM-DD]
@@ -76,7 +78,7 @@ history:
 
 Set complexity to `complex` if the plan touches 5+ files or has multiple independent workstreams.
 
-8. **Auto-continue**: Spawn a **Sonnet agent** to run Phase 2 (Review). Pass it the slug and artifact paths for `{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`, with instructions to run Phase 2 review from those files. See [Auto-continue](#auto-continue-between-phases).
+9. **Auto-continue**: Spawn a **Sonnet agent** to run Phase 2 (Review). Pass it the slug and artifact paths for `{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`, with instructions to run Phase 2 review from those files. See [Auto-continue](#auto-continue-between-phases).
 
 ---
 
@@ -109,6 +111,7 @@ After the Sonnet agent returns:
 3. **Deploy agents per workstream**: Prefer the plan's `execution_manifest`. Route tasks by `wave`, `depends_on`, and `files_modified`. If the manifest is absent or malformed, report that and fall back to the prose implementation order and parallel workstreams:
    - Each independent workstream gets its own agent running in an **isolated worktree** (`isolation: "worktree"`)
    - Give each agent only its assigned task IDs, files, `must_haves`, verification commands, and what "done" looks like
+   - **Worktrees cannot see `.build/`**: workflow artifacts are normally gitignored, so they do not exist inside isolated worktrees. Dispatch prompts must inline every requirement, file path, must-have, and verification command the agent needs — never tell a workstream agent to read a `.build/plans/` file. Agents must not create or edit anything under `.build/`.
    - **Spec compliance**: Each agent must verify its output against its assigned spec from the plan before reporting done. Include in every dispatch prompt: "Before reporting DONE, check your work against the plan's spec for this workstream. Every file, behavior, and test listed in your spec must be accounted for. If you built something the spec didn't ask for, or skipped something it did, report that."
    - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass, spec satisfied), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why), SCOPE_CHANGE (the plan is wrong or incomplete - you discovered something that changes the approach. Describe what you found and why the plan can't proceed as written)."
    - Run agents for independent workstreams in parallel (single message, multiple Agent tool calls)
@@ -198,7 +201,7 @@ After the agent returns:
 
 **Trigger**: State says `phase: complete`
 
-1. Summarise: what was built, what was tested, key decisions made
+1. Summarise: what was built, what was tested, key decisions made, the workflow branch name, and the merge command for the user (e.g. `git checkout main && git merge build/{slug}`). Do not merge or push yourself.
 2. Archive: move the `{slug}-*.md` files to `.build/plans/archive/[date]-{slug}/`
 
 **Say**: "Workflow complete. [summary]"
@@ -255,3 +258,5 @@ When any circuit breaker fires, update the state file with `halted: true`, `halt
 - **Keep history honest.** Every phase transition gets a timestamped entry. Include what happened, not just "phase changed".
 - **Respect circuit breakers.** Retry limits exist to prevent runaway agents burning tokens on a broken approach. When a limit is hit, escalate to the user with full context of what failed and why - don't work around it or increase the limit.
 - **The schema is the contract.** Field formats and who-writes/who-clears rules live in [state schema](reference/state-schema.md). Reconcile stale fields before acting on them.
+- **Never push or open PRs.** The workflow ends on the local `build/{slug}` branch; publishing is the user's decision.
+- **Workstream agents never touch `.build/`.** Artifacts are orchestrator-owned and invisible inside worktrees.
