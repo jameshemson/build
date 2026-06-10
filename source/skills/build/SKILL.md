@@ -114,7 +114,7 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
    - For workstreams with dependencies, wait for the dependency to complete before launching the dependent agent
    - On resume, skip task IDs already in `completed_tasks` unless `verification_failures`, `architect_fixes`, or `rework_notes` names those task IDs
    - `completed_tasks` is task-ID memory only. It does not detect post-completion file reverts or edits; if files are reverted, clear the affected task IDs from state or add `rework_notes` naming them before resuming.
-   - **Model guidance**: Prefer sonnet for single-file mechanical tasks with clear specs. Prefer opus for multi-file integration, design judgment, or complex logic. This is guidance, not rigid - use judgment.
+   - **Model guidance**: Prefer sonnet for single-file mechanical tasks with clear specs. Prefer fable — or opus when fable is unavailable — for multi-file integration, design judgment, or complex logic. This is guidance, not rigid - use judgment.
    - Use background agents for: running tests, linting, typechecking
 4. **Handle agent statuses**:
    - **DONE**: Proceed. Merge the workstream's changes.
@@ -129,7 +129,7 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
    - If a merge produces conflicts:
      a. Log which files conflict and which workstreams produced them to the state file under `merge_conflicts:`.
      b. If conflicts are in non-overlapping sections of the same file, git's default merge handles them - accept the auto-resolution.
-     c. If conflicts require judgment (overlapping changes to the same lines), spawn an Opus agent with both worktrees' diffs, the plan context for the affected workstreams, and instructions to resolve the conflict. The agent must explain its resolution choices in its response. If the resolution agent fails, escalate to the user rather than retrying - merge conflicts requiring human judgment are a reasonable escalation point.
+     c. If conflicts require judgment (overlapping changes to the same lines), spawn a fable agent (opus when fable is unavailable) with both worktrees' diffs, the plan context for the affected workstreams, and instructions to resolve the conflict. The agent must explain its resolution choices in its response. If the resolution agent fails, escalate to the user rather than retrying - merge conflicts requiring human judgment are a reasonable escalation point.
      d. After all merges complete, run the full test suite to verify the integrated code works. If tests fail, treat as a verification failure (return to implement phase for the affected area).
    - After a wave's worktrees are merged and integrated verification passes in the main worktree, append that wave's task IDs to `completed_tasks` and update `.build/plans/{slug}-implementation-summary.md` with final integrated status. Store task IDs only, such as `T-001`; do not store checksums or commit IDs.
 7. **Mid-review gate**: After all workstreams complete and merge (before verify), spawn a **Sonnet agent** for mid-review (Phase 3b). Pass it the plan, review, state, requirements, context, and implementation-summary paths plus a summary of what was built. For complex changes (state says `complexity: complex`), also run mid-reviews after each major workstream completes. When the agent returns, address any fixes needed. If it returns RETHINK, treat as a scope change — return to Phase 1 with rework notes.
@@ -215,7 +215,7 @@ When the user asks to stop or abandon the workflow: set `phase: aborted` with `h
 Skills with pinned frontmatter (`/build:review-plan` → sonnet, `/build:verify`, `/build:architect-review` → opus) are invoked directly via the Skill tool — their frontmatter handles model and context, so no agent wrapper is needed. Spawn an Agent with a model override only where no skill frontmatter applies:
 
 - **Sonnet agent** for: Mid-Review (Phase 3b)
-- **Opus agents** for: implementation workstreams that need design judgment (see Phase 3 model guidance)
+- **Fable agents** (opus when unavailable) for: implementation workstreams that need design judgment (see Phase 3 model guidance)
 
 Pass any spawned agent a summary of relevant context and file paths so it can work autonomously, wait for its result, and continue the workflow from its output.
 

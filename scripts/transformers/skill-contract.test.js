@@ -18,6 +18,7 @@ const REQUIRED_TERMS = {
     'depends_on',
     'Workflow artifacts',
     'UI contract',
+    'model: fable',
   ],
   'source/skills/review-plan/SKILL.md': [
     'REQ-',
@@ -73,6 +74,7 @@ const REQUIRED_TERMS = {
     'standalone review',
     'Archived plans',
     'stale or unrelated',
+    'model: fable',
   ],
 };
 
