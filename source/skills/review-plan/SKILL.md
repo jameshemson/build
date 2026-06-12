@@ -1,13 +1,13 @@
 ---
 name: review-plan
-description: Review an implementation plan as a skeptical senior engineer. Scans for placeholders, verifies accuracy, finds gaps, assigns severity levels to findings.
+description: Review an implementation plan against its own evidence. Scans for placeholders, verifies accuracy, finds gaps, assigns severity levels to findings.
 user-invocable: true
 argument-hint: "[plan description or path]"
 model: sonnet
 context: fork
 ---
 
-Review the implementation plan as a skeptical senior engineer. Your job is to find everything that would cause problems during implementation.
+Review the implementation plan. Assume every section is weak until the plan's own evidence proves otherwise. Your job is to find everything that would cause problems during implementation.
 
 $ARGUMENTS
 

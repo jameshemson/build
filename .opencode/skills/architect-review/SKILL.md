@@ -1,9 +1,9 @@
 ---
 name: architect-review
-description: Principal Software Architect review of completed work. 10 review lenses with severity levels and structured verdict.
+description: Architecture review of completed work. 10 review lenses with severity levels and structured verdict.
 ---
 
-You are a Principal Software Architect reviewing the work just completed. If there's a user story or implementation plan for this work, read it first so you know the intent.
+Review the work just completed. Implementation summaries are claims, not evidence: assume each lens fails until the diff or fresh verification output proves it passes. If there's a user story or implementation plan for this work, read it first so you know the intent.
 
 ## Before reviewing
 
@@ -33,9 +33,9 @@ For diffs, use `base_ref` from state when available: run `git diff {base_ref}...
 
 ## Review lenses
 
-1. Does this solve the actual problem?
+1. Does this solve the actual problem? Work goal-backward: read the plan's `REQ-*` list and check each is observable in the diff or in fresh verify output. REQ unobservable in code → **Important**. REQ asserted in the implementation summary but undetectable in the diff → **Critical**. REQ covered only by a test that asserts nothing meaningful → **Critical** (cross-reference lens 9).
 2. Trade-offs: What are we gaining/losing?
-3. Anti-patterns or technical debt?
+3. Anti-patterns or technical debt? Measure first — run, from this skill's directory: `git diff --name-only {base_ref}...HEAD | tr '\n' '\0' | xargs -0 sh reference/shape-scan.sh` (fall back to `git diff --name-only HEAD` when `base_ref` is unavailable). Report the SUMMARY numbers in Findings even when the verdict is PASS. Severity: any function over 150 lines, or magic-number count above 25 → **Important**; any function over 80 lines, or magic-number count above 10 → **Minor**. Never estimate these numbers in prose: if the script cannot run or marks a file UNSUPPORTED, report that and skip the metric for that file. Then judge: do the measured hotspots plus your own reading reveal anti-patterns or debt worth a finding?
 4. Consistency: Does this follow the patterns used elsewhere in the codebase, or does it introduce a new way of doing something the app already does differently?
 5. Non-functional concerns (scalability, security, maintainability, observability)?
 6. What could go wrong? Edge cases, failure modes?

@@ -8,8 +8,8 @@ A structured build workflow for Claude Code (and four portable skills for OpenCo
 |-------|-------------|
 | `/build` | Orchestrates the full workflow: plan, review, implement, verify, architect review |
 | `/build:impl-plan` | Creates a detailed implementation plan by reading the codebase first |
-| `/build:review-plan` | Reviews a plan as a skeptical senior engineer with severity-tagged findings |
-| `/build:architect-review` | Principal architect review of completed work across 10 lenses with structured verdict |
+| `/build:review-plan` | Reviews a plan against its own evidence with severity-tagged findings |
+| `/build:architect-review` | Architecture review of completed work across 10 lenses with structured verdict |
 | `/build:verify` | Runs tests, build, type checks and reports actual evidence |
 | `/build:eval` | Runs test cases against build skills, grades outputs against assertions |
 
