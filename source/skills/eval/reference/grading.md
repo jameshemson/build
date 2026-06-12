@@ -170,6 +170,22 @@ Check that the output contains one of the three verify verdicts: VERIFIED, FAILE
 Check the verdict is FAILED (not VERIFIED, not PARTIAL).
 **Pass**: verdict is FAILED. **Fail**: any other or missing verdict.
 
+### verdict-verified
+Check the verdict is VERIFIED (not FAILED, not PARTIAL).
+**Pass**: verdict is VERIFIED. **Fail**: any other or missing verdict.
+
+### debt-scan-reported
+Check the output contains a Debt scan section reporting how many files were scanned and a PASS, FAIL, or N/A result.
+**Pass**: section present with a result. **Fail**: section absent or missing a result.
+
+### debt-unreferenced-flagged
+The fixture's `src/cache.js` contains a FIXME with no same-line issue or `DEF-*` reference. Check the Debt scan lists that marker as unreferenced (path, line, and marker text) and the FAILED verdict cites unreferenced debt markers.
+**Pass**: marker listed as unreferenced and tied to the verdict. **Fail**: marker missing, listed as referenced, or the verdict reason is absent.
+
+### deferred-marker-listed
+The fixture's `src/cache.js` contains a FIXME carrying `DEF-001` on the same line. Check the Debt scan still lists this marker, tagged as referenced — deferrals must be visible, never silent — while the verdict remains VERIFIED.
+**Pass**: marker listed as referenced. **Fail**: marker absent from the report.
+
 ### failure-evidence-shown
 Check the output quotes real failing test-runner output: a nonzero fail count, an assertion error, or a stack trace from the executed command — not a prose claim that tests failed.
 **Pass**: actual failure output quoted. **Fail**: failure only described, never shown.

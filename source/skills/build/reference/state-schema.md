@@ -35,3 +35,4 @@ The state file (`.build/plans/{slug}-state.md`) is the source of truth for the w
 1. **Audit-trail fields are append-only.** Fields marked "never (audit trail)" in the Cleared by column must never be overwritten or truncated — append new entries only.
 2. **Stale fields must be reconciled.** A field whose "Cleared by" condition has occurred but which still has a value is stale. The resuming orchestrator must reconcile stale fields before acting on them, and record the reconciliation in `history`.
 3. **Unknown fields are preserved.** Unknown fields found in a state file are preserved, reported in the session output, and never silently dropped. Forward compatibility is a hard requirement.
+4. **Writes are idempotent.** A write that would not change a field's value is skipped; a history line identical to the previous line is not appended.

@@ -51,7 +51,7 @@ You are running an eval for the review-plan skill.
 ```
 You are running an eval for the verify skill.
 
-1. Invoke /build:verify via the Skill tool. If the test case's "target" is not ".", pass this argument: "Verify the project at {this-skill-dir}/{target}. Run all commands inside that directory." Otherwise pass no argument.
+1. Invoke /build:verify via the Skill tool. If the test case has a "prompt" field, pass it (with {this-skill-dir} substituted) as the argument. Otherwise, if the test case's "target" is not ".", pass this argument: "Verify the project at {this-skill-dir}/{target}. Run all commands inside that directory." Otherwise pass no argument.
 2. Save the complete verification output to {run-dir}/{eval-id}/output.md using the Write tool.
 3. Report DONE when the file is written.
 ```

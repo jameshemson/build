@@ -55,6 +55,30 @@
       "assertions": ["verdict-failed", "failure-evidence-shown", "commands-shown"]
     },
     {
+      "id": "verify-debt-gate-fails",
+      "skill": "verify",
+      "target": "fixtures/debt-project",
+      "prompt": "Verify the project at {this-skill-dir}/fixtures/debt-project. Run all commands inside that directory. Treat {this-skill-dir}/fixtures/debt-project/plan.md as the plan under verification and use its execution_manifest.",
+      "assertions": [
+        "verdict-failed",
+        "debt-scan-reported",
+        "debt-unreferenced-flagged",
+        "commands-shown"
+      ]
+    },
+    {
+      "id": "verify-debt-gate-deferred",
+      "skill": "verify",
+      "target": "fixtures/debt-project-deferred",
+      "prompt": "Verify the project at {this-skill-dir}/fixtures/debt-project-deferred. Run all commands inside that directory. Treat {this-skill-dir}/fixtures/debt-project-deferred/plan.md as the plan under verification and use its execution_manifest.",
+      "assertions": [
+        "verdict-verified",
+        "debt-scan-reported",
+        "deferred-marker-listed",
+        "commands-shown"
+      ]
+    },
+    {
       "id": "architect-review-catches-flaws",
       "skill": "architect-review",
       "input_fixture": "fixtures/architect-review",

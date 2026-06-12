@@ -228,6 +228,7 @@ Pass any spawned agent a summary of relevant context and file paths so it can wo
 - **Agent retry limit**: If an agent for the same workstream fails and is re-dispatched more than 2 times, stop retrying and escalate to the user. Log all failure reasons to the state file under `agent_failures:`. The problem is likely in the plan or the codebase, not a transient failure.
 - **Phase agent failure**: If a spawned phase agent (e.g. mid-review) errors or returns output missing its required verdict, re-dispatch once with the expected output format restated verbatim. On a second failure, run that phase inline in the current session and log both failures under `agent_failures:`. A phase is never skipped because its agent failed.
 - **Phase loop limit**: If the workflow cycles back to the same phase more than 3 times (e.g., implement -> verify -> fail -> implement -> verify -> fail -> implement), halt the workflow and escalate. Log the full cycle history. The problem is systemic.
+- **Plan↔review limit**: If the workflow re-enters Phase 1 from Phase 2 ("Do not proceed") more than 2 times — more than 3 total plan iterations — halt and escalate, logging each review's Critical findings in the history. A plan stuck in a review spiral means the requirements are unstable or contradictory; another iteration won't fix that.
 - **Scope change limit**: If SCOPE_CHANGE is reported more than twice in a single workflow, halt and escalate. The original feature description is likely underspecified - re-planning won't help without more input from the user.
 
 When any circuit breaker fires, update the state file with `halted: true`, `halt_reason: [which breaker]`, and `halt_context: [summary of failures/changes]`. The user can resume by updating the state file after addressing the root cause.
@@ -246,6 +247,7 @@ When any circuit breaker fires, update the state file with `halted: true`, `halt
 - **Use agents aggressively.** Parallel exploration, parallel implementation of independent pieces, background test runs, and phase transitions. Work like Claude Code works.
 - **Commit often.** Small, working commits > one big commit at the end.
 - **Keep history honest.** Every phase transition gets a timestamped entry. Include what happened, not just "phase changed".
+- **Idempotent state writes.** Never rewrite a state field to the value it already holds, and never append a history entry identical to the previous one. Rework loops must not accumulate state noise.
 - **Respect circuit breakers.** Retry limits exist to prevent runaway agents burning tokens on a broken approach. When a limit is hit, escalate to the user with full context of what failed and why - don't work around it or increase the limit.
 - **The schema is the contract.** Field formats and who-writes/who-clears rules live in [state schema](reference/state-schema.md). Reconcile stale fields before acting on them.
 - **Never push or open PRs.** The workflow ends on the local `build/{slug}` branch; publishing is the user's decision.
