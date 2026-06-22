@@ -90,3 +90,16 @@ One known risk in the current test suite, judged acceptable for this single-main
 - **`check-sync.test.js` mutates a committed file.** The test writes `"99.99.99"` into `plugins/build/.codex-plugin/plugin.json`, spawns `check-sync.js` synchronously, and restores in a `try/finally`. If Node dies between the write and the restore (vanishingly unlikely — `spawnSync` is synchronous), the working tree is dirty. Recovery: `git checkout -- plugins/build/.codex-plugin/plugin.json`. Concurrency with other writers to the same file is avoided by `--test-concurrency=1` in the `test` script; do not remove that flag without redesigning the test to sandbox the file.
 
 (The prior byte-equality-fixture caveat is closed: the `real source/skills: each provider emits expected skill set with no Claude-syntax leakage` test in `builder.test.js` now runs every provider over the real `source/skills/` tree and asserts on the full emitted output, so no rewrite branch is unreached by fixture choice.)
+
+## Working style
+
+- Read the relevant files before making claims about the code. Don't speculate about code you haven't opened.
+- Act directly on clear, reversible work (edits, tests, local commands). When intent is ambiguous, or an action is hard to reverse or affects shared systems, ask or investigate first, then proceed.
+- State the assumptions you're making so they can be corrected.
+- If you see a clearly better approach, give it in 2-4 bullets, then proceed unless it needs a decision from me.
+- For substantial features, use /build rather than freelancing.
+
+## Writing plans (Sonnet plans, Opus implements)
+
+- Be explicit and scoped: the implementer follows the plan literally and won't infer unstated requirements or generalize from one case to others. State the files, acceptance criteria, edge cases, and what's out of scope.
+- Keep it minimal: plan only what the task needs. No extra abstractions, files, configurability, or defensive code that wasn't asked for.
