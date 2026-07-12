@@ -34,6 +34,27 @@ function writeFile(path, content) {
   writeFileSync(path, content, 'utf8');
 }
 
+const DEFAULT_SKILL_ENTRYPOINT = 'SKILL.md';
+const VARIANT_SKILL_ENTRYPOINT = /^SKILL\.[^/\\]+\.md$/;
+
+function isSkillEntrypoint(relPath) {
+  return relPath === DEFAULT_SKILL_ENTRYPOINT || VARIANT_SKILL_ENTRYPOINT.test(relPath);
+}
+
+function selectedSkillEntrypoint(skillDir, entrypointConfig) {
+  const defaultEntrypoint = typeof entrypointConfig === 'object'
+    ? entrypointConfig.default ?? DEFAULT_SKILL_ENTRYPOINT
+    : DEFAULT_SKILL_ENTRYPOINT;
+  const variantEntrypoint = typeof entrypointConfig === 'object'
+    ? entrypointConfig.variant
+    : entrypointConfig;
+
+  if (variantEntrypoint && existsSync(join(skillDir, variantEntrypoint))) {
+    return variantEntrypoint;
+  }
+  return defaultEntrypoint;
+}
+
 /**
  * Emit one provider's output from sourceDir.
  *
@@ -54,8 +75,17 @@ export function buildProvider({ root, sourceDir, providerName, config }) {
     if (!statSync(skillDir).isDirectory()) continue;
     if (config.exclude.includes(skillName)) continue;
 
+    const entrypoint = selectedSkillEntrypoint(skillDir, config.entrypoint);
+
     walkFiles(skillDir, skillDir, (filePath, relPath) => {
-      const outPath = join(outBase, skillName, relPath);
+      // SKILL.<variant>.md files are alternate top-level entrypoints, not
+      // ordinary skill files. A provider's configured variant wins when it
+      // exists; otherwise the provider falls back to SKILL.md. Nested
+      // reference Markdown (including similarly named files) is unaffected.
+      if (isSkillEntrypoint(relPath) && relPath !== entrypoint) return;
+
+      const outputRelPath = relPath === entrypoint ? DEFAULT_SKILL_ENTRYPOINT : relPath;
+      const outPath = join(outBase, skillName, outputRelPath);
       emitted.add(outPath);
 
       if (relPath.endsWith('.md')) {

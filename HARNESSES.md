@@ -8,7 +8,7 @@ This table is the authoritative reference for transformer decisions. Any new ski
 | Runtime `$ARGUMENTS` substitution in SKILL.md | Yes | No | No |
 | Slash-command skill invocation (`/build:name`) | Yes | Yes — via `.opencode/commands/*.md` wrappers shipped by this plugin (flat names: `/impl-plan` etc.) | No — use `$<name>` or `$build:<name>` (plugin-namespaced) |
 | Plugin distribution | Yes — `.claude-plugin/` | No — copy `.opencode/` bundle | Yes — `codex plugin marketplace add jameshemson/build` |
-| Sub-agent / Task tools (`Agent`, `TaskCreate`, etc.) | Yes | No | No |
+| Instructed subagent workflows | Yes — `Agent` and Task tools | No | Yes — current Codex collaboration surfaces, with inline fallback when delegation is unavailable |
 | Per-skill `model` / `effort` / `context` frontmatter | Yes | No | No |
 | Per-skill `allowed-tools` frontmatter | Yes | No | No |
 
@@ -16,7 +16,7 @@ This table is the authoritative reference for transformer decisions. Any new ski
 
 | Skill | Claude Code | OpenCode | Codex | Notes |
 | --- | --- | --- | --- | --- |
-| `build` | Yes | No | No | Requires `Agent`, `Skill`, Task tools |
+| `build` | Yes | No | Yes | Provider-specific orchestrators: Claude uses isolated worktrees; Codex uses instructed subagents in a shared workspace |
 | `eval` | Yes | No | No | Requires `Skill` tool dispatch |
 | `impl-plan` | Yes | Yes | Yes | Portable |
 | `review-plan` | Yes | Yes | Yes | Portable |
@@ -25,9 +25,9 @@ This table is the authoritative reference for transformer decisions. Any new ski
 
 ## OpenCode install story
 
-OpenCode reads both `.opencode/skills/` and `.claude/skills/`. This means opening this repo root directly in OpenCode exposes the Claude-only `build` and `eval` skills, and produces duplicate entries for the four portable skills.
+OpenCode reads both `.opencode/skills/` and `.claude/skills/`. This means opening this repo root directly in OpenCode exposes the Claude-targeted `build` skill and Claude-only `eval` skill, and produces duplicate entries for the four portable skills.
 
-**Supported OpenCode path**: copy this repo's `.opencode/` directory (including the leading dot) into the target project so the final layout is `<target-project>/.opencode/skills/<skill-name>/SKILL.md` and `<target-project>/.opencode/commands/<command-name>.md`. Do not flatten to `<target-project>/skills/` — OpenCode will not find skills there. Do not point OpenCode at this repo root directly (duplicate / Claude-only skills will appear).
+**Supported OpenCode path**: copy this repo's `.opencode/` directory (including the leading dot) into the target project so the final layout is `<target-project>/.opencode/skills/<skill-name>/SKILL.md` and `<target-project>/.opencode/commands/<command-name>.md`. Do not flatten to `<target-project>/skills/` — OpenCode will not find skills there. Do not point OpenCode at this repo root directly (duplicate and provider-incompatible skills will appear).
 
 **Slash command bundle.** In addition to the four portable skills at `.opencode/skills/`, we ship four OpenCode slash commands at `.opencode/commands/` (`impl-plan.md`, `review-plan.md`, `verify.md`, `architect-review.md`). Each command's body is a single `@.opencode/skills/<name>/SKILL.md` line — OpenCode resolves `@<path>` against the project worktree and inlines the file content at invocation time (verified against OpenCode `packages/opencode/src/session/prompt.ts`). Users invoke as `/impl-plan <task>` etc.; pass-through arguments become the skill's task input. Commands use flat (non-namespaced) names: collision with an unrelated local command in the user's project is possible and requires renaming one of the two.
 
@@ -44,13 +44,32 @@ codex plugin marketplace add jameshemson/build
 codex plugin install build/build
 ```
 
-The marketplace manifest is at `.agents/plugins/marketplace.json`; the plugin manifest is at `plugins/build/.codex-plugin/plugin.json`. Both are hand-authored and committed. Four portable skills ship in the plugin — `impl-plan`, `review-plan`, `verify`, `architect-review`. The orchestrator (`build`) and `eval` runner are not shipped.
+The marketplace manifest is at `.agents/plugins/marketplace.json`; the plugin manifest is at `plugins/build/.codex-plugin/plugin.json`. Both are hand-authored and committed. Five skills ship in the Codex plugin: the `build` orchestrator plus the standalone `impl-plan`, `review-plan`, `verify`, and `architect-review` skills. The `eval` runner remains Claude Code only.
 
-A user who both clones the repo AND installs the plugin will see duplicate entries for the four portable skills. The two copies are byte-identical (enforced by a sandbox byte-equality test); behavior is the same, only the UI listing is noisier.
+A user who both clones the repo AND installs the plugin will see duplicate entries for the five Codex skills. The two copies are byte-identical (enforced by a sandbox byte-equality test); behavior is the same, only the UI listing is noisier.
+
+### Codex end-to-end flow
+
+Run `$build:build <feature>` once to drive Plan → Plan Review → Implement → Verify → Architect Review, including repair loops and resumable `.build/plans/` artifacts. The root orchestrator owns workflow state, branch and commit operations, diff inspection, integrated checks, and phase transitions. It gives read-heavy phases and reviews to fresh instructed subagents when the current surface supports delegation; otherwise it runs the companion skill inline and records that fallback.
+
+Codex subagents share one workspace. Read-only exploration can run concurrently. Write workers can run concurrently only for same-wave manifest tasks with disjoint `files_modified` sets; any overlap, formatter, generator, lockfile, manifest, migration, or generated-output task is serialized. Workers edit only their assigned files and never write `.build/` or mutate git.
+
+The root supervises delegated work through boundary milestones (`STARTED`, `EDITING`, `VERIFYING`, then a terminal status), a root-owned `agent_progress` state map, and bounded 60-second status/diff checks. If an agent finishes its edits but fails to hand back control, the root requests status once, waits one grace interval, interrupts the agent, preserves its shared-workspace edits, and verifies them inline.
+
+Model routing is an auditable request, not a guaranteed pin:
+
+| Phase | Simple | Standard | Complex or high-risk |
+| --- | --- | --- | --- |
+| Plan / Plan Review | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` |
+| Exploration / Verify | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` with narrower agents |
+| Implement | `gpt-5.6-luna` / `max` for mechanical work | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` |
+| Architect Review | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` for a broad diff | `gpt-5.6-sol` / `xhigh` |
+
+The orchestrator classifies complexity before Plan and refines it from the plan. If the active spawn surface cannot override the child model or reasoning effort, the phase inherits the current session model and the workflow records `model_fallback` visibly in state and the final summary.
 
 **Cross-harness skill bridge.** In addition to `.agents/skills/` (Codex CLI primary) and `plugins/build/skills/` (Codex plugin package), this repo also emits `.codex/skills/`. Byte-identical to `.agents/skills/` (enforced by a 3-way sandbox byte-equality test — `codex` ↔ `codex-plugin` ↔ `codex-cross` share `codexRewrites` by reference). This path exists so cross-reading harnesses — notably Cursor, which documents `.codex/skills/` as a scan path — can discover the skills without additional configuration.
 
-Verified against Codex docs on 2026-04-22. Install verified on 2026-04-23.
+Verified against Codex docs on 2026-07-12. Install verified on 2026-04-23.
 
 ## Source and build
 
