@@ -14,6 +14,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { buildProvider, build, buildCommandProvider, buildCommands } from './builder.js';
 import { PROVIDERS as REAL_PROVIDERS, COMMAND_PROVIDERS as REAL_COMMAND_PROVIDERS } from './providers.js';
+import { transform } from './transform.js';
 import { ROOT } from './utils.js';
 
 const PROVIDERS = {
@@ -61,6 +62,150 @@ function runBuild() {
     sourceDir: join(sandbox, 'source/skills'),
     providers: PROVIDERS,
   });
+}
+
+function walkFiles(dir, acc = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(p, acc);
+    else if (entry.isFile()) acc.push(p);
+  }
+  return acc;
+}
+
+function assertProviderOutput({ providerName, config, sourceDir }) {
+  const outDir = join(sandbox, config.outputDir);
+  const sourceSkills = readdirSync(sourceDir)
+    .filter((skillName) => {
+      const sourceSkillDir = join(sourceDir, skillName);
+      return statSync(sourceSkillDir).isDirectory() && !config.exclude.includes(skillName);
+    })
+    .sort();
+  const emittedSkills = readdirSync(outDir).sort();
+
+  assert.deepEqual(
+    emittedSkills,
+    sourceSkills,
+    `${providerName}: emitted skills ${JSON.stringify(emittedSkills)} != expected ${JSON.stringify(sourceSkills)}`,
+  );
+
+  for (const skillName of sourceSkills) {
+    const sourceSkillDir = join(sourceDir, skillName);
+    const defaultEntrypoint = typeof config.entrypoint === 'object'
+      ? config.entrypoint.default ?? 'SKILL.md'
+      : 'SKILL.md';
+    const variantEntrypoint = typeof config.entrypoint === 'object'
+      ? config.entrypoint.variant
+      : config.entrypoint;
+    const configuredEntrypoint = variantEntrypoint
+      ? join(sourceSkillDir, variantEntrypoint)
+      : null;
+    const selectedEntrypoint = configuredEntrypoint && existsSync(configuredEntrypoint)
+      ? configuredEntrypoint
+      : join(sourceSkillDir, defaultEntrypoint);
+    const outputSkillDir = join(outDir, skillName);
+    const leakedVariants = readdirSync(outputSkillDir)
+      .filter((entry) => /^SKILL\.[^/\\]+\.md$/.test(entry));
+
+    assert.deepEqual(
+      leakedVariants,
+      [],
+      `${providerName}: variant entrypoint leaked for ${skillName}: ${JSON.stringify(leakedVariants)}`,
+    );
+
+    const expected = transform(readFileSync(selectedEntrypoint, 'utf8'), providerName, config);
+    const actual = readFileSync(join(outputSkillDir, 'SKILL.md'), 'utf8');
+    assert.equal(
+      actual,
+      expected,
+      `${providerName}: selected entrypoint content mismatch for ${skillName}`,
+    );
+  }
+
+  if (config.rewrites) {
+    for (const file of walkFiles(outDir).filter((path) => path.endsWith('.md'))) {
+      const body = readFileSync(file, 'utf8');
+      assert.ok(!body.includes('$ARGUMENTS'), `${providerName}: $ARGUMENTS leaked into ${file}`);
+      assert.ok(
+        !/\/build:[a-z-]+/.test(body),
+        `${providerName}: /build: reference leaked into ${file}`,
+      );
+      assert.ok(
+        !body.includes('<!-- claude-only'),
+        `${providerName}: <!-- claude-only --> block leaked into ${file}`,
+      );
+    }
+  }
+}
+
+function writeCodexFamilyFixture() {
+  const sample = [
+    '---',
+    'name: portable',
+    'description: fixture',
+    '---',
+    '',
+    '$ARGUMENTS',
+    '',
+    'See also $ARGUMENTS and /build:verify.',
+    '',
+  ].join('\n');
+  const names = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
+  for (const name of names) writeSource(`${name}/SKILL.md`, sample);
+  writeSource(
+    'build/SKILL.codex.md',
+    sample.replace('description: fixture', 'description: codex fixture'),
+  );
+  writeSource('build/SKILL.future.md', sample.replace('description: fixture', 'description: future'));
+  return names;
+}
+
+function assertCodexFamilyConfigIdentity() {
+  for (const providerName of ['codex-plugin', 'codex-cross']) {
+    assert.strictEqual(
+      REAL_PROVIDERS[providerName].entrypoint,
+      REAL_PROVIDERS.codex.entrypoint,
+      `${providerName}: entrypoint config must be shared with codex`,
+    );
+    assert.strictEqual(
+      REAL_PROVIDERS[providerName].rewrites,
+      REAL_PROVIDERS.codex.rewrites,
+      `${providerName}: rewrite config must be shared with codex`,
+    );
+  }
+}
+
+function buildCodexFamilyFixture() {
+  for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {
+    buildProvider({
+      root: sandbox,
+      sourceDir: join(sandbox, 'source/skills'),
+      providerName,
+      config: REAL_PROVIDERS[providerName],
+    });
+  }
+}
+
+function assertCodexFamilyOutputs(names) {
+  for (const name of names) {
+    const agents = readFileSync(join(sandbox, '.agents/skills', name, 'SKILL.md'), 'utf8');
+    const plugin = readFileSync(join(sandbox, 'plugins/build/skills', name, 'SKILL.md'), 'utf8');
+    const cross = readFileSync(join(sandbox, '.codex/skills', name, 'SKILL.md'), 'utf8');
+    assert.equal(plugin, agents, `Divergence in ${name}/SKILL.md between codex and codex-plugin`);
+    assert.equal(cross, agents, `Divergence in ${name}/SKILL.md between codex and codex-cross`);
+  }
+  assert.match(
+    readFileSync(join(sandbox, '.agents/skills/build/SKILL.md'), 'utf8'),
+    /description: codex fixture/,
+  );
+  for (const config of [
+    REAL_PROVIDERS.codex,
+    REAL_PROVIDERS['codex-plugin'],
+    REAL_PROVIDERS['codex-cross'],
+  ]) {
+    assert.ok(!existsSync(join(sandbox, config.outputDir, 'build/SKILL.codex.md')));
+    assert.ok(!existsSync(join(sandbox, config.outputDir, 'build/SKILL.future.md')));
+  }
 }
 
 test('fresh build: emits skills to each provider output', () => {
@@ -152,6 +297,116 @@ test('nested reference files copy through unchanged for identity provider', () =
   assert.equal(notes, '# notes body');
 });
 
+test('provider entrypoint variant is selected as SKILL.md and all variants are suppressed', () => {
+  writeSource('alpha/SKILL.md', '---\nname: alpha\ndescription: default\n---\nclaude body');
+  writeSource('alpha/SKILL.codex.md', '---\nname: alpha\ndescription: codex\n---\ncodex body');
+  writeSource('alpha/SKILL.future.md', '---\nname: alpha\ndescription: future\n---\nfuture body');
+
+  for (const providerName of ['claude', 'opencode', 'codex']) {
+    buildProvider({
+      root: sandbox,
+      sourceDir: join(sandbox, 'source/skills'),
+      providerName,
+      config: REAL_PROVIDERS[providerName],
+    });
+  }
+  buildProvider({
+    root: sandbox,
+    sourceDir: join(sandbox, 'source/skills'),
+    providerName: 'claude',
+    config: {
+      ...REAL_PROVIDERS.claude,
+      outputDir: '.future/skills',
+      entrypoint: { default: 'SKILL.md', variant: 'SKILL.future.md' },
+    },
+  });
+
+  assert.match(
+    readFileSync(join(sandbox, '.claude/skills/alpha/SKILL.md'), 'utf8'),
+    /claude body/,
+  );
+  assert.match(
+    readFileSync(join(sandbox, '.opencode/skills/alpha/SKILL.md'), 'utf8'),
+    /claude body/,
+  );
+  assert.match(
+    readFileSync(join(sandbox, '.agents/skills/alpha/SKILL.md'), 'utf8'),
+    /codex body/,
+  );
+  assert.match(
+    readFileSync(join(sandbox, '.future/skills/alpha/SKILL.md'), 'utf8'),
+    /future body/,
+  );
+
+  for (const outputDir of [
+    '.claude/skills',
+    '.opencode/skills',
+    '.agents/skills',
+    '.future/skills',
+  ]) {
+    assert.ok(!existsSync(join(sandbox, outputDir, 'alpha/SKILL.codex.md')));
+    assert.ok(!existsSync(join(sandbox, outputDir, 'alpha/SKILL.future.md')));
+  }
+});
+
+test('variant entrypoint selection leaves nested references and non-Markdown files unchanged', () => {
+  writeSource('alpha/SKILL.md', '---\nname: alpha\ndescription: default\n---\ndefault');
+  writeSource('alpha/SKILL.codex.md', '---\nname: alpha\ndescription: codex\n---\nselected');
+  writeSource('alpha/reference/SKILL.future.md', '# reference $ARGUMENTS');
+  writeSource('alpha/assets/SKILL.codex.json', '{"variant":true}');
+
+  buildProvider({
+    root: sandbox,
+    sourceDir: join(sandbox, 'source/skills'),
+    providerName: 'codex',
+    config: REAL_PROVIDERS.codex,
+  });
+
+  assert.equal(
+    readFileSync(join(sandbox, '.agents/skills/alpha/reference/SKILL.future.md'), 'utf8'),
+    '# reference the user\'s request',
+  );
+  assert.equal(
+    readFileSync(join(sandbox, '.agents/skills/alpha/assets/SKILL.codex.json'), 'utf8'),
+    '{"variant":true}',
+  );
+});
+
+test('negative fixture: swapped and leaked variant outputs are rejected', () => {
+  const sourceDir = join(sandbox, 'source/skills');
+  writeSource('alpha/SKILL.md', '---\nname: alpha\ndescription: default\n---\ndefault body');
+  writeSource('alpha/SKILL.codex.md', '---\nname: alpha\ndescription: codex\n---\ncodex body');
+
+  buildProvider({
+    root: sandbox,
+    sourceDir,
+    providerName: 'codex',
+    config: REAL_PROVIDERS.codex,
+  });
+  assertProviderOutput({ providerName: 'codex', config: REAL_PROVIDERS.codex, sourceDir });
+
+  writeOutput(
+    '.agents/skills/alpha/SKILL.md',
+    '---\nname: alpha\ndescription: default\n---\ndefault body',
+  );
+  assert.throws(
+    () => assertProviderOutput({ providerName: 'codex', config: REAL_PROVIDERS.codex, sourceDir }),
+    /selected entrypoint content mismatch/,
+  );
+
+  buildProvider({
+    root: sandbox,
+    sourceDir,
+    providerName: 'codex',
+    config: REAL_PROVIDERS.codex,
+  });
+  writeOutput('.agents/skills/alpha/SKILL.future.md', 'leaked variant');
+  assert.throws(
+    () => assertProviderOutput({ providerName: 'codex', config: REAL_PROVIDERS.codex, sourceDir }),
+    /variant entrypoint leaked/,
+  );
+});
+
 test('buildProvider alone is callable (unit of build)', () => {
   writeSource('alpha/SKILL.md', '---\nname: alpha\ndescription: A\n---\nbody');
   buildProvider({
@@ -180,115 +435,59 @@ test('empty skill dir after rebuild: all files swept, dir may remain', () => {
 });
 
 test('codex, codex-plugin, and codex-cross sandbox outputs are byte-identical (via real PROVIDERS)', () => {
-  // Fixture: a portable skill with $ARGUMENTS (both forms) and a /build: ref,
-  // so that all three rewrite paths are exercised. Any divergence between
-  // the three codex-family providers would surface here.
-  const sample =
-    '---\n' +
-    'name: portable\n' +
-    'description: fixture\n' +
-    '---\n' +
-    '\n' +
-    '$ARGUMENTS\n' +
-    '\n' +
-    'See also $ARGUMENTS and /build:verify.\n';
-
-  const names = ['architect-review', 'impl-plan', 'review-plan', 'verify'];
-  for (const n of names) {
-    writeSource(`${n}/SKILL.md`, sample);
-  }
-
-  for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {
-    buildProvider({
-      root: sandbox,
-      sourceDir: join(sandbox, 'source/skills'),
-      providerName,
-      config: REAL_PROVIDERS[providerName],
-    });
-  }
-
-  for (const n of names) {
-    const agents = readFileSync(
-      join(sandbox, '.agents/skills', n, 'SKILL.md'),
-      'utf8',
-    );
-    const plugin = readFileSync(
-      join(sandbox, 'plugins/build/skills', n, 'SKILL.md'),
-      'utf8',
-    );
-    const cross = readFileSync(
-      join(sandbox, '.codex/skills', n, 'SKILL.md'),
-      'utf8',
-    );
-    assert.equal(
-      plugin,
-      agents,
-      `Divergence in ${n}/SKILL.md between codex and codex-plugin`,
-    );
-    assert.equal(
-      cross,
-      agents,
-      `Divergence in ${n}/SKILL.md between codex and codex-cross`,
-    );
-  }
+  const names = writeCodexFamilyFixture();
+  assertCodexFamilyConfigIdentity();
+  buildCodexFamilyFixture();
+  assertCodexFamilyOutputs(names);
 });
-
-// Ground-truth integration test: copy the REAL source/skills tree into a
-// sandbox, run every provider from REAL_PROVIDERS, and assert invariants
-// that matter to consumers (exact skill set, no Claude-syntax leakage).
-// This is the regression gate C2 in the v1.4.0 architect review was asking
-// for — it exercises every rewrite branch any real skill actually hits.
-function walkFiles(dir, acc = []) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, entry.name);
-    if (entry.isDirectory()) walkFiles(p, acc);
-    else if (entry.isFile()) acc.push(p);
-  }
-  return acc;
-}
 
 test('real source/skills: each provider emits expected skill set with no Claude-syntax leakage', () => {
   cpSync(join(ROOT, 'source/skills'), join(sandbox, 'source/skills'), {
     recursive: true,
   });
+  const sourceDir = join(sandbox, 'source/skills');
+  const codexBuildEntrypoint = join(sourceDir, 'build/SKILL.codex.md');
+  assert.ok(existsSync(codexBuildEntrypoint), 'real source must include build/SKILL.codex.md');
 
   for (const [name, config] of Object.entries(REAL_PROVIDERS)) {
     buildProvider({
       root: sandbox,
-      sourceDir: join(sandbox, 'source/skills'),
+      sourceDir,
       providerName: name,
       config,
     });
+    assertProviderOutput({
+      providerName: name,
+      config,
+      sourceDir,
+    });
+  }
 
-    const outDir = join(sandbox, config.outputDir);
-    const emittedSkills = readdirSync(outDir).sort();
-    const sourceSkills = readdirSync(join(sandbox, 'source/skills'))
-      .filter((s) => !config.exclude.includes(s))
-      .sort();
+  const expectedCodexSkills = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
+  for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {
+    const config = REAL_PROVIDERS[providerName];
     assert.deepEqual(
-      emittedSkills,
-      sourceSkills,
-      `${name}: emitted skills ${JSON.stringify(emittedSkills)} != expected ${JSON.stringify(sourceSkills)}`,
+      readdirSync(join(sandbox, config.outputDir)).sort(),
+      expectedCodexSkills,
+      `${providerName}: should emit build and exclude only eval`,
     );
+    assert.equal(
+      readFileSync(join(sandbox, config.outputDir, 'build/SKILL.md'), 'utf8'),
+      transform(readFileSync(codexBuildEntrypoint, 'utf8'), providerName, config),
+      `${providerName}: real build skill did not select SKILL.codex.md`,
+    );
+  }
 
-    // Only non-Claude providers strip Claude syntax; the claude provider is
-    // identity and legitimately retains $ARGUMENTS and /build: references.
-    if (config.rewrites) {
-      for (const file of walkFiles(outDir)) {
-        const body = readFileSync(file, 'utf8');
-        assert.ok(
-          !body.includes('$ARGUMENTS'),
-          `${name}: $ARGUMENTS leaked into ${file}`,
-        );
-        assert.ok(
-          !/\/build:[a-z-]+/.test(body),
-          `${name}: /build: reference leaked into ${file}`,
-        );
-        assert.ok(
-          !body.includes('<!-- claude-only'),
-          `${name}: <!-- claude-only --> block leaked into ${file}`,
-        );
-      }
+  const agentsRoot = join(sandbox, REAL_PROVIDERS.codex.outputDir);
+  for (const providerName of ['codex-plugin', 'codex-cross']) {
+    const providerRoot = join(sandbox, REAL_PROVIDERS[providerName].outputDir);
+    for (const agentsFile of walkFiles(agentsRoot)) {
+      const relPath = agentsFile.slice(agentsRoot.length + 1);
+      assert.deepEqual(
+        readFileSync(join(providerRoot, relPath)),
+        readFileSync(agentsFile),
+        `${providerName}: ${relPath} diverged from codex output`,
+      );
     }
   }
 });
