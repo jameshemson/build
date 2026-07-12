@@ -138,6 +138,76 @@ function assertProviderOutput({ providerName, config, sourceDir }) {
   }
 }
 
+function writeCodexFamilyFixture() {
+  const sample = [
+    '---',
+    'name: portable',
+    'description: fixture',
+    '---',
+    '',
+    '$ARGUMENTS',
+    '',
+    'See also $ARGUMENTS and /build:verify.',
+    '',
+  ].join('\n');
+  const names = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
+  for (const name of names) writeSource(`${name}/SKILL.md`, sample);
+  writeSource(
+    'build/SKILL.codex.md',
+    sample.replace('description: fixture', 'description: codex fixture'),
+  );
+  writeSource('build/SKILL.future.md', sample.replace('description: fixture', 'description: future'));
+  return names;
+}
+
+function assertCodexFamilyConfigIdentity() {
+  for (const providerName of ['codex-plugin', 'codex-cross']) {
+    assert.strictEqual(
+      REAL_PROVIDERS[providerName].entrypoint,
+      REAL_PROVIDERS.codex.entrypoint,
+      `${providerName}: entrypoint config must be shared with codex`,
+    );
+    assert.strictEqual(
+      REAL_PROVIDERS[providerName].rewrites,
+      REAL_PROVIDERS.codex.rewrites,
+      `${providerName}: rewrite config must be shared with codex`,
+    );
+  }
+}
+
+function buildCodexFamilyFixture() {
+  for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {
+    buildProvider({
+      root: sandbox,
+      sourceDir: join(sandbox, 'source/skills'),
+      providerName,
+      config: REAL_PROVIDERS[providerName],
+    });
+  }
+}
+
+function assertCodexFamilyOutputs(names) {
+  for (const name of names) {
+    const agents = readFileSync(join(sandbox, '.agents/skills', name, 'SKILL.md'), 'utf8');
+    const plugin = readFileSync(join(sandbox, 'plugins/build/skills', name, 'SKILL.md'), 'utf8');
+    const cross = readFileSync(join(sandbox, '.codex/skills', name, 'SKILL.md'), 'utf8');
+    assert.equal(plugin, agents, `Divergence in ${name}/SKILL.md between codex and codex-plugin`);
+    assert.equal(cross, agents, `Divergence in ${name}/SKILL.md between codex and codex-cross`);
+  }
+  assert.match(
+    readFileSync(join(sandbox, '.agents/skills/build/SKILL.md'), 'utf8'),
+    /description: codex fixture/,
+  );
+  for (const config of [
+    REAL_PROVIDERS.codex,
+    REAL_PROVIDERS['codex-plugin'],
+    REAL_PROVIDERS['codex-cross'],
+  ]) {
+    assert.ok(!existsSync(join(sandbox, config.outputDir, 'build/SKILL.codex.md')));
+    assert.ok(!existsSync(join(sandbox, config.outputDir, 'build/SKILL.future.md')));
+  }
+}
+
 test('fresh build: emits skills to each provider output', () => {
   writeSource('alpha/SKILL.md', '---\nname: alpha\ndescription: A\n---\nbody');
   runBuild();
@@ -365,88 +435,10 @@ test('empty skill dir after rebuild: all files swept, dir may remain', () => {
 });
 
 test('codex, codex-plugin, and codex-cross sandbox outputs are byte-identical (via real PROVIDERS)', () => {
-  // Fixture: a portable skill with $ARGUMENTS (both forms) and a /build: ref,
-  // so that all three rewrite paths are exercised. Any divergence between
-  // the three codex-family providers would surface here.
-  const sample =
-    '---\n' +
-    'name: portable\n' +
-    'description: fixture\n' +
-    '---\n' +
-    '\n' +
-    '$ARGUMENTS\n' +
-    '\n' +
-    'See also $ARGUMENTS and /build:verify.\n';
-
-  const names = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
-  for (const n of names) {
-    writeSource(`${n}/SKILL.md`, sample);
-  }
-  writeSource(
-    'build/SKILL.codex.md',
-    sample.replace('description: fixture', 'description: codex fixture'),
-  );
-  writeSource('build/SKILL.future.md', sample.replace('description: fixture', 'description: future'));
-
-  for (const providerName of ['codex-plugin', 'codex-cross']) {
-    assert.strictEqual(
-      REAL_PROVIDERS[providerName].entrypoint,
-      REAL_PROVIDERS.codex.entrypoint,
-      `${providerName}: entrypoint config must be shared with codex`,
-    );
-    assert.strictEqual(
-      REAL_PROVIDERS[providerName].rewrites,
-      REAL_PROVIDERS.codex.rewrites,
-      `${providerName}: rewrite config must be shared with codex`,
-    );
-  }
-
-  for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {
-    buildProvider({
-      root: sandbox,
-      sourceDir: join(sandbox, 'source/skills'),
-      providerName,
-      config: REAL_PROVIDERS[providerName],
-    });
-  }
-
-  for (const n of names) {
-    const agents = readFileSync(
-      join(sandbox, '.agents/skills', n, 'SKILL.md'),
-      'utf8',
-    );
-    const plugin = readFileSync(
-      join(sandbox, 'plugins/build/skills', n, 'SKILL.md'),
-      'utf8',
-    );
-    const cross = readFileSync(
-      join(sandbox, '.codex/skills', n, 'SKILL.md'),
-      'utf8',
-    );
-    assert.equal(
-      plugin,
-      agents,
-      `Divergence in ${n}/SKILL.md between codex and codex-plugin`,
-    );
-    assert.equal(
-      cross,
-      agents,
-      `Divergence in ${n}/SKILL.md between codex and codex-cross`,
-    );
-  }
-
-  assert.match(
-    readFileSync(join(sandbox, '.agents/skills/build/SKILL.md'), 'utf8'),
-    /description: codex fixture/,
-  );
-  for (const config of [
-    REAL_PROVIDERS.codex,
-    REAL_PROVIDERS['codex-plugin'],
-    REAL_PROVIDERS['codex-cross'],
-  ]) {
-    assert.ok(!existsSync(join(sandbox, config.outputDir, 'build/SKILL.codex.md')));
-    assert.ok(!existsSync(join(sandbox, config.outputDir, 'build/SKILL.future.md')));
-  }
+  const names = writeCodexFamilyFixture();
+  assertCodexFamilyConfigIdentity();
+  buildCodexFamilyFixture();
+  assertCodexFamilyOutputs(names);
 });
 
 test('real source/skills: each provider emits expected skill set with no Claude-syntax leakage', () => {

@@ -140,15 +140,20 @@ show the dirty paths: branch creation requires a clean tree. Only after a clean 
 root captures `base_ref` with `git rev-parse HEAD`, records the current branch, and runs
 `git switch -c build/{slug}`. Create `.build/plans/` only after this preflight succeeds.
 
+Immediately create an initial `phase: plan` state with identity, git refs, provisional
+complexity and model routes, empty inventories, `completed_tasks: []`,
+`agent_progress: {}`, and initial history. This durable state must exist before the first
+explorer or companion dispatch so progress, fallback, failure, and resume evidence can be
+recorded from the start.
+
 Run up to three parallel Luna/`max` read-only explorers for architecture, affected code,
 and tests. Root synthesizes their evidence and delegates `impl-plan` with the marker
 `[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence, a complete
 `execution_manifest`, and disjoint same-wave `files_modified`.
 
 Root determines final complexity, then writes and validates `{slug}-context.md`,
-`{slug}-requirements.md`, and `{slug}-plan.md`. Last, create or update state with identity,
-git refs, provisional and final complexity, model routes, inventories, manifest summary,
-`completed_tasks: []`, and `phase: review`.
+`{slug}-requirements.md`, and `{slug}-plan.md`. Last, update state with final complexity,
+model routes, inventories, manifest summary, and `phase: review`.
 
 ## Phase 2: Review
 
@@ -166,9 +171,9 @@ effort. Save `{slug}-review.md` before state changes.
 
 Read every prior artifact. Validate manifest dependencies and same-wave file ownership
 before dispatch. First add Wave 0 tests or evidence. Dispatch independent, disjoint writer
-workstreams concurrently at the routed Sol effort; serialize dependencies and overlapping
-files. Agents edit only assigned files and run their scoped checks. Root handles all shared
-files, git operations, commits, and integration checks.
+workstreams concurrently at the routed implementation model and effort; serialize
+dependencies and overlapping files. Agents edit only assigned files and run their scoped
+checks. Root handles all shared files, git operations, commits, and integration checks.
 
 After each wave, root runs integrated verification. Only then write/update
 `{slug}-implementation-summary.md` and append its task IDs to `completed_tasks`. On a
@@ -201,10 +206,11 @@ Save `{slug}-architect-review.md` before changing state.
 - `FAIL`: record `architect_fixes` and transition to `implement` for fixes and re-verify.
 - Missing verdict: apply the phase-agent circuit breaker.
 
-At `complete`, summarize delivered work, tests, decisions, branch, and the user's merge
-command. Surface all PARTIAL gaps under `Uncovered requirements`. Root archives all slug
-artifacts under `.build/plans/archive/{date}-{slug}/`. Never merge to the user's branch,
-push, or open a PR.
+At `complete`, summarize delivered work, tests, decisions, branch, the requested model
+routes and every `model_fallback` (or explicitly `none`), and the user's merge command.
+Surface all PARTIAL gaps under `Uncovered requirements`. Root archives all slug artifacts
+under `.build/plans/archive/{date}-{slug}/`. Never merge to the user's branch, push, or
+open a PR.
 
 ## Abort
 
