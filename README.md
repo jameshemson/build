@@ -1,6 +1,6 @@
 # build
 
-A structured build workflow for Claude Code (and four portable skills for OpenCode and Codex). Plan before you build, review before you ship, verify before you claim.
+A structured build workflow for Claude Code and Codex, plus four portable standalone skills for OpenCode. Plan before you build, review before you ship, verify before you claim.
 
 ## Skills
 
@@ -36,13 +36,19 @@ codex plugin install build/build
 
 Or via repo-local discovery: copy the `.agents/` directory into your project so the final layout is `<your-project>/.agents/skills/<skill-name>/SKILL.md`. Codex picks it up automatically.
 
-Four skills are available in OpenCode and Codex: `impl-plan`, `review-plan`, `verify`, and `architect-review`. The `build` orchestrator and `eval` runner are Claude Code only (they depend on sub-agent spawning and Task tools not available elsewhere).
+Codex installs five skills: `build`, `impl-plan`, `review-plan`, `verify`, and `architect-review`. Start the complete workflow with one invocation:
+
+```
+$build:build <feature>
+```
+
+That one skill drives Plan, Plan Review, Implement, Verify, and Architect Review, including repair loops and resumable artifacts. The four phase skills remain directly invocable. OpenCode remains a four-skill standalone bundle, and `eval` remains Claude Code only.
 
 ## Compatibility
 
 | Skill | Claude Code | OpenCode | Codex |
 |-------|:-----------:|:--------:|:-----:|
-| `build` (orchestrator) | ✓ | — | — |
+| `build` (orchestrator) | ✓ | — | ✓ |
 | `impl-plan` | ✓ | ✓ | ✓ |
 | `review-plan` | ✓ | ✓ | ✓ |
 | `verify` | ✓ | ✓ | ✓ |
@@ -51,17 +57,19 @@ Four skills are available in OpenCode and Codex: `impl-plan`, `review-plan`, `ve
 
 See [HARNESSES.md](HARNESSES.md) for the full capability matrix and install story.
 
-## How it works (Claude Code)
+## How it works
 
-`/build` drives a 5-phase cycle:
+Both `/build <feature>` in Claude Code and `$build:build <feature>` in Codex drive a 5-phase cycle:
 
-1. **Plan** (Opus) - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit an `execution_manifest` with `wave`, `depends_on`, `files_modified`, `must_haves`, `verify`, and `done`
-2. **Review** (Sonnet, forked context) - Adversarial senior engineer review: placeholder scan, workstream independence check, requirement/decision coverage, wave graph validation, test coverage mapping
-3. **Implement** - Parallel agents in isolated worktrees, routed by the manifest when available, with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans. Circuit breakers prevent runaway retries.
+1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit an `execution_manifest` with `wave`, `depends_on`, `files_modified`, `must_haves`, `verify`, and `done`
+2. **Review** - Adversarial senior engineer review: placeholder scan, workstream independence check, requirement/decision coverage, wave graph validation, test coverage mapping
+3. **Implement** - Manifest-routed workstreams with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans. Circuit breakers prevent runaway retries.
 4. **Verify** - Run tests, build, type checks, and plan-declared verification commands. Requirement coverage and missing `must_haves` evidence are reported explicitly. No claims without fresh output.
-5. **Architect Review** (Opus, forked context) - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, weak-test audit, dependency audit
+5. **Architect Review** - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, weak-test audit, dependency audit
 
-The orchestrator manages state, auto-continues between phases, and deploys model-appropriate agents. It resolves merge conflicts through a structured protocol. Give it a feature description; it builds it.
+The orchestrator manages state, auto-continues between phases, and deploys model-appropriate agents. Claude implementation agents use isolated worktrees and a structured merge protocol. Codex uses current instructed subagents in a shared workspace: read-only work can fan out, while write workers run concurrently only when same-wave `files_modified` sets are disjoint. The Codex root alone writes `.build/`, mutates git, inspects integrated diffs, and advances phases.
+
+Codex agent progress is supervised through structured boundary milestones, a durable root-owned progress map, and bounded status/diff checks. If a worker has landed edits but misses its terminal handoff, the root preserves those edits and takes over scoped verification instead of waiting indefinitely or starting the work again.
 
 `/build` is file-backed. Each workflow writes durable artifacts under `.build/plans/` so later phases and fresh agents do not depend on chat history alone:
 
@@ -76,6 +84,19 @@ The orchestrator manages state, auto-continues between phases, and deploys model
 
 Skill prompts are intentionally kept compact. Detailed planning rules live in reference files, and `npm test` enforces hard line ceilings for the main skill prompts.
 
+### Codex model routing
+
+The Codex orchestrator requests models adaptively after a targeted read classifies work as simple, standard, or complex/high-risk:
+
+| Phase | Simple | Standard | Complex/high-risk |
+|-------|--------|----------|-------------------|
+| Plan / Plan Review | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` |
+| Exploration / Verify | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` with narrower agents |
+| Implement | `gpt-5.6-luna` / `max` for mechanical work | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` |
+| Architect Review | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` for a broad diff | `gpt-5.6-sol` / `xhigh` |
+
+These are requests rather than guaranteed pins. When the current spawn surface cannot override a child model or effort, the phase inherits the active session model and the workflow records `model_fallback` in its state and final summary instead of claiming the requested route occurred.
+
 Generated skill outputs are committed artifacts. When changing `source/skills/`, run `npm run build` and commit the source changes, regenerated provider outputs, and any test updates together. `npm run check-sync` intentionally fails on an uncommitted source/output change set because it compares generated outputs against git.
 
 ## Standalone use
@@ -87,9 +108,9 @@ Each skill is useful on its own:
 - `/build:verify` - Check if your code works before claiming it does
 - `/build:architect-review` - Get an architect's perspective on any completed work
 
-## Standalone model enforcement
+## Claude Code standalone model enforcement
 
-Each skill sets its own model for standalone runs:
+In Claude Code, each skill sets its own model for standalone runs:
 
 | Skill | Model | Effort | Context |
 |-------|-------|--------|---------|
