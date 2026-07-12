@@ -11,6 +11,7 @@ const BEHAVIORS = [
   ['five-phase state machine', 'exactly five active phases'],
   ['root-only mutation ownership', 'Only root may:'],
   ['clean-tree branch preflight', 'branch creation requires a clean tree'],
+  ['initial state before delegation', 'Immediately create an initial `phase: plan` state'],
   ['resume protocol', 'On resume, validate that every artifact'],
   ['abort protocol', 'Never delete workflow evidence'],
   ['circuit breakers', 'Never increase a limit, skip a phase, or hide a failure'],
@@ -20,10 +21,12 @@ const BEHAVIORS = [
   ['adaptive route table', '| `complex` | 6+ files, multiple workstreams, high risk, or cross-cutting | `gpt-5.6-sol`, `xhigh` | `gpt-5.6-sol`, `high` | `gpt-5.6-luna`, `max` |'],
   ['model fallback lifecycle', 'Historical fallback entries are never cleared'],
   ['implementation skill recursion guard', 'Implementation workers must not invoke `impl-plan`'],
+  ['adaptive implementation dispatch', 'routed implementation model and effort'],
   ['structured agent progress', 'Require these milestone messages at boundaries'],
   ['bounded progress monitoring', 'wait no longer than 60 seconds before listing agent status'],
   ['agent handoff watchdog', 'preserve its edits, record `handoff-timeout` in `agent_failures`'],
   ['artifact-before-state transitions', 'Always write and validate the artifact needed by the next phase before updating\n`phase`'],
+  ['completion route disclosure', 'requested model\nroutes and every `model_fallback` (or explicitly `none`)'],
 ];
 
 function readRel(path) {
@@ -53,6 +56,11 @@ export function assertCodexOrchestrator(content) {
     '`git rev-parse HEAD`',
     '`git switch -c build/{slug}`',
   ], 'clean-tree preflight');
+  assertInOrder(content, [
+    '`git switch -c build/{slug}`',
+    'Immediately create an initial `phase: plan` state',
+    'Run up to three parallel Luna/`max` read-only explorers',
+  ], 'durable state before delegation');
 
   for (const [phase, skill] of [
     ['plan', 'impl-plan'],
@@ -77,6 +85,15 @@ export function assertCodexOrchestrator(content) {
         '` \\| `gpt-5\\.6-luna`, `max` \\|',
     ), `orchestrator must route ${complexity}`);
   }
+
+  const implementPhase = content.slice(
+    content.indexOf('## Phase 3: Implement'),
+    content.indexOf('## Phase 4: Verify'),
+  );
+  assert.ok(
+    !implementPhase.includes('routed Sol effort'),
+    'orchestrator must not hard-code Sol in adaptive implementation dispatch',
+  );
 
   assertInOrder(content, [
     'Save `{slug}-review.md` before state changes.',
@@ -118,6 +135,13 @@ test('production state schema carries Codex routing lifecycles', () => {
   ]) {
     assert.ok(schema.includes(evidence), `state schema missing ${JSON.stringify(evidence)}`);
   }
+});
+
+test('installed-skill smoke requires terminal complete state', () => {
+  const smoke = readRel('scripts/smoke-codex-build.js');
+  assert.ok(smoke.includes("const phase = state.content.match(/^phase:\\s*(\\S+)/m)?.[1] ?? null"));
+  assert.ok(smoke.includes("if (phase !== 'complete')"));
+  assert.ok(smoke.includes('workflow_phase: phase'));
 });
 
 for (const [behavior, evidence] of BEHAVIORS) {

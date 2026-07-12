@@ -191,6 +191,7 @@ function runCleanScenario(parent) {
   const architect = readMatching(files, '-architect-review.md');
 
   const complexity = state.content.match(/^complexity:\s*(\S+)/m)?.[1] ?? null;
+  const phase = state.content.match(/^phase:\s*(\S+)/m)?.[1] ?? null;
   const provisional = state.content.match(/^provisional_complexity:\s*(\S+)/m)?.[1] ?? null;
   const routes = state.content.match(/^model_routes:\s*(.+)$/m)?.[1] ?? null;
   const fallback = state.content.match(/^model_fallback:\s*(.+)$/m)?.[1] ?? null;
@@ -201,6 +202,7 @@ function runCleanScenario(parent) {
     /### Verdict\s*\n(?:[^\n]*\b)?(PASS_WITH_NOTES|PASS)\b/,
   )?.[1] ?? null;
   if (!complexity || !provisional || !routes) throw new Error('Clean smoke archived state lacks complexity/model routes');
+  if (phase !== 'complete') throw new Error(`Clean smoke archived state is not complete: ${phase}`);
   if (!verifyVerdict) throw new Error('Clean smoke lacks successful verification verdict');
   if (!architectVerdict) throw new Error('Clean smoke lacks passing architect verdict');
 
@@ -211,6 +213,7 @@ function runCleanScenario(parent) {
     readme_change: true,
     archived_artifacts: requiredSuffixes,
     complexity,
+    workflow_phase: phase,
     provisional_complexity: provisional,
     model_routes: routes,
     model_fallback: fallback,
