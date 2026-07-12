@@ -16,15 +16,34 @@ const codexRewrites = {
   skillRef: (name) => `\`${name}\` (via \`$skill ${name}\` or \`/skills\`)`,
 };
 
+const defaultSkillEntrypoint = {
+  default: 'SKILL.md',
+};
+
+const codexSkillEntrypoint = {
+  ...defaultSkillEntrypoint,
+  variant: 'SKILL.codex.md',
+};
+
+// Every Codex-family output selects the same source entrypoint and applies
+// the same rewrites. Skills without a Codex variant fall back to SKILL.md.
+const codexSkillConfig = {
+  exclude: ['eval'],
+  entrypoint: codexSkillEntrypoint,
+  rewrites: codexRewrites,
+};
+
 export const PROVIDERS = {
   claude: {
     outputDir: '.claude/skills',
     exclude: [],
+    entrypoint: defaultSkillEntrypoint,
     rewrites: null,
   },
   opencode: {
     outputDir: '.opencode/skills',
     exclude: ['build', 'eval'],
+    entrypoint: defaultSkillEntrypoint,
     rewrites: {
       argumentsStandalone: '*(Treat the user\'s message that invoked this skill as the task input.)*',
       argumentsInline: "the user's request",
@@ -34,18 +53,15 @@ export const PROVIDERS = {
   },
   codex: {
     outputDir: '.agents/skills',
-    exclude: ['build', 'eval'],
-    rewrites: codexRewrites,
+    ...codexSkillConfig,
   },
   'codex-plugin': {
     outputDir: 'plugins/build/skills',
-    exclude: ['build', 'eval'],
-    rewrites: codexRewrites,
+    ...codexSkillConfig,
   },
   'codex-cross': {
     outputDir: '.codex/skills',
-    exclude: ['build', 'eval'],
-    rewrites: codexRewrites,
+    ...codexSkillConfig,
   },
 };
 
