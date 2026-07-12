@@ -1,19 +1,19 @@
 {
   "name": "build",
-  "version": "1.8.0",
-  "description": "Structured build workflow — 4 portable skills: impl-plan, review-plan, verify, architect-review.",
+  "version": "1.9.0",
+  "description": "End-to-end structured build workflow with five Codex skills: build, impl-plan, review-plan, verify, architect-review.",
   "author": {
     "name": "James Hemson"
   },
   "homepage": "https://github.com/jameshemson/build",
   "repository": "https://github.com/jameshemson/build",
   "license": "MIT",
-  "keywords": ["build", "planning", "review", "verification", "skills"],
+  "keywords": ["build", "planning", "review", "implementation", "verification", "skills", "agents"],
   "skills": "./skills/",
   "interface": {
     "displayName": "build",
-    "shortDescription": "Plan before you build, review before you ship, verify before you claim.",
-    "longDescription": "Four portable skills that work standalone or chained: impl-plan creates a detailed implementation plan from the codebase; review-plan reviews the plan against its own evidence; verify runs tests and reports real evidence; architect-review reviews completed work across 10 lenses.",
+    "shortDescription": "One end-to-end workflow from plan through architect review.",
+    "longDescription": "Five Codex skills for an end-to-end workflow: build drives plan, review, implement, verify, and architect review with repair loops; impl-plan, review-plan, verify, and architect-review also work standalone.",
     "developerName": "James Hemson",
     "category": "Developer Tools"
   }
