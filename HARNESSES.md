@@ -69,6 +69,14 @@ Model routing is an auditable request, not a guaranteed pin:
 
 The orchestrator classifies complexity before Plan and refines it from the plan. If the active spawn surface cannot override the child model or reasoning effort, the phase inherits the current session model and the workflow records `model_fallback` visibly in state and the final summary.
 
+#### Custom agent routing contract
+
+The optional routing block ends at the next H2 heading or EOF. Its body permits blank lines and one or more exact `- <key>: <value>` entries only. Parsing trims only surrounding delimiter whitespace and preserves the opaque remainder exactly, including case, punctuation, quotes, and internal whitespace. Build rejects duplicate blocks, duplicate keys, unknown keys, non-list content, and blank values before workflow mutation, naming the offending source and key when a key exists.
+
+Saved routing is durable. The saved route snapshot wins unless the current invocation contains a valid block. A valid invocation block overrides only named keys and logs their old and new values. Changed `AGENTS.md` content never silently changes live state, while an invalid current mapping leaves the snapshot and history unchanged. Removing or editing an `AGENTS.md` mapping affects route resolution for a fresh workflow; it does not reset a live snapshot. A legacy state missing routes resolves once after valid input and logs that resolution.
+
+If exact custom selection is unavailable or rejected, Build appends `agent_selection_fallback` before using the Build-default model route. A later model override failure is recorded in an independent `model_fallback`; an execution failure remains on the existing `agent_failures` path. Selection support is an active-API boundary: Build can request an exposed exact name, but does not define profiles or selectors.
+
 **Cross-harness skill bridge.** In addition to `.agents/skills/` (Codex CLI primary) and `plugins/build/skills/` (Codex plugin package), this repo also emits `.codex/skills/`. Byte-identical to `.agents/skills/` (enforced by a 3-way sandbox byte-equality test — `codex` ↔ `codex-plugin` ↔ `codex-cross` share `codexRewrites` by reference). This path exists so cross-reading harnesses — notably Cursor, which documents `.codex/skills/` as a scan path — can discover the skills without additional configuration.
 
 Verified against Codex docs on 2026-07-12. Install verified on 2026-04-23.

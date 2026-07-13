@@ -195,7 +195,7 @@ test('OpenCode skill output contains exactly the four standalone skills', () => 
   );
 });
 
-test('Codex documentation describes instructed subagents, shared-workspace safety, and model fallback', () => {
+test('Codex documentation describes instructed subagents, custom routing, shared-workspace safety, and fallbacks', () => {
   const copy = [readFileSync(readmePath, 'utf8'), readFileSync(harnessesPath, 'utf8')].join('\n');
   assert.match(copy, /\$build:build <feature>/);
   assert.match(copy, /instructed subagents/i);
@@ -205,6 +205,41 @@ test('Codex documentation describes instructed subagents, shared-workspace safet
   assert.match(copy, /gpt-5\.6-luna/i);
   assert.match(copy, /\| Plan \/ Plan Review \|[^\n]*gpt-5\.6-sol[^\n]*xhigh/i);
   assert.match(copy, /model_fallback/);
+
+  assert.match(copy, /optional literal `## Build agent routing` block/i);
+  assert.match(copy, /- plan: [^\n]+[\s\S]*- review: [^\n]+[\s\S]*- explore: [^\n]+[\s\S]*- implement: [^\n]+[\s\S]*- verify: [^\n]+[\s\S]*- architect-review: [^\n]+/);
+  assert.match(copy, /`review` also controls the mid-implementation review/i);
+  assert.match(copy, /resolve(?:s)? each key independently[\s\S]*invocation > effective `AGENTS\.md` > Build default/i);
+
+  assert.match(copy, /block ends at the next H2 heading or EOF/i);
+  assert.match(copy, /blank lines and one or more exact `- <key>: <value>` entries/i);
+  assert.match(copy, /trims only surrounding delimiter whitespace[\s\S]*preserves the opaque remainder exactly/i);
+  assert.match(copy, /rejects? duplicate blocks, duplicate keys, unknown keys, non-list content, and blank values/i);
+  assert.match(copy, /before workflow mutation[\s\S]*offending source and key/i);
+
+  assert.match(copy, /Agent names are opaque and externally owned/i);
+  assert.match(copy, /never discovers, validates, normalizes, aliases, creates, copies, edits, installs, bundles, or overwrites agent profiles/i);
+  assert.doesNotMatch(copy, /Build (?:discovers|validates|normalizes|aliases|creates|copies|edits|installs|bundles|overwrites) (?:an? )?agent profiles?/i);
+  assert.match(copy, /non-null requested profile[\s\S]*`profile-owned`[\s\S]*no Build model or effort override[\s\S]*`fork_turns: "none"`/i);
+  assert.match(copy, /null Build-default route[\s\S]*no named selection attempt[\s\S]*no `agent_selection_fallback` record/i);
+
+  assert.match(copy, /exact custom selection is unavailable or rejected[\s\S]*append(?:s)? `agent_selection_fallback` before[\s\S]*Build-default model route/i);
+  assert.match(copy, /later model override failure[\s\S]*independent `model_fallback`/i);
+  assert.match(copy, /execution failure[\s\S]*existing `agent_failures` path/i);
+
+  assert.match(copy, /saved route snapshot wins unless the current invocation contains a valid block/i);
+  assert.match(copy, /valid invocation block overrides only named keys[\s\S]*old and new values/i);
+  assert.match(copy, /Changed `AGENTS\.md`[\s\S]*never silently changes live state/i);
+  assert.match(copy, /invalid current mapping leaves the snapshot and history unchanged/i);
+  assert.match(copy, /legacy state missing routes resolves once after valid input[\s\S]*logs that resolution/i);
+
+  assert.match(copy, /`default` is an opaque selectable agent name, not a reserved sentinel/i);
+  assert.match(copy, /For a fresh workflow, restore adaptive Build default by removing or editing the `AGENTS\.md` mapping before invocation/i);
+  assert.match(copy, /A live workflow keeps its saved snapshot/i);
+  assert.match(copy, /`AGENTS\.md` edits do not change it/i);
+  assert.match(copy, /only a valid current invocation block may replace named keys/i);
+  assert.match(copy, /requests the exact profile only where the active API exposes agent selection[\s\S]*documented fallback/i);
+  assert.match(copy, /does not add host selectors/i);
   assertNoObsoleteCodexClaims(copy, 'README.md and HARNESSES.md');
 });
 
