@@ -101,6 +101,26 @@ The Codex orchestrator requests models adaptively after a targeted read classifi
 
 These are requests rather than guaranteed pins. When the current spawn surface cannot override a child model or effort, the phase inherits the active session model and the workflow records `model_fallback` in its state and final summary instead of claiming the requested route occurred.
 
+### Custom Build agents
+
+Codex users may add an optional literal `## Build agent routing` block to the current invocation or effective `AGENTS.md`. A partial map resolves each key independently with this precedence: invocation > effective `AGENTS.md` > Build default. The six public keys are:
+
+```md
+## Build agent routing
+- plan: planning-profile
+- review: review-profile
+- explore: exploration-profile
+- implement: implementation-profile
+- verify: verification-profile
+- architect-review: architecture-profile
+```
+
+`review` also controls the mid-implementation review. Agent names are opaque and externally owned: Build never discovers, validates, normalizes, aliases, creates, copies, edits, installs, bundles, or overwrites agent profiles. It does not provide profile setup or map profile names to models.
+
+For a non-null requested profile, the route is `profile-owned`: Build requests the exact name with no Build model or effort override and no inherited history (`fork_turns: "none"` where exposed). For a null Build-default route, Build makes no named selection attempt and creates no `agent_selection_fallback` record. `default` is an opaque selectable agent name, not a reserved sentinel. For a fresh workflow, restore adaptive Build default by removing or editing the `AGENTS.md` mapping before invocation. A live workflow keeps its saved snapshot: `AGENTS.md` edits do not change it, and only a valid current invocation block may replace named keys.
+
+Configuration requests the exact profile only where the active API exposes agent selection; otherwise the documented fallback applies. This repository does not add host selectors.
+
 Generated skill outputs are committed artifacts. When changing `source/skills/`, run `npm run build` and commit the source changes, regenerated provider outputs, and any test updates together. `npm run check-sync` intentionally fails on an uncommitted source/output change set because it compares generated outputs against git.
 
 ## Standalone use

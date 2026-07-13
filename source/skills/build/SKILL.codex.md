@@ -27,22 +27,38 @@ allowed only when their assigned file sets are disjoint. If any files overlap, c
 the work into one writer or run the writers sequentially. Root owns shared integration
 files.
 
-## Resume and state selection: always read state first
+## Resume, state, and agent-route selection
 
-Inspect `.build/plans/*-state.md`, excluding `archive/`, before any other workflow
-action.
+State selection remains the first read-only operation: inspect
+`.build/plans/*-state.md`, excluding `archive/`, before any other workflow action.
 
 - No matching state: derive a collision-free slug and begin a fresh workflow.
-- One matching state: resume its recorded phase. Check `branch`; root switches to it
-  before phase work. Reconcile stale fields per the schema and preserve unknown fields.
+- One matching state: inventory its recorded phase, branch-switch need, stale fields, and
+  unknown fields without acting on them.
 - Multiple states: match the user's request to `task`. With no unique match, ask the
   user to choose; do not guess. A different request starts a new slug without touching
   live workflows.
-- `halted: true`: resume only when the user asks and the halt cause is resolved. Record
-  the recovery, remove the halt triplet, then continue from `phase`.
+- `halted: true`: inventory whether the user asked to resume and the halt cause is resolved;
+  do not remove or record anything yet.
 
-On resume, validate that every artifact required by the recorded phase exists. Recover
-from the last durable artifact; never advance state based only on chat history.
+Before routing validation, resume work is inventory only. On resume, validate that every artifact
+required by the recorded phase exists and identify the last durable artifact read-only;
+never advance state based only on chat history.
+
+The invocation and effective `AGENTS.md` may each contain at most one literal
+`## Build agent routing` block. Its body ends immediately before the next H2 heading or at EOF.
+Blank lines are allowed; every nonblank line must match `^- ([^:]+):[ \t]*(.*?)[ \t]*$`, and at
+least one mapping line is required. Trim only horizontal padding around the captured value.
+Preserve all remaining case, punctuation, quotes, and internal whitespace. The only public keys, in state order, are `plan`, `review`, `explore`, `implement`, `verify`, and `architect-review`; `review` also governs mid-review.
+Reject the entire source mapping for a duplicate block, duplicate key, unknown key, non-list/nonblank content, or a value blank after trimming; name the source and offending key when one exists.
+
+Validate every applicable mapping completely before any mutation. On a fresh workflow,
+resolve every key independently with precedence invocation > effective `AGENTS.md` > Build default;
+the Build default is `{ requested_agent: null, source: build-default }`. With no mapping in either source, all six keys therefore use that null Build default. Snapshot all six `agent_routes` records before delegation. On resume, the saved `agent_routes` snapshot wins. Changes to `AGENTS.md` never alter a live snapshot. An invalid current invocation mapping leaves both state and history byte-for-byte unchanged; branch and artifacts are unchanged too.
+
+Only after all applicable current routing validates may root switch branches, reconcile stale fields, remove a halt triplet, recover artifacts, replace named agent routes or resolve legacy routes, or mutate state/history. Then a valid current invocation block replaces only its named keys with `source: invocation` and records the old and new records in `history`. A legacy state missing `agent_routes` resolves exactly once, only after all current input is valid, and records that resolution in `history`; artifact recovery starts from the last durable artifact.
+
+Agent names are opaque. Never discover, validate, normalize, alias, create, copy, edit, install, bundle, or overwrite agent profiles; `default` is an ordinary selectable opaque name, not a sentinel.
 
 ## Complexity and model routing
 
@@ -57,10 +73,10 @@ to `simple`, `standard`, or `complex` and refresh `model_routes`:
 | `complex` | 6+ files, multiple workstreams, high risk, or cross-cutting | `gpt-5.6-sol`, `xhigh` | `gpt-5.6-sol`, `high` | `gpt-5.6-luna`, `max` |
 
 Risk overrides file count upward; never downgrade high-risk data, auth, security, or
-destructive work below `complex`. Plan, review, mid-review, and architect-review use
-`xhigh` for complex work. Architect-review also uses Sol/`xhigh` for broad diffs,
-PARTIAL verification, plan deviations, or auth/data/public-API changes; a small fully
-verified simple diff uses Sol/`high`.
+destructive work below `complex`. Build-default plan, review, mid-review, and
+architect-review use `xhigh` effort for complex work. Architect-review also upgrades
+Build-default effort to `xhigh` for broad diffs, PARTIAL verification, plan deviations,
+or auth/data/public-API changes; a small fully verified simple diff uses `high`.
 
 Exploration fan-out follows the current provisional or final classification: simple uses
 no explorer, standard uses at most two, and complex uses at most three. Every explorer
@@ -71,6 +87,10 @@ continue with the best available agent or inline execution. Append a `model_fall
 entry containing phase, requested route, actual route, reason, and timestamp before
 using it. Historical fallback entries are never cleared. Lack of an override is not a
 reason to skip a phase.
+
+Every phase companion, explorer, writer, reviewer, and mid-review dispatch applies its effective role route. For a non-null `requested_agent`, request that exact agent type, omit Build model and effort, set `fork_turns: "none"`, and record its `model_routes` route as the literal `profile-owned`; never combine named selection with a Build model/effort override. For null/build-default, never attempt named selection and never create `agent_selection_fallback`; request the complexity-table model/effort (or execute inline) with `fork_turns: "none"` because this is an explicit model/effort request.
+
+If a requested non-null selection is absent because the selector is unavailable, or is rejected, first append `agent_selection_fallback` with `timestamp`, `phase`, `role`, `requested_agent`, `actual_agent`, `fallback_route`, `reason`, and `detail`. Use `actual_agent: unknown` if unreported; `fallback_route` names the Build model/effort route or inline; use `selector-unavailable` for a selector schema limitation or `selection-rejected` for the exact rejection, with that limitation/rejection in `detail`. Append this entry before requesting the Build model route. `model_fallback` remains independent and is appended only if that subsequent model/effort request is unavailable. A later execution failure follows normal `agent_failures` handling, never agent-selection fallback.
 
 ## Companion-skill delegation
 
@@ -156,12 +176,12 @@ root captures `base_ref` with `git rev-parse HEAD`, records the current branch, 
 `git switch -c build/{slug}`. Create `.build/plans/` only after this preflight succeeds.
 
 Immediately create an initial `phase: plan` state with identity, git refs, provisional
-complexity and model routes, empty inventories, `completed_tasks: []`,
+complexity, all six agent routes, model routes, empty inventories, `completed_tasks: []`,
 `agent_progress: {}`, and initial history. This durable state must exist before the first
 explorer or companion dispatch so progress, fallback, failure, and resume evidence can be
 recorded from the start.
 
-Apply the complexity fan-out limits to Luna/`max` read-only exploration of architecture,
+Apply the complexity fan-out limits to route-selected read-only exploration of architecture,
 affected code, and tests. Root synthesizes their evidence and delegates `impl-plan` with
 the marker `[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence,
 a complete `execution_manifest`, and disjoint same-wave `files_modified`.
@@ -172,8 +192,8 @@ model routes, inventories, manifest summary, and `phase: review`.
 
 ## Phase 2: Review
 
-Read state plus context, requirements, and plan. Delegate `review-plan` at the routed Sol
-effort. Save `{slug}-review.md` before state changes.
+Read state plus context, requirements, and plan. Delegate `review-plan` with the effective
+`review` route. Save `{slug}-review.md` before state changes.
 
 - `Proceed to implementation`: transition to `implement`.
 - `Proceed with fixes`: root revises and validates plan/requirements, records
@@ -192,8 +212,7 @@ units, not dispatch units. Never spawn one writer per manifest task. Group each
 workstream's ready frontier into the fewest bounded batches. Give each batch one or more IDs, their internal
 topological order, and the union of owned files. Split a batch only for an unresolved
 external dependency, union overlap, or runtime budget; concurrent batch unions must be
-disjoint. Dispatch at the routed implementation model and effort and serialize dependencies
-or overlap. Root handles shared files, git operations, commits, and integration checks.
+disjoint. Dispatch every batch through the effective `implement` route. A successful non-null custom selection remains `profile-owned` and omits Build model/effort. Only a null/build-default route or a recorded `agent_selection_fallback` may request the complexity-table model/effort. Serialize dependencies or overlap. Root handles shared files, git operations, commits, and integration checks.
 
 Wave 0 collects the fastest targeted evidence. Run a full baseline only to diagnose a
 suspected pre-existing failure. Workers run scoped owned-file/task checks and never the
@@ -207,14 +226,15 @@ After the wave's integration commands pass, write/update
 failed check, keep `phase: implement` and record the failure. Once all tasks and must-haves
 have evidence, validate the final implementation summary, then transition to `verify`.
 
-Use read-only mid-review agents after major standard/complex waves. RETHINK or a valid
+Use read-only mid-review agents with the effective `review` route after major
+standard/complex waves. RETHINK or a valid
 `SCOPE_CHANGE` records rework evidence and transitions to `plan`; it never edits state
 directly.
 
 ## Phase 4: Verify
 
-Read state, requirements, plan, and implementation summary. Delegate `verify` to Luna at
-`max`, requiring exactly one fresh full-suite result, each unique plan-declared command,
+Read state, requirements, plan, and implementation summary. Delegate `verify` with its
+effective route, requiring exactly one fresh full-suite result, each unique plan-declared command,
 must-have coverage, and the debt scan. Save `{slug}-verify.md` before changing state.
 
 - `VERIFIED`: record verdict and transition to `architect-review`.
@@ -226,15 +246,14 @@ must-have coverage, and the debt scan. Save `{slug}-verify.md` before changing s
 ## Phase 5: Architect review
 
 Read all artifacts. Root computes the review target from `base_ref`; it owns the git diff.
-Delegate `architect-review` at the routed Sol effort with the target and verify verdict.
+Delegate `architect-review` with its effective route and the target and verify verdict.
 Save `{slug}-architect-review.md` before changing state.
 
 - `PASS` or `PASS_WITH_NOTES`: transition to terminal `complete`.
 - `FAIL`: record `architect_fixes` and transition to `implement` for fixes and re-verify.
 - Missing verdict: apply the phase-agent circuit breaker.
 
-At `complete`, summarize delivered work, tests, decisions, branch, the requested model
-routes and every `model_fallback` (or explicitly `none`), and the user's merge command.
+At `complete`, summarize delivered work, tests, decisions, branch, all six agent routes and sources, every `agent_selection_fallback` (or explicitly `none`), requested model routes and every `model_fallback` (or explicitly `none`), including literal `profile-owned` wherever selected, and the user's merge command.
 Surface all PARTIAL gaps under `Uncovered requirements`. Root archives all slug artifacts
 under `.build/plans/archive/{date}-{slug}/`. Never merge to the user's branch, push, or
 open a PR.
