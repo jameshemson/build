@@ -52,7 +52,7 @@ This map is the skeleton for the implementation order. Every file here must appe
 
 The discovery level sets the tier:
 
-- **skip** or **quick_verify** → **compact plan**. Open with the line `Tier: compact (discovery level: {level})`. Required sections: Discovery level, Requirements and decisions, Problem, Approach, Files to change (with the Step 1 file map), What existing behavior changes, Execution manifest, Implementation order, Verification. Add these only when triggered: Data impact (schema, migration, or data files change), New dependencies (a dependency is added), UI contract (UI files change), Access control and authorization (routes or permissions change). Omit untriggered sections entirely — do not write "N/A" rows in a compact plan. If `[orchestrated]`, also include Workflow artifacts and Wave 0 validation design.
+- **skip** or **quick_verify** → **compact plan**. Open with the line `Tier: compact (discovery level: {level})`. Required sections: Discovery level, Requirements and decisions, Problem, Approach, Files to change (with the Step 1 file map), What existing behavior changes, Execution manifest, Parallel workstreams, Implementation order, Verification. Add these only when triggered: Data impact (schema, migration, or data files change), New dependencies (a dependency is added), UI contract (UI files change), Access control and authorization (routes or permissions change). Omit untriggered sections entirely — do not write "N/A" rows in a compact plan. If `[orchestrated]`, also include Workflow artifacts and Wave 0 validation design.
 - **standard_research** or **deep_dive** → **full plan**: every section below, with "N/A + reason" where one doesn't apply.
 
 ### Discovery level
@@ -148,9 +148,12 @@ Identify which implementation steps are independent and can be assigned to separ
 
 For each workstream:
 - **Name**: short identifier (e.g., "token-validation", "db-migration", "ui-components")
+- **Task IDs**: exact `execution_manifest` task IDs assigned to this workstream
 - **Files**: which files from the file map this workstream touches
 - **Complexity**: simple (1-2 files, mechanical) or complex (multiple files, integration logic)
 - **Depends on**: which other workstreams must complete first, or "none"
+
+Manifest task IDs are planning, evidence and completion units, not dispatch units. Implementations must group ready task IDs into the fewest safe workstream batches instead of assigning one writer per manifest task.
 
 If everything is sequential, say so and explain why.
 

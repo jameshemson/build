@@ -62,6 +62,10 @@ destructive work below `complex`. Plan, review, mid-review, and architect-review
 PARTIAL verification, plan deviations, or auth/data/public-API changes; a small fully
 verified simple diff uses Sol/`high`.
 
+Exploration fan-out follows the current provisional or final classification: simple uses
+no explorer, standard uses at most two, and complex uses at most three. Every explorer
+has the default five-minute runtime; use partial evidence when that deadline expires.
+
 Request these routes when spawning agents. If a model or effort override is unavailable,
 continue with the best available agent or inline execution. Append a `model_fallback`
 entry containing phase, requested route, actual route, reason, and timestamp before
@@ -93,35 +97,46 @@ in their dispatch and return a terminal status immediately after those commands 
 ## Agent progress protocol
 
 Every dispatch names an agent label, task IDs, owned files, the next expected command,
-and a maximum runtime. Require these milestone messages at boundaries, not periodic
-heartbeats:
+and a runtime. Default runtime is five minutes for an explorer and ten minutes for a
+writer or companion (including reviewer and mid-review). A longer runtime is allowed
+only for a named slow command with an explicit duration. At dispatch, root records these
+`agent_progress` fields using ISO-8601 timestamps with timezone: `dispatched_at`, an
+immutable `deadline_at` computed once, `last_checked_at`, `last_evidence_at`,
+`evidence_free_checks`, and `deadline_status_requested_at: null`. Status replies and root
+polling never extend `deadline_at`.
+
+Require these milestone messages at boundaries, not periodic heartbeats:
 
 - `STARTED`: task IDs and owned files accepted;
 - `EDITING`: files changed and next action;
 - `VERIFYING`: exact command and start time;
 - terminal status: final files, command result, and concerns.
 
-Root maintains the state file's `agent_progress` map from these messages; agents never
-write it. Mirror the current phase and concise agent stages in the available plan/status
-surface. While agents run, wait no longer than 60 seconds before listing agent status,
-inspecting the shared diff/stat for assigned files, updating `agent_progress`, and giving
-the user a short progress update. A changed file is activity evidence, never completion
-evidence. Do not infer progress from process inspection or repeat unbounded waits.
+Root maintains `agent_progress`; agents never write it. At intervals of no more than 60
+seconds while any agent runs, root checks/lists agents, inspects each assigned-file diff,
+updates state, and reports to the user. Each agent row contains `label | stage |
+elapsed/deadline | command | last evidence`; a bare waiting message is insufficient.
+Among timestamps, polling updates only `last_checked_at`; an evidence-free poll also
+increments `evidence_free_checks`. Only an agent milestone/status reply or a new
+assigned-file diff updates `last_evidence_at` and resets that counter. Changed files are
+activity, not completion.
 
-One missing milestone triggers a structured status request naming the last observed
-stage and diff. An overdue terminal handoff follows the watchdog below. When root
-integrates a result, remove its live progress entry and append the terminal outcome to
-history so resume retains the audit trail.
+After two consecutive evidence-free checks, root sends a structured status request with
+the task IDs, last stage, command, assigned-file diff evidence, missing milestone, and
+immutable deadline. This request does not slide the deadline. At `deadline_at`, every
+agent—writer with or without edits, explorer, companion, reviewer, or mid-review—gets
+exactly one deadline status request, recorded in `deadline_status_requested_at`, followed
+by exactly one 60-second grace interval. If no terminal handoff arrives, interrupt it and
+record `handoff-timeout`. Preserve and freshly verify writer edits, retain partial
+explorer evidence, and apply retry-then-inline to phase companions. Never redo work that
+the diff and fresh evidence prove; redispatch only a named missing must-have.
 
-## Agent handoff watchdog
-
-Every dispatch states its expected command and maximum runtime. If an agent has made
-shared-workspace edits but does not return after that runtime, root sends one status
-request and waits one bounded grace interval. If it still does not return, interrupt it,
-preserve its edits, record `handoff-timeout` in `agent_failures`, inspect the assigned
-diff, and run its scoped verification inline. Do not redispatch work that the diff and
-fresh evidence prove complete; redispatch only a named missing must-have. Apply the
-phase-agent retry-then-inline rule when a read-only phase agent misses its handoff.
+On integration, append the terminal outcome to history before removing the live entry.
+Legacy `agent_progress` entries missing supervision fields are orphaned handoffs: never
+fabricate timestamps. Record reconciliation, inspect and preserve their assigned diffs,
+obtain fresh scoped evidence, then complete them or redispatch only a named missing
+must-have. This is a deterministic prompt/state contract, not a host-harness timing
+guarantee.
 
 ## Artifact-before-state invariant
 
@@ -146,10 +161,10 @@ complexity and model routes, empty inventories, `completed_tasks: []`,
 explorer or companion dispatch so progress, fallback, failure, and resume evidence can be
 recorded from the start.
 
-Run up to three parallel Luna/`max` read-only explorers for architecture, affected code,
-and tests. Root synthesizes their evidence and delegates `impl-plan` with the marker
-`[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence, a complete
-`execution_manifest`, and disjoint same-wave `files_modified`.
+Apply the complexity fan-out limits to Luna/`max` read-only exploration of architecture,
+affected code, and tests. Root synthesizes their evidence and delegates `impl-plan` with
+the marker `[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence,
+a complete `execution_manifest`, and disjoint same-wave `files_modified`.
 
 Root determines final complexity, then writes and validates `{slug}-context.md`,
 `{slug}-requirements.md`, and `{slug}-plan.md`. Last, update state with final complexity,
@@ -170,12 +185,24 @@ effort. Save `{slug}-review.md` before state changes.
 ## Phase 3: Implement
 
 Read every prior artifact. Validate manifest dependencies and same-wave file ownership
-before dispatch. First add Wave 0 tests or evidence. Dispatch independent, disjoint writer
-workstreams concurrently at the routed implementation model and effort; serialize
-dependencies and overlapping files. Agents edit only assigned files and run their scoped
-checks. Root handles all shared files, git operations, commits, and integration checks.
+before dispatch. Also require every manifest ID in exactly one named workstream, every
+workstream ID to exist in the manifest, and each workstream's file set to equal the union
+of its member tasks' `files_modified`. Manifest IDs are planning, evidence, and completion
+units, not dispatch units. Never spawn one writer per manifest task. Group each
+workstream's ready frontier into the fewest bounded batches. Give each batch one or more IDs, their internal
+topological order, and the union of owned files. Split a batch only for an unresolved
+external dependency, union overlap, or runtime budget; concurrent batch unions must be
+disjoint. Dispatch at the routed implementation model and effort and serialize dependencies
+or overlap. Root handles shared files, git operations, commits, and integration checks.
 
-After each wave, root runs integrated verification. Only then write/update
+Wave 0 collects the fastest targeted evidence. Run a full baseline only to diagnose a
+suspected pre-existing failure. Workers run scoped owned-file/task checks and never the
+full suite unless a dispatch explicitly assigns a named slow gate and runtime budget.
+After each completed wave, root runs each exact integration command once; deduplicate
+identical commands within and across batches. Phase 4 owns one fresh full-suite result
+and each unique plan-declared command; evidence from earlier layers never substitutes.
+
+After the wave's integration commands pass, write/update
 `{slug}-implementation-summary.md` and append its task IDs to `completed_tasks`. On a
 failed check, keep `phase: implement` and record the failure. Once all tasks and must-haves
 have evidence, validate the final implementation summary, then transition to `verify`.
@@ -187,8 +214,8 @@ directly.
 ## Phase 4: Verify
 
 Read state, requirements, plan, and implementation summary. Delegate `verify` to Luna at
-`max`, requiring fresh full-suite evidence, plan-declared commands, must-have coverage,
-and the debt scan. Save `{slug}-verify.md` before changing state.
+`max`, requiring exactly one fresh full-suite result, each unique plan-declared command,
+must-have coverage, and the debt scan. Save `{slug}-verify.md` before changing state.
 
 - `VERIFIED`: record verdict and transition to `architect-review`.
 - `FAILED`: record `verification_failures` and transition to `implement`.
@@ -225,8 +252,8 @@ Before every dispatch or transition, count prior history and failures:
 
 - Same workstream: at most two redispatches; then halt with `agent-retry-limit`.
 - Phase agent: retry once for an error/missing verdict, then execute inline.
-- Agent handoff: one status request plus one bounded grace interval, then interrupt and
-  verify preserved edits inline; never wait indefinitely for a terminal status.
+- Agent handoff: enforce the deterministic deadline protocol above for every agent;
+  interrupt after its single deadline request and 60-second grace interval.
 - Agent visibility: never exceed one 60-second monitoring interval without refreshing
   `agent_progress` and reporting a concise phase/agent update while work is active.
 - Same phase re-entry: more than three returns halts with `phase-loop-limit`.

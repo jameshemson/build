@@ -23,29 +23,37 @@ If an active workflow is present and one of those required artifacts is missing,
 
 If no active workflow state exists, record workflow artifacts as `N/A - standalone verification`. Missing `.build/plans/` artifacts must not make standalone verification `PARTIAL`.
 
-### 2. Detect available checks
+### 2. Build one exact-command ledger
 
-Look for project configuration to determine what can be verified:
+Collect every command candidate before executing anything. Detect available checks from:
 - **Tests**: `package.json` scripts (test, jest, vitest), `pytest.ini`, `Cargo.toml`, `go.mod`, test directories
 - **Build**: `package.json` scripts (build, compile), `Makefile`, `Cargo.toml`, `go.mod`
 - **Type check**: `tsconfig.json`, `mypy.ini`, `pyproject.toml` (mypy/pyright config)
 - **Lint**: `package.json` scripts (lint), `.eslintrc`, `ruff.toml`, `Cargo.toml` (clippy)
 
-### 3. Run each available check
+Also collect every `execution_manifest.verify` command. Key the ledger by the exact
+command string; do not normalize whitespace, aliases, or environment prefixes. For each
+duplicate key, union its detected categories, task IDs, `requirements`, and `must_haves`
+onto one entry. When there is no manifest, use only detected candidates.
 
-For each check that's available:
-1. Identify the exact command
-2. Run it
-3. Read the FULL output - do not summarize prematurely
-4. Record the result
+### 3. Execute the ledger once with a freshness barrier
 
-For checks that aren't available, record `N/A` with a brief note (e.g., "no test suite found").
+Run each exact command once, read its full output, and attach the result to every unioned
+category and evidence consumer. An entry is valid only in the same invocation when
+executed after the latest code, dependency, or content change. Baseline, worker, wave,
+cached, remembered, and prior-invocation output never substitutes for this evidence.
 
-### 4. Run plan-declared verification
+After every content-writing command, run `git status --short` and
+`git diff --name-only` before consuming the next ledger result. Any later content change
+makes all earlier entries stale; rerun them after the last change before issuing a
+verdict. In an active workflow, newly dirty generated output makes the verdict `FAILED`
+so implementation can integrate it before verification restarts.
 
-For each unique `verify` command in `execution_manifest`, run the command once. When identical commands appear in multiple tasks, union all associated `requirements` lists and report the combined coverage. For each task, report whether each `must_haves` item has observable evidence in command output, test names, manual evidence text, or changed files.
+### 4. Evaluate results and coverage
 
-If no `execution_manifest` is present, this section is a no-op; rely solely on the available-checks results from step 3.
+For unavailable detected categories, record `N/A` with a brief reason. For every task,
+report whether each `must_haves` item has observable evidence in its shared ledger output,
+test names, manual evidence text, or changed files.
 
 If a command fails, final verdict is `FAILED`. If commands pass but any `REQ-*` has no fresh evidence, any `must_haves` item lacks evidence, or required workflow artifacts are missing, final verdict is `PARTIAL` with an `uncovered requirements` section. If all available checks and plan-declared evidence pass, final verdict is `VERIFIED`.
 
@@ -104,7 +112,7 @@ Output:
 
 ### Plan-declared evidence
 Required artifacts: [present / missing list]
-Manifest commands: [commands run, de-duplicated]
+Command ledger: [exact command | unioned categories/task IDs/REQs/must_haves | result | fresh/stale]
 Requirement coverage: [REQ-* covered / uncovered requirements]
 must_haves evidence: [covered / missing]
 

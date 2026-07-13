@@ -61,15 +61,19 @@ See [HARNESSES.md](HARNESSES.md) for the full capability matrix and install stor
 
 Both `/build <feature>` in Claude Code and `$build:build <feature>` in Codex drive a 5-phase cycle:
 
-1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit an `execution_manifest` with `wave`, `depends_on`, `files_modified`, `must_haves`, `verify`, and `done`
+1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit an `execution_manifest` whose task IDs map exactly once to named workstreams
 2. **Review** - Adversarial senior engineer review: placeholder scan, workstream independence check, requirement/decision coverage, wave graph validation, test coverage mapping
-3. **Implement** - Manifest-routed workstreams with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans. Circuit breakers prevent runaway retries.
-4. **Verify** - Run tests, build, type checks, and plan-declared verification commands. Requirement coverage and missing `must_haves` evidence are reported explicitly. No claims without fresh output.
+3. **Implement** - Batch each workstream's ready task IDs into the fewest safe writer dispatches, with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans.
+4. **Verify** - Build one fresh ledger keyed by exact command string across detected checks and plan commands. Exact duplicates run once with unioned task, requirement, and `must_haves` evidence.
 5. **Architect Review** - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, weak-test audit, dependency audit
 
 The orchestrator manages state, auto-continues between phases, and deploys model-appropriate agents. Claude implementation agents use isolated worktrees and a structured merge protocol. Codex uses current instructed subagents in a shared workspace: read-only work can fan out, while write workers run concurrently only when same-wave `files_modified` sets are disjoint. The Codex root alone writes `.build/`, mutates git, inspects integrated diffs, and advances phases.
 
-Codex agent progress is supervised through structured boundary milestones, a durable root-owned progress map, and bounded status/diff checks. If a worker has landed edits but misses its terminal handoff, the root preserves those edits and takes over scoped verification instead of waiting indefinitely or starting the work again.
+Codex exploration is complexity-bounded: simple workflows use no explorer, standard uses at most two, and complex uses at most three. Explorers default to five minutes; writers and companion phases default to ten. Longer budgets require a named slow command and explicit duration.
+
+Codex agent progress uses structured boundary milestones and durable absolute deadlines. Root checks status and assigned diffs at intervals no longer than 60 seconds, without counting its own polls as agent evidence. Two evidence-free checks request status without moving the deadline. Every overdue agent—edited or not—gets one deadline request and one 60-second grace period before interruption. Updates show the agent label, stage, elapsed/deadline, command, and last evidence; preserved writer edits are verified rather than restarted. These Markdown and state contracts make supervision auditable, but cannot guarantee host-harness wall-clock behavior.
+
+Testing has one owner per layer: Wave 0 uses the fastest targeted evidence, workers use scoped checks, root deduplicates integration commands once per completed wave, and final verification owns the fresh full suite and exact-command ledger. Baseline, worker, and wave output never substitutes for final evidence after the latest change.
 
 `/build` is file-backed. Each workflow writes durable artifacts under `.build/plans/` so later phases and fresh agents do not depend on chat history alone:
 
