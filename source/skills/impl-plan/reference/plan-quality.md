@@ -70,6 +70,10 @@ Plans must include a fenced YAML block named `execution_manifest`. Every task en
 
 Every `REQ-*` and `D-*` must appear in at least one task and at least one verification path. Same-wave tasks must not share `files_modified`; put shared files in a later dependent task or merge the workstreams.
 
+## Workstream Routing Rules
+
+Every manifest task ID must belong to exactly one workstream, and every workstream `Task IDs` entry must name an existing manifest task. Missing, duplicate, or unknown membership is invalid. Each workstream's `Files` set must equal the union of `files_modified` for its member task IDs, with no extra or missing files. Workstreams whose dependencies allow concurrent execution must have disjoint file unions; otherwise merge them or order them through an explicit dependency.
+
 ## Workflow Artifact Rules
 
 For `/build` workflows, phase artifacts under `.build/plans/` are durable memory and control surface:
@@ -105,6 +109,9 @@ Every file in the map has at least one implementation step. Every file touched i
 
 ### 4a. Execution manifest matches implementation order
 Every task in the implementation order appears in `execution_manifest`, and every manifest task appears in the implementation order. Same-wave tasks do not share files.
+
+### 4b. Workstream membership and union safety
+Every manifest task ID belongs to exactly one workstream; no workstream contains an unknown ID, and no task has missing or duplicate membership. Each workstream's `Files` set exactly matches the union of its member tasks' `files_modified`, with no extra or missing files. File unions for concurrently eligible workstreams are disjoint.
 
 ### 5. All sections present
 Every required section exists. Sections that don't apply say "N/A" with a brief explanation - they are not silently omitted.

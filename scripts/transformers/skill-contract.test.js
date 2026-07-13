@@ -20,6 +20,8 @@ const REQUIRED_TERMS = {
     'UI contract',
     'model: opus',
     'Tier: compact',
+    'Task IDs',
+    'evidence and completion units',
     'Saving the plan',
   ],
   'source/skills/review-plan/SKILL.md': [
@@ -32,6 +34,8 @@ const REQUIRED_TERMS = {
     'must_haves',
     'required artifact',
     'Tier: compact',
+    'one writer per manifest task',
+    'concurrent writer agents',
   ],
   'source/skills/build/SKILL.md': [
     'base_ref',
@@ -71,9 +75,11 @@ const REQUIRED_TERMS = {
     'Companion-skill delegation',
     'run that skill\'s documented contract inline',
     'Concurrent writer agents',
-    'Agent handoff watchdog',
     'Agent progress protocol',
     'agent_progress',
+    'deadline_status_requested_at',
+    'exactly one 60-second grace interval',
+    'Never spawn one writer per manifest task',
     'STARTED',
     'EDITING',
     'VERIFYING',
@@ -98,6 +104,11 @@ const REQUIRED_TERMS = {
     'N/A - standalone verification',
     'same conversation',
     'stale or unrelated',
+    'exact-command ledger',
+    'same invocation',
+    'task IDs',
+    'git status --short',
+    'git diff --name-only',
     'vitest run',
   ],
   'source/skills/architect-review/SKILL.md': [
@@ -147,6 +158,35 @@ function assertRequiredTerms(content, terms, path) {
   }
 }
 
+function assertWorkstreamRoutingContents(planner, quality, reviewer) {
+  assert.match(planner, /Task IDs[\s\S]*evidence and completion units[\s\S]*fewest safe workstream batches/);
+  assert.match(quality, /exactly one workstream[\s\S]*union of `files_modified`[\s\S]*disjoint file unions/);
+  assert.match(reviewer, /Missing, duplicate, or unknown task membership is \*\*Important\*\*/);
+  assert.match(reviewer, /extra or missing file is \*\*Critical\*\*/);
+  assert.match(reviewer, /one writer per manifest task[\s\S]*\*\*Important\*\*/);
+}
+
+function assertWorkstreamRouting() {
+  assertWorkstreamRoutingContents(
+    readRel('source/skills/impl-plan/SKILL.md'),
+    readRel('source/skills/impl-plan/reference/plan-quality.md'),
+    readRel('source/skills/review-plan/SKILL.md'),
+  );
+}
+
+function assertVerifyCommandLedger(content) {
+  const collect = content.indexOf('Collect every command candidate before executing anything');
+  const execute = content.indexOf('### 3. Execute the ledger once');
+  assert.ok(collect >= 0 && execute > collect, 'ledger candidates must be collected before execution');
+  assert.match(content, /Key the ledger by the exact\s+command string; do not normalize/);
+  assert.match(content, /union its detected categories, task IDs, `requirements`, and `must_haves`/);
+  assert.match(content, /Run each exact command once/);
+  assert.match(content, /same invocation[\s\S]*after the latest code, dependency, or content change/);
+  assert.match(content, /prior-invocation output never substitutes/);
+  assert.match(content, /git status --short[\s\S]*git diff --name-only/);
+  assert.match(content, /later content change[\s\S]*earlier entries stale/);
+}
+
 test('source skills retain required execution-contract terms', () => {
   for (const [path, terms] of Object.entries(REQUIRED_TERMS)) {
     assertRequiredTerms(readRel(path), terms, path);
@@ -185,6 +225,48 @@ test('impl-plan execution_manifest example includes a routable task shape', () =
     );
   }
 });
+
+test('portable planning contracts require exact task-to-workstream routing', () => {
+  assertWorkstreamRouting();
+});
+
+test('verify uses one fresh exact-command ledger across all evidence sources', () => {
+  assertVerifyCommandLedger(readRel('source/skills/verify/SKILL.md'));
+});
+
+for (const [path, phrase] of [
+  ['source/skills/impl-plan/SKILL.md', 'Task IDs'],
+  ['source/skills/impl-plan/SKILL.md', 'evidence and completion units'],
+  ['source/skills/impl-plan/reference/plan-quality.md', 'exactly one workstream'],
+  ['source/skills/review-plan/SKILL.md', 'one writer per manifest task'],
+]) {
+  test(`routing contract rejects removal of ${phrase}`, () => {
+    const paths = [
+      'source/skills/impl-plan/SKILL.md',
+      'source/skills/impl-plan/reference/plan-quality.md',
+      'source/skills/review-plan/SKILL.md',
+    ];
+    const originals = paths.map(readRel);
+    const index = paths.indexOf(path);
+    assert.ok(originals[index].includes(phrase), `routing fixture missing ${phrase}`);
+    const fixture = [...originals];
+    fixture[index] = fixture[index].replace(phrase, '');
+    assert.throws(() => assertWorkstreamRoutingContents(...fixture));
+  });
+}
+
+for (const phrase of [
+  'Collect every command candidate before executing anything',
+  'exact command once',
+  'same invocation',
+  'earlier entries stale',
+]) {
+  test(`verification ledger rejects removal of ${phrase}`, () => {
+    const content = readRel('source/skills/verify/SKILL.md');
+    assert.ok(content.includes(phrase), `ledger fixture missing ${phrase}`);
+    assert.throws(() => assertVerifyCommandLedger(content.replace(phrase, '')));
+  });
+}
 
 test('architect-review resolves chat/workflow context before stopping for missing verification', () => {
   const content = readRel('source/skills/architect-review/SKILL.md');
