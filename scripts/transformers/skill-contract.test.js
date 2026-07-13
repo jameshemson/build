@@ -109,6 +109,8 @@ const REQUIRED_TERMS = {
     'task IDs',
     'git status --short',
     'git diff --name-only',
+    'policy literal',
+    'unreferenced-actionable',
     'vitest run',
   ],
   'source/skills/architect-review/SKILL.md': [
@@ -187,6 +189,15 @@ function assertVerifyCommandLedger(content) {
   assert.match(content, /later content change[\s\S]*earlier entries stale/);
 }
 
+function assertVerifyDebtClassification(content) {
+  assert.match(content, /A \*\*policy literal\*\* uses the marker as input data/);
+  assert.match(content, /scanner pattern, lint\/validation rule, explicit test\s+fixture, or documentation list of forbidden markers/);
+  assert.match(content, /Quoting, backticks, or prose alone do\s+not make an unfinished-work marker a policy literal/);
+  assert.match(content, /Policy literals need no issue ref/);
+  assert.match(content, /unreferenced-actionable/);
+  assert.match(content, /If any actionable marker is\s+unreferenced[\s\S]*final verdict is `FAILED`/);
+}
+
 test('source skills retain required execution-contract terms', () => {
   for (const [path, terms] of Object.entries(REQUIRED_TERMS)) {
     assertRequiredTerms(readRel(path), terms, path);
@@ -234,6 +245,10 @@ test('verify uses one fresh exact-command ledger across all evidence sources', (
   assertVerifyCommandLedger(readRel('source/skills/verify/SKILL.md'));
 });
 
+test('verify distinguishes policy literals from actionable debt markers', () => {
+  assertVerifyDebtClassification(readRel('source/skills/verify/SKILL.md'));
+});
+
 for (const [path, phrase] of [
   ['source/skills/impl-plan/SKILL.md', 'Task IDs'],
   ['source/skills/impl-plan/SKILL.md', 'evidence and completion units'],
@@ -265,6 +280,19 @@ for (const phrase of [
     const content = readRel('source/skills/verify/SKILL.md');
     assert.ok(content.includes(phrase), `ledger fixture missing ${phrase}`);
     assert.throws(() => assertVerifyCommandLedger(content.replace(phrase, '')));
+  });
+}
+
+for (const phrase of [
+  'uses the marker as input data',
+  'Policy literals need no issue ref',
+  'unreferenced-actionable',
+  'If any actionable marker is',
+]) {
+  test(`debt classification rejects removal of ${phrase}`, () => {
+    const content = readRel('source/skills/verify/SKILL.md');
+    assert.ok(content.includes(phrase), `debt fixture missing ${phrase}`);
+    assert.throws(() => assertVerifyDebtClassification(content.replaceAll(phrase, '')));
   });
 }
 

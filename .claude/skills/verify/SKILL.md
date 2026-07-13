@@ -65,7 +65,17 @@ Run one pass (portable word match — `-w`, not `\b`):
 
     grep -nwE "TODO|FIXME|XXX|HACK|we.ll fix this later|temporary fix" <files>
 
-A match is **referenced** when the same line carries an issue or deferral ref matching `(#[0-9]+|[A-Z]{2,}-[0-9]+)` — `DEF-001` is the formal deferral convention. List every match in the report as `path:line:text`, referenced and unreferenced alike: deferrals are visible, never silent. If any marker lacks a same-line reference, the final verdict is `FAILED` with reason `unreferenced debt markers in changed files`, even when every command passes.
+Classify every match before the verdict. A **policy literal** uses the marker as input data
+to define or test marker detection: a scanner pattern, lint/validation rule, explicit test
+fixture, or documentation list of forbidden markers. Quoting, backticks, or prose alone do
+not make an unfinished-work marker a policy literal. Every other match is **actionable**.
+
+An actionable match is **referenced** only when the same line carries an issue or deferral
+ref matching `(#[0-9]+|[A-Z]{2,}-[0-9]+)`; `DEF-001` is the formal convention. List every
+match as `path:line:text` tagged `policy-literal`, `referenced-actionable`, or
+`unreferenced-actionable`. Policy literals need no issue ref. If any actionable marker is
+unreferenced, the final verdict is `FAILED` with reason `unreferenced debt markers in
+changed files`, even when every command passes.
 
 ### 5. Report what actually happened
 
@@ -118,7 +128,7 @@ must_haves evidence: [covered / missing]
 
 ### Debt scan
 Files scanned: [N]
-Markers: [each path:line:text, tagged referenced/unreferenced — or "none"]
+Markers: [each path:line:text, tagged policy-literal/referenced-actionable/unreferenced-actionable — or "none"]
 Result: PASS / FAIL / N/A
 
 ### Verdict
