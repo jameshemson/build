@@ -35,7 +35,7 @@ const STATE_EVIDENCE = [
 const ROUTING_KEYS = ['plan', 'review', 'explore', 'implement', 'verify', 'architect-review'];
 
 const ROUTING_EVIDENCE = [
-  ['exact route keys', 'The only public keys, in state order, are `plan`, `review`, `explore`, `implement`, `verify`, and `architect-review`; `review` also governs mid-review.'],
+  ['exact route keys', 'The only public keys, in state order, are'],
   ['routing source boundaries', 'ends immediately before the next H2 heading or at EOF'],
   ['routing line grammar', '`^- ([^:]+):[ \\t]*(.*?)[ \\t]*$`'],
   ['routing rejection set', 'Reject the entire source mapping for a duplicate block, duplicate key, unknown key, non-list/nonblank content, or a value blank after trimming'],
@@ -118,28 +118,7 @@ function assertInOrder(content, needles, message) {
   }
 }
 
-export function assertCodexOrchestrator(content) {
-  for (const [behavior, evidence] of BEHAVIORS) {
-    assert.ok(content.includes(evidence), `orchestrator must retain ${behavior}`);
-  }
-  for (const [behavior, evidence] of ROUTING_EVIDENCE) {
-    assert.ok(content.includes(evidence), `orchestrator must retain ${behavior}`);
-  }
-
-  const phases = [...content.matchAll(/^## Phase \d+: (.+)$/gm)].map((match) => match[1]);
-  assert.deepEqual(phases, ['Plan', 'Review', 'Implement', 'Verify', 'Architect review']);
-
-  assertInOrder(content, [
-    '`git status --porcelain`',
-    '`git rev-parse HEAD`',
-    '`git switch -c build/{slug}`',
-  ], 'clean-tree preflight');
-  assertInOrder(content, [
-    '`git switch -c build/{slug}`',
-    'Immediately create an initial `phase: plan` state',
-    'Apply the complexity fan-out limits to route-selected read-only exploration',
-  ], 'durable state before delegation');
-
+function assertResumeRoutingContract(content) {
   assertInOrder(content, [
     'State selection remains the first read-only operation',
     'Validate every applicable mapping completely before any mutation',
@@ -173,14 +152,14 @@ export function assertCodexOrchestrator(content) {
     'Only after all applicable current routing validates may root switch branches, reconcile stale fields, remove a halt triplet, recover artifacts, replace named agent routes or resolve legacy routes, or mutate state/history.',
   ], 'read-only selection and complete resume mutation barrier');
 
-  const routeKeySentence = ROUTING_EVIDENCE.find(([name]) => name === 'exact route keys')[1];
-  for (const key of ROUTING_KEYS) {
-    assert.ok(routeKeySentence.includes('`' + key + '`'), `routing key list must include ${key}`);
-  }
-  for (const forbidden of ['mid-review` as a public key', '`mid-review`,']) {
-    assert.ok(!routeKeySentence.includes(forbidden), 'mid-review must be governed by review, not public');
-  }
+  const keyClause = content.match(/The only public keys, in state order, are ([^;]+);/)?.[1];
+  assert.ok(keyClause, 'orchestrator must declare its public routing keys');
+  const declaredKeys = [...keyClause.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+  assert.deepEqual(declaredKeys, ROUTING_KEYS, 'orchestrator must declare exact public routing keys');
+  assert.match(content, /; `review` also governs mid-review\./);
+}
 
+function assertAgentProgressContract(content) {
   const progress = content.slice(
     content.indexOf('## Agent progress protocol'),
     content.indexOf('## Artifact-before-state invariant'),
@@ -207,7 +186,9 @@ export function assertCodexOrchestrator(content) {
   ], 'deadline watchdog sequence');
   assert.doesNotMatch(progress, /If an agent has made/);
   assert.doesNotMatch(progress, /bounded grace interval/);
+}
 
+function assertDispatchModelArtifactContract(content) {
   assert.match(content, /simple uses\s+no explorer, standard uses at most two, and complex uses at most three/);
   assert.match(content, /Every explorer\s+has the default five-minute runtime/);
   assert.match(content, /Group each\s+workstream's ready frontier[\s\S]*fewest bounded batches/);
@@ -286,6 +267,30 @@ export function assertCodexOrchestrator(content) {
   ], 'architect artifact transition');
 }
 
+export function assertCodexOrchestrator(content) {
+  for (const [behavior, evidence] of BEHAVIORS) {
+    assert.ok(content.includes(evidence), `orchestrator must retain ${behavior}`);
+  }
+  for (const [behavior, evidence] of ROUTING_EVIDENCE) {
+    assert.ok(content.includes(evidence), `orchestrator must retain ${behavior}`);
+  }
+
+  const phases = [...content.matchAll(/^## Phase \d+: (.+)$/gm)].map((match) => match[1]);
+  assert.deepEqual(phases, ['Plan', 'Review', 'Implement', 'Verify', 'Architect review']);
+  assertInOrder(content, [
+    '`git status --porcelain`', '`git rev-parse HEAD`', '`git switch -c build/{slug}`',
+  ], 'clean-tree preflight');
+  assertInOrder(content, [
+    '`git switch -c build/{slug}`',
+    'Immediately create an initial `phase: plan` state',
+    'Apply the complexity fan-out limits to route-selected read-only exploration',
+  ], 'durable state before delegation');
+
+  assertResumeRoutingContract(content);
+  assertAgentProgressContract(content);
+  assertDispatchModelArtifactContract(content);
+}
+
 function withoutBehavior(content, evidence) {
   assert.ok(content.includes(evidence), `fixture evidence missing: ${evidence}`);
   return content.replace(evidence, '');
@@ -335,6 +340,16 @@ for (const [behavior, evidence] of ROUTING_EVIDENCE) {
     assert.throws(() => assertCodexOrchestrator(fixture), new RegExp(behavior));
   });
 }
+
+test('negative fixture declaring a seventh public routing key is rejected', () => {
+  const content = readRel(ORCHESTRATOR_PATH);
+  const fixture = content.replace(
+    '`verify`, and `architect-review`; `review` also governs mid-review.',
+    '`verify`, `architect-review`, and `deploy`; `review` also governs mid-review.',
+  );
+  assert.notEqual(fixture, content, 'seventh-key fixture must alter the production key clause');
+  assert.throws(() => assertCodexOrchestrator(fixture), /exact public routing keys/);
+});
 
 test('negative fixture making the deadline request field optional is rejected', () => {
   const content = readRel(ORCHESTRATOR_PATH);
