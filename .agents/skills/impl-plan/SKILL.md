@@ -69,6 +69,9 @@ How we're solving it. Be specific about patterns, data flow, and where this live
 
 After drafting the approach, stress-test it. Look at the existing code you'll be integrating with - does your approach actually fit how the codebase works today? Are you assuming an interface, pattern, or data shape that doesn't exist? Call out anything you're unsure about rather than glossing over it.
 
+When the plan proposes a new interface, factory, design pattern, or abstraction layer for frontend, backend, CLI, or tooling work, require it to record, in order: (1) the present pain or a real axis of variation; (2) the simpler alternative and why it is insufficient; and (3) the added indirection or maintenance cost.
+A test seam, a second real implementation, and a deliberate architectural boundary are qualitative examples, not a numeric threshold. Future flexibility alone is insufficient.
+
 ### Who uses this and how
 Every user type that interacts with this feature. Walk through each person's experience. Don't just describe the happy path - describe the person who hits this feature sideways (existing user with old data, user on a different plan, second user in the same account, user who starts the flow and abandons it).
 

@@ -181,6 +181,58 @@ function assertWorkstreamRouting() {
   );
 }
 
+function assertAbstractionJustificationContents(planner, quality, reviewer, architect) {
+  const approach = planner.match(/### Approach\n([\s\S]*?)(?=\n### )/);
+  assert.ok(approach, 'impl-plan must retain an Approach section');
+  assert.match(approach[1], /When the plan proposes a new interface[\s\S]*factory[\s\S]*design pattern[\s\S]*abstraction layer/);
+  assert.match(approach[1], /frontend[\s\S]*backend[\s\S]*CLI[\s\S]*tooling/);
+  assert.match(approach[1], /present pain or a real axis of variation[\s\S]*simpler alternative and why it is insufficient[\s\S]*added indirection or maintenance cost/);
+  assert.match(approach[1], /test seam[\s\S]*second real implementation[\s\S]*deliberate architectural boundary[\s\S]*qualitative examples, not a numeric threshold/);
+  assert.match(approach[1], /Future flexibility alone is insufficient/);
+
+  const selfReview = quality.match(/## Self-Review Checklist\n([\s\S]*)/);
+  assert.ok(selfReview, 'plan-quality must retain the canonical Self-Review Checklist');
+  assert.match(selfReview[1], /Abstraction justification/);
+  assert.match(selfReview[1], /new interface[\s\S]*factory[\s\S]*design pattern[\s\S]*abstraction layer/);
+  assert.match(selfReview[1], /frontend[\s\S]*backend[\s\S]*CLI[\s\S]*tooling/);
+  assert.match(selfReview[1], /present pain or a real axis of variation[\s\S]*simpler alternative and why it is insufficient[\s\S]*added indirection or maintenance cost/);
+  assert.match(selfReview[1], /test seam[\s\S]*second real implementation[\s\S]*deliberate architectural boundary[\s\S]*qualitative examples, not a numeric threshold/);
+  assert.match(selfReview[1], /Future flexibility alone is insufficient/);
+
+  assert.match(reviewer, /Inspect the plan's Approach[\s\S]*new interface[\s\S]*factory[\s\S]*design pattern[\s\S]*abstraction layer/);
+  assert.match(reviewer, /frontend[\s\S]*backend[\s\S]*CLI[\s\S]*tooling/);
+  assert.match(reviewer, /present pain or a real axis of variation[\s\S]*simpler alternative and why it is insufficient[\s\S]*added indirection or maintenance cost/);
+  assert.match(reviewer, /Treat test seams[\s\S]*a second real implementation[\s\S]*a deliberate architectural boundary[\s\S]*qualitative examples[\s\S]*numeric threshold/);
+  assert.match(reviewer, /Future flexibility alone is insufficient/);
+  assert.match(reviewer, /Missing, incomplete, or speculative-only evidence is \*\*Important\*\*/);
+
+  const lenses = architect.match(/## Review lenses\n([\s\S]*?)(?=\n## Manifest fidelity)/);
+  assert.ok(lenses, 'architect-review must retain its Review lenses section');
+  assert.deepEqual(
+    [...lenses[1].matchAll(/^(\d+)\. /gm)].map((match) => Number(match[1])),
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    'architect-review must retain exactly ten numbered review lenses',
+  );
+  const lensSeven = lenses[1].match(/^7\. ([\s\S]*?)(?=\n8\. )/m);
+  assert.ok(lensSeven, 'architect-review lens 7 must retain the abstraction gate');
+  assert.match(lensSeven[1], /constructs introduced in the review target/);
+  assert.match(lensSeven[1], /new interface[\s\S]*factory[\s\S]*design pattern[\s\S]*abstraction layer/);
+  assert.match(lensSeven[1], /frontend[\s\S]*backend[\s\S]*CLI[\s\S]*tooling/);
+  assert.match(lensSeven[1], /present pain or a real axis of variation[\s\S]*simpler alternative and why it is insufficient[\s\S]*added indirection or maintenance cost/);
+  assert.match(lensSeven[1], /A test seam, a second real implementation, and a deliberate architectural boundary are qualitative examples, not a numeric threshold\./);
+  assert.match(lensSeven[1], /Future flexibility alone is insufficient/);
+  assert.match(lensSeven[1], /unjustified abstraction is \*\*Important\*\*/);
+}
+
+function assertAbstractionJustification() {
+  assertAbstractionJustificationContents(
+    readRel('source/skills/impl-plan/SKILL.md'),
+    readRel('source/skills/impl-plan/reference/plan-quality.md'),
+    readRel('source/skills/review-plan/SKILL.md'),
+    readRel('source/skills/architect-review/SKILL.md'),
+  );
+}
+
 function assertVerifyCommandLedger(content) {
   const collect = content.indexOf('Collect every command candidate before executing anything');
   const execute = content.indexOf('### 3. Execute the ledger once');
@@ -246,6 +298,10 @@ test('portable planning contracts require exact task-to-workstream routing', () 
   assertWorkstreamRouting();
 });
 
+test('portable review contracts gate new abstractions on current evidence', () => {
+  assertAbstractionJustification();
+});
+
 test('verify uses one fresh exact-command ledger across all evidence sources', () => {
   assertVerifyCommandLedger(readRel('source/skills/verify/SKILL.md'));
 });
@@ -272,6 +328,34 @@ for (const [path, phrase] of [
     const fixture = [...originals];
     fixture[index] = fixture[index].replace(phrase, '');
     assert.throws(() => assertWorkstreamRoutingContents(...fixture));
+  });
+}
+
+for (const [path, phrase] of [
+  ['source/skills/impl-plan/SKILL.md', 'present pain or a real axis of variation'],
+  ['source/skills/impl-plan/SKILL.md', 'qualitative examples, not a numeric threshold'],
+  ['source/skills/impl-plan/reference/plan-quality.md', 'simpler alternative and why it is insufficient'],
+  ['source/skills/impl-plan/reference/plan-quality.md', 'Future flexibility alone is insufficient'],
+  ['source/skills/review-plan/SKILL.md', 'Inspect the plan\'s Approach'],
+  ['source/skills/review-plan/SKILL.md', 'Treat test seams'],
+  ['source/skills/review-plan/SKILL.md', 'Missing, incomplete, or speculative-only evidence is **Important**'],
+  ['source/skills/architect-review/SKILL.md', 'constructs introduced in the review target'],
+  ['source/skills/architect-review/SKILL.md', 'A test seam, a second real implementation, and a deliberate architectural boundary are qualitative examples, not a numeric threshold.'],
+  ['source/skills/architect-review/SKILL.md', 'unjustified abstraction is **Important**'],
+]) {
+  test(`abstraction contract rejects removal of ${phrase}`, () => {
+    const paths = [
+      'source/skills/impl-plan/SKILL.md',
+      'source/skills/impl-plan/reference/plan-quality.md',
+      'source/skills/review-plan/SKILL.md',
+      'source/skills/architect-review/SKILL.md',
+    ];
+    const originals = paths.map(readRel);
+    const index = paths.indexOf(path);
+    assert.ok(originals[index].includes(phrase), `abstraction fixture missing ${phrase}`);
+    const fixture = [...originals];
+    fixture[index] = fixture[index].replace(phrase, '');
+    assert.throws(() => assertAbstractionJustificationContents(...fixture));
   });
 }
 

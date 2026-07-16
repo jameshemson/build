@@ -23,6 +23,8 @@ Exception: if the plan opens with `Tier: compact`, the required sections are: Di
 
 Then, for each section of the plan, check whether the content is accurate, complete, and consistent with the codebase:
 
+Inspect the plan's Approach for every proposed new interface, factory, design pattern, or abstraction layer, whether in frontend, backend, CLI, or tooling work. Require, in order: the present pain or a real axis of variation; the simpler alternative and why it is insufficient; and the added indirection or maintenance cost. Treat test seams, a second real implementation, and a deliberate architectural boundary as qualitative examples that may justify an abstraction, never as a numeric threshold. Future flexibility alone is insufficient. Missing, incomplete, or speculative-only evidence is **Important**.
+
 1. **Trace the code.** Do the files listed actually exist? Do the described behaviors match what the code does today? Are there files or code paths the plan misses?
 2. **Check the data impact.** Will the migration work against the current schema? Are there existing queries, indexes, or constraints that conflict?
 3. **Test the assumptions.** For each item in "Open questions" and "Risks" - are the stated mitigations actually sufficient? Are the severity ratings honest?
