@@ -113,6 +113,9 @@ Every task in the implementation order appears in `execution_manifest`, and ever
 ### 4b. Workstream membership and union safety
 Every manifest task ID belongs to exactly one workstream; no workstream contains an unknown ID, and no task has missing or duplicate membership. Each workstream's `Files` set exactly matches the union of its member tasks' `files_modified`, with no extra or missing files. File unions for concurrently eligible workstreams are disjoint.
 
+### 4c. Abstraction justification
+When the plan proposes a new interface, factory, design pattern, or abstraction layer for frontend, backend, CLI, or tooling work, verify that its Approach records, in order: (1) the present pain or a real axis of variation; (2) the simpler alternative and why it is insufficient; and (3) the added indirection or maintenance cost. A test seam, a second real implementation, and a deliberate architectural boundary are qualitative examples, not a numeric threshold. Future flexibility alone is insufficient. Do not require a dedicated section.
+
 ### 5. All sections present
 Every required section exists. Sections that don't apply say "N/A" with a brief explanation - they are not silently omitted.
 
