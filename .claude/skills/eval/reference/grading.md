@@ -23,18 +23,19 @@ Check that the output contains headings for all required impl-plan sections:
 - Open questions
 - Wave 0 validation design
 - Execution manifest
+- Delivery slices
 - Workflow artifacts
 - UI contract
 - Parallel workstreams
 - Implementation order
 - Verification
 
-Match heading text case-insensitively. A section headed "## risks and rollback" or "## Risks & Rollback" both count. If a section says "N/A" with a reason, that counts as present.
+Match heading text case-insensitively. A section headed "## risks and rollback" or "## Risks & Rollback" both count. If a section says "N/A" with a reason, that counts as present, except Delivery slices: every plan must declare at least one slice.
 
-**Pass**: all 22 sections found.
+**Pass**: all 23 sections found.
 **Fail**: one or more sections missing. List which ones.
 
-If the output opens with a line matching `Tier: compact`, required sections are instead: Discovery level, Requirements and decisions, Problem, Approach, Files to change, What existing behavior changes, Execution manifest, Implementation order, Verification (plus triggered extras). Grade against that list.
+If the output opens with a line matching `Tier: compact`, required sections are instead: Discovery level, Requirements and decisions, Problem, Approach, Files to change, What existing behavior changes, Execution manifest, Delivery slices, Parallel workstreams, Implementation order, Verification (plus triggered extras). Grade against that list.
 
 ### zero-placeholders
 Scan the output for banned placeholder patterns. The full banned list is in `impl-plan/reference/plan-quality.md`. Key patterns to scan for:
@@ -78,6 +79,17 @@ Find a fenced ```yaml block containing `execution_manifest:`. For each task entr
 **Pass**: block exists and every task has all eight fields.
 **Fail**: no block found, or list each task ID with its missing fields.
 
+### delivery-slices-valid
+Find a fenced YAML block containing `delivery_slices:` and parse it together with the fenced `execution_manifest:` block. Check all of the following:
+- There is at least one slice, and every slice ID matches `S-###` exactly and is unique.
+- Every slice contains exactly these eight fields, with no missing or additional fields: `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, `done`.
+- Every `task_ids` entry names an execution-manifest task. No Wave 0 task appears in any slice. Every task whose `wave` is greater than 0 appears in exactly one slice.
+- Every slice dependency names a slice declared earlier in the block. For each task in a slice, every task dependency is either Wave 0, in the same slice, or in a declared predecessor slice.
+- `goal`, `requirements`, `must_haves`, and `done` are non-empty and observable. `verify` names an exact command or inspection and its expected result; a generic phrase such as "verify the slice" is not evidence.
+
+**Pass**: the block satisfies every schema, membership, dependency, and evidence check.
+**Fail**: no block exists, or list each slice and task with the exact failed check.
+
 ### requirements-covered
 Extract every `REQ-*` ID from the "Requirements and decisions" section. For each ID, check (a) it appears in at least one manifest task's `requirements` list, and (b) it appears in the "Verification" or "Wave 0 validation design" section.
 **Pass**: every REQ ID satisfies both (a) and (b).
@@ -120,6 +132,30 @@ Check that the review output contains zero findings tagged as Critical.
 
 **Pass**: no Critical-severity findings.
 **Fail**: list the Critical findings.
+
+### catches-forward-slice-dependency
+The delivery-slice fixture declares `S-001` before `S-002` but gives `S-001` `depends_on: ["S-002"]`. Check that the review flags this as a forward/later-slice dependency, invalid delivery order, or cycle risk and names `S-001` and `S-002`.
+
+**Pass**: the forward dependency between the two named slices is flagged.
+**Fail**: the dependency is missed or discussed without identifying the slices.
+
+### catches-duplicate-or-missing-slice-membership
+The delivery-slice fixture assigns `T-002` to both `S-001` and `S-002`, while the wave>0 task `T-003` belongs to no slice. Check that the review flags duplicate membership, missing membership, or both and names the affected task ID(s).
+
+**Pass**: at least one exact membership defect is flagged with `T-002` or `T-003` as evidence.
+**Fail**: neither defect is identified with a task ID.
+
+### catches-missing-slice-evidence
+The delivery-slice fixture gives `S-001` empty `must_haves`, the non-exact verification `"inspect the changes"`, and the non-observable completion statement `"foundation complete"`. Check that the review flags at least one of these as missing or non-observable slice acceptance/integration evidence and identifies `S-001`.
+
+**Pass**: `S-001` is flagged for missing or non-observable `must_haves`, `verify`, or `done` evidence.
+**Fail**: the review accepts the evidence or does not identify `S-001`.
+
+### catches-unjustified-foundation-slice
+The delivery-slice fixture labels `S-001` as foundation-only but does not explain why a vertical slice is impossible, name the first consuming slice, or provide compatibility evidence. Check that the review flags this exception as unjustified and identifies at least one of those missing requirements.
+
+**Pass**: `S-001` is flagged as an unjustified foundation-only slice with a specific missing justification, consumer, or compatibility check.
+**Fail**: the foundation slice is accepted or criticized without naming a required exception condition.
 
 ## architect-review assertions
 

@@ -52,7 +52,7 @@ This map is the skeleton for the implementation order. Every file here must appe
 
 The discovery level sets the tier:
 
-- **skip** or **quick_verify** → **compact plan**. Open with the line `Tier: compact (discovery level: {level})`. Required sections: Discovery level, Requirements and decisions, Problem, Approach, Files to change (with the Step 1 file map), What existing behavior changes, Execution manifest, Parallel workstreams, Implementation order, Verification. Add these only when triggered: Data impact (schema, migration, or data files change), New dependencies (a dependency is added), UI contract (UI files change), Access control and authorization (routes or permissions change). Omit untriggered sections entirely — do not write "N/A" rows in a compact plan. If `[orchestrated]`, also include Workflow artifacts and Wave 0 validation design.
+- **skip** or **quick_verify** → **compact plan**. Open with the line `Tier: compact (discovery level: {level})`. Required sections: Discovery level, Requirements and decisions, Problem, Approach, Files to change (with the Step 1 file map), What existing behavior changes, Execution manifest, Delivery slices, Parallel workstreams, Implementation order, Verification. Add these only when triggered: Data impact (schema, migration, or data files change), New dependencies (a dependency is added), UI contract (UI files change), Access control and authorization (routes or permissions change). Omit untriggered sections entirely — do not write "N/A" rows in a compact plan. If `[orchestrated]`, also include Workflow artifacts and Wave 0 validation design.
 - **standard_research** or **deep_dive** → **full plan**: every section below, with "N/A + reason" where one doesn't apply.
 
 ### Discovery level
@@ -136,9 +136,36 @@ execution_manifest:
     must_haves: ["test asserts the named user-visible behavior"]
     verify: "npm test -- tests/example.test.ts"
     done: "REQ-001 has command evidence and named assertions"
+  - id: T-002
+    wave: 1
+    depends_on: ["T-001"]
+    files_modified: ["src/example.ts"]
+    requirements: ["REQ-001"]
+    must_haves: ["the named user-visible behavior passes the Wave 0 assertion"]
+    verify: "npm test -- tests/example.test.ts"
+    done: "REQ-001 implementation passes the named Wave 0 test"
 ```
 
 `must_haves` are non-optional acceptance criteria. They must be observable in test names, command output, manual evidence, or changed files.
+
+### Delivery slices
+Include a fenced YAML block named `delivery_slices`. A delivery slice is a dependency-closed, independently acceptable implementation checkpoint, not a dispatch unit. Use this hierarchy: delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks. Wave 0 is global and excluded from slices; every task in waves greater than 0 belongs to exactly one slice.
+
+```yaml
+delivery_slices:
+  - id: S-001
+    goal: "Deliver the named integrated, working outcome"
+    depends_on: []
+    task_ids: ["T-002"]
+    requirements: ["REQ-001"]
+    must_haves: ["the outcome is usable at this boundary"]
+    verify: ["npm test -- tests/example.test.ts"]
+    done: "REQ-001 has exact boundary evidence"
+```
+
+Each `S-###` entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`. `depends_on` names only earlier slices. Every task prerequisite must be Wave 0, in the same slice, or in a declared predecessor slice. Each slice must be integrated and working at its boundary, preferably as a vertical outcome, with exact evidence for its requirements and must-haves.
+
+Ordinary work uses one slice. Split only for dependency-ordered independently acceptable outcomes, materially distinct risk/recovery boundaries, or an integration checkpoint too broad to verify or recover coherently. Task count, multiple workstreams, or one writer's runtime alone never force a split. A foundation-only slice is allowed only when the plan explains why a vertical slice is impossible, names the first consuming slice, and gives exact compatibility evidence at the foundation boundary.
 
 ### Workflow artifacts
 For `/build`-orchestrated plans, name the `.build/plans/{slug}-*.md` artifacts each phase must write and read: state, context, requirements, plan, review, implementation-summary, verify, and architect-review. For standalone plans, say "N/A - standalone plan" and explain where the user should save the plan if they want durable context.

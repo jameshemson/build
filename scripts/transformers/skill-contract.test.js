@@ -148,6 +148,128 @@ const HARD_LINE_LIMITS = {
   'source/skills/impl-plan/reference/plan-quality.md': 220,
 };
 
+const DELIVERY_SLICE_FIELDS = [
+  'id',
+  'goal',
+  'depends_on',
+  'task_ids',
+  'requirements',
+  'must_haves',
+  'verify',
+  'done',
+];
+
+const DELIVERY_SLICE_ASSERTIONS = [
+  'delivery-slices-valid',
+  'catches-forward-slice-dependency',
+  'catches-duplicate-or-missing-slice-membership',
+  'catches-missing-slice-evidence',
+  'catches-unjustified-foundation-slice',
+];
+
+const DELIVERY_SLICE_CONTRACT_TERMS = {
+  'source/skills/impl-plan/SKILL.md': [
+    'Execution manifest, Delivery slices, Parallel workstreams',
+    'Each `S-###` entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`',
+    'delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks',
+    'Wave 0 is global and excluded from slices',
+    'every task in waves greater than 0 belongs to exactly one slice',
+    '`depends_on` names only earlier slices',
+    'Every task prerequisite must be Wave 0, in the same slice, or in a declared predecessor slice',
+    'Ordinary work uses one slice',
+    'dependency-ordered independently acceptable outcomes, materially distinct risk/recovery boundaries, or an integration checkpoint too broad to verify or recover coherently',
+    'Task count, multiple workstreams, or one writer\'s runtime alone never force a split',
+    'Each slice must be integrated and working at its boundary',
+    'with exact evidence for its requirements and must-haves',
+    'explains why a vertical slice is impossible, names the first consuming slice, and gives exact compatibility evidence',
+  ],
+  'source/skills/impl-plan/reference/plan-quality.md': [
+    'Each entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`',
+    'delivery slice → dependency waves → disjoint workstreams → execution-manifest tasks',
+    'Wave 0 is global and must not appear in a slice',
+    'Every task in waves greater than 0 belongs to exactly one slice',
+    'Slice `depends_on` entries name existing earlier slices',
+    'every task dependency must be in Wave 0, the same slice, or a declared predecessor slice',
+    'Ordinary work uses one slice',
+    'dependency-ordered independently acceptable outcomes, materially distinct risk/recovery boundaries, or an integration checkpoint too broad to verify or recover coherently',
+    'Task count, multiple workstreams, and one writer\'s runtime are not sufficient reasons to split',
+    'integrated and working at its boundary',
+    'backed by exact verification for its named requirements and observable must-haves',
+    'explains why a vertical slice is impossible, names its first consuming slice, and provides exact compatibility evidence',
+  ],
+  'source/skills/review-plan/SKILL.md': [
+    'Wave 0 validation design, Delivery slices, Execution manifest',
+    'What existing behavior changes, Delivery slices, Execution manifest',
+    'Every slice must contain exactly these eight fields: `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`',
+    '`delivery slice -> waves -> workstreams -> tasks`',
+    'Wave 0 is validation design and belongs to no delivery slice',
+    'Every manifest task with `wave > 0` must belong to exactly one slice',
+    'Slice `depends_on` may name only declared earlier slices',
+    'every task dependency must remain inside its own slice or its slice\'s transitive predecessor closure',
+    'Judge slicing by delivery boundaries, not volume',
+    'An unbounded single slice is **Important** when the plan contains multiple independently acceptable outcomes or distinct risk, recovery, or integration boundaries',
+    'Artificial fragmentation is also **Important**',
+    'horizontal file/layer splits, task count, multiple workstreams, or one writer runtime alone do not justify splitting',
+    'verification that does not prove the slice goal is **Important**',
+    'explains why a vertical first slice is impossible, names the first consuming slice, and provides compatibility evidence',
+    'otherwise flag it as **Important**',
+    'A missing, duplicate, unknown, or Wave 0 membership is **Critical**',
+    'unsafe hierarchy or membership is **Critical**',
+    'Forward references and cycles are **Critical**',
+    'Any dependency leakage is **Critical**',
+    'Missing fields, non-observable `goal`/`must_haves`/`done`',
+  ],
+};
+
+const DELIVERY_ORCHESTRATION_CONTRACTS = {
+  'source/skills/build/SKILL.md': {
+    ordered: [
+      'Persist the dependency-ready incomplete `active_slice` before any dispatch',
+      'route only task IDs in `active_slice.task_ids`',
+      'run the slice\'s exact `verify` and observable `must_haves`',
+      'update the implementation summary with that provisional evidence',
+      'make the root checkpoint commit',
+      'record its commit ID in the summary',
+      'append the slice to `completed_slices`',
+      'activate the next declared-order dependency-ready incomplete slice',
+      'Only when every slice is complete and `active_slice: null`',
+      'update state to `phase: verify`',
+      'fresh whole-workflow evidence',
+      'Architect Review covers this whole diff',
+    ],
+    required: [
+      'delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks',
+      'Any evidence, integration, summary-write, or commit failure leaves the same `active_slice` in place and blocks every later slice',
+      'Slice evidence is provisional and never substitutes for fresh whole-workflow verification',
+      'no slice, worker, wave, or checkpoint result substitutes for this final authority',
+      'Read the whole workflow diff since the workflow started',
+    ],
+  },
+  'source/skills/build/SKILL.codex.md': {
+    ordered: [
+      'persist `active_slice`',
+      'dispatch only its tasks',
+      'integrate its exact `verify`/`must_haves` evidence',
+      'update `{slug}-implementation-summary.md`',
+      'root makes the checkpoint commit',
+      'record the checkpoint',
+      'append the slice to `completed_slices`',
+      'activate the next dependency-ready slice',
+      'Only after every slice is completed',
+      'transition to `verify`',
+      'fresh whole-workflow authority',
+      'Architect Review remains the whole-diff authority',
+    ],
+    required: [
+      'delivery slice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks',
+      'A failure keeps the same active slice and blocks every successor',
+      'Slice evidence is provisional and never substitutes for final verification',
+      'Phase 4 owns one fresh full-suite result',
+      'root computes the review target from `base_ref` and owns the git diff; slice evidence never substitutes',
+    ],
+  },
+};
+
 function readRel(path) {
   return readFileSync(join(ROOT, path), 'utf8');
 }
@@ -163,6 +285,138 @@ function assertRequiredTerms(content, terms, path) {
       `${path} must include required contract term ${JSON.stringify(term)}`,
     );
   }
+}
+
+function fencedYaml(content, root) {
+  const blocks = [...content.matchAll(/```yaml\n([\s\S]*?)```/g)].map((match) => match[1]);
+  const block = blocks.find((candidate) => candidate.split('\n').some(
+    (line) => line === `${root}:`,
+  ));
+  assert.ok(block, `must include a fenced yaml ${root} block`);
+  return block;
+}
+
+function parseYamlEntries(content, root) {
+  const lines = fencedYaml(content, root).split('\n');
+  const rootIndex = lines.indexOf(`${root}:`);
+  const entries = [];
+  let current = null;
+
+  for (const line of lines.slice(rootIndex + 1)) {
+    const firstField = line.match(/^  - ([a-z_]+):\s*(.*)$/);
+    if (firstField) {
+      current = { [firstField[1]]: firstField[2] };
+      entries.push(current);
+      continue;
+    }
+    const field = line.match(/^    ([a-z_]+):\s*(.*)$/);
+    if (field && current) current[field[1]] = field[2];
+  }
+
+  return entries;
+}
+
+function yamlScalar(value) {
+  return value.startsWith('"') ? JSON.parse(value) : value;
+}
+
+function yamlList(value) {
+  assert.match(value, /^\[.*\]$/, `expected inline YAML list, received ${value}`);
+  return JSON.parse(value);
+}
+
+function assertDeliverySliceContractsContents(planner, quality, reviewer) {
+  const manifest = parseYamlEntries(planner, 'execution_manifest');
+  const slices = parseYamlEntries(planner, 'delivery_slices');
+  assert.equal(slices.length, 1, 'impl-plan sample must contain exactly one ordinary slice');
+  assert.equal(yamlScalar(slices[0].id), 'S-001');
+  assert.deepEqual(Object.keys(slices[0]).sort(), [...DELIVERY_SLICE_FIELDS].sort());
+
+  const manifestIds = new Set(manifest.map((task) => yamlScalar(task.id)));
+  const sliceMembership = slices.flatMap((slice) => yamlList(slice.task_ids));
+  for (const taskId of sliceMembership) {
+    assert.ok(
+      manifestIds.has(taskId),
+      `delivery-slice sample contains unknown task ID ${JSON.stringify(taskId)}`,
+    );
+  }
+
+  const taskById = new Map(manifest.map((task) => [yamlScalar(task.id), task]));
+  const waveZeroTask = taskById.get('T-001');
+  const implementationTask = taskById.get('T-002');
+  assert.ok(waveZeroTask, 'impl-plan manifest sample must contain T-001');
+  assert.ok(implementationTask, 'impl-plan manifest sample must contain T-002');
+  assert.equal(Number(waveZeroTask.wave), 0, 'T-001 must be Wave 0');
+  assert.equal(Number(implementationTask.wave), 1, 'T-002 must be Wave 1');
+
+  for (const task of manifest) {
+    const taskId = yamlScalar(task.id);
+    const membershipCount = sliceMembership.filter((member) => member === taskId).length;
+    if (Number(task.wave) === 0) {
+      assert.equal(membershipCount, 0, `Wave 0 task ${taskId} must stay global`);
+    } else if (Number(task.wave) > 0) {
+      assert.equal(membershipCount, 1, `${taskId} must appear in exactly one slice`);
+    }
+  }
+  assert.equal(
+    sliceMembership.filter((taskId) => taskId === 'T-002').length,
+    1,
+    'T-002 must appear in exactly one slice',
+  );
+
+  const contents = {
+    'source/skills/impl-plan/SKILL.md': planner,
+    'source/skills/impl-plan/reference/plan-quality.md': quality,
+    'source/skills/review-plan/SKILL.md': reviewer,
+  };
+  for (const [path, terms] of Object.entries(DELIVERY_SLICE_CONTRACT_TERMS)) {
+    assertRequiredTerms(contents[path], terms, path);
+  }
+
+  assert.match(reviewer, /Missing fields, non-observable `goal`\/`must_haves`\/`done`, or verification that does not prove the slice goal is \*\*Important\*\*/);
+  assert.match(reviewer, /unsafe hierarchy or membership is \*\*Critical\*\*/);
+  assert.match(reviewer, /Any dependency leakage is \*\*Critical\*\*/);
+}
+
+function assertDeliverySliceContracts() {
+  assertDeliverySliceContractsContents(
+    readRel('source/skills/impl-plan/SKILL.md'),
+    readRel('source/skills/impl-plan/reference/plan-quality.md'),
+    readRel('source/skills/review-plan/SKILL.md'),
+  );
+}
+
+function assertTermsInOrder(content, terms, path) {
+  let cursor = -1;
+  for (const term of terms) {
+    const next = content.indexOf(term, cursor + 1);
+    assert.ok(next >= 0, `${path} must include ordered clause ${JSON.stringify(term)}`);
+    assert.ok(next > cursor, `${path} has out-of-order clause ${JSON.stringify(term)}`);
+    cursor = next;
+  }
+}
+
+function normalizeOrchestrationWhitespace(content) {
+  return content.replace(/\s+/g, ' ').trim();
+}
+
+function assertDeliveryOrchestrationContents(claude, codex) {
+  const contents = {
+    'source/skills/build/SKILL.md': claude,
+    'source/skills/build/SKILL.codex.md': codex,
+  };
+  for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS)) {
+    const normalized = normalizeOrchestrationWhitespace(contents[path]);
+    assertTermsInOrder(normalized, contract.ordered, path);
+    assertRequiredTerms(normalized, contract.required, path);
+  }
+}
+
+function assertDeliveryOrchestration() {
+  assertDeliveryOrchestrationContents(
+    readRel('source/skills/build/SKILL.md'),
+    readRel('source/skills/build/SKILL.codex.md'),
+  );
 }
 
 function assertWorkstreamRoutingContents(planner, quality, reviewer) {
@@ -294,6 +548,73 @@ test('impl-plan execution_manifest example includes a routable task shape', () =
   }
 });
 
+test('portable planning and review skills retain the delivery-slice contract', () => {
+  assertDeliverySliceContracts();
+});
+
+test('both Build orchestrators retain ordered delivery-slice checkpoints and final authorities', () => {
+  assertDeliveryOrchestration();
+});
+
+test('delivery-slice eval metadata and fixtures stay deterministic', () => {
+  const evals = JSON.parse(readRel('source/skills/eval/evals.json')).evals;
+  const grading = readRel('source/skills/eval/reference/grading.md');
+  const clean = readRel('source/skills/eval/fixtures/clean-plan.md');
+  const flawed = readRel('source/skills/eval/fixtures/flawed-delivery-slices-plan.md');
+
+  for (const assertionId of DELIVERY_SLICE_ASSERTIONS) {
+    const references = evals.flatMap((entry) => entry.assertions).filter(
+      (candidate) => candidate === assertionId,
+    );
+    assert.equal(references.length, 1, `${assertionId} must have exactly one eval reference`);
+    const headings = [...grading.matchAll(/^### ([a-z0-9-]+)$/gm)].filter(
+      (match) => match[1] === assertionId,
+    );
+    assert.equal(headings.length, 1, `${assertionId} must have exactly one grading heading`);
+  }
+
+  const focusedEval = evals.find((entry) => entry.id === 'review-plan-catches-delivery-slice-flaws');
+  assert.ok(focusedEval, 'focused delivery-slice review eval must exist');
+  assert.equal(focusedEval.input_fixture, 'fixtures/flawed-delivery-slices-plan.md');
+  assert.deepEqual(
+    focusedEval.assertions.filter((id) => DELIVERY_SLICE_ASSERTIONS.includes(id)),
+    DELIVERY_SLICE_ASSERTIONS.slice(1),
+  );
+
+  const cleanTasks = parseYamlEntries(clean, 'execution_manifest');
+  const cleanSlices = parseYamlEntries(clean, 'delivery_slices');
+  assert.equal(cleanSlices.length, 1);
+  assert.equal(yamlScalar(cleanSlices[0].id), 'S-001');
+  assert.deepEqual(Object.keys(cleanSlices[0]).sort(), [...DELIVERY_SLICE_FIELDS].sort());
+  assert.deepEqual(yamlList(cleanSlices[0].task_ids), ['T-002', 'T-003']);
+  const cleanMembership = cleanSlices.flatMap((slice) => yamlList(slice.task_ids));
+  const waveZeroIds = cleanTasks.filter((task) => Number(task.wave) === 0).map(
+    (task) => yamlScalar(task.id),
+  );
+  const implementationIds = cleanTasks.filter((task) => Number(task.wave) > 0).map(
+    (task) => yamlScalar(task.id),
+  );
+  assert.deepEqual(waveZeroIds, ['T-001']);
+  assert.deepEqual(implementationIds, ['T-002', 'T-003']);
+  assert.ok(waveZeroIds.every((id) => !cleanMembership.includes(id)), 'Wave 0 must stay global');
+  for (const id of implementationIds) {
+    assert.equal(cleanMembership.filter((member) => member === id).length, 1, `${id} must appear once`);
+  }
+
+  const flawedSlices = parseYamlEntries(flawed, 'delivery_slices');
+  const first = flawedSlices.find((slice) => yamlScalar(slice.id) === 'S-001');
+  assert.ok(first, 'flawed fixture must contain S-001');
+  assert.deepEqual(yamlList(first.depends_on), ['S-002']);
+  const flawedMembership = flawedSlices.flatMap((slice) => yamlList(slice.task_ids));
+  assert.equal(flawedMembership.filter((id) => id === 'T-002').length, 2);
+  assert.equal(flawedMembership.filter((id) => id === 'T-003').length, 0);
+  assert.deepEqual(yamlList(first.must_haves), []);
+  assert.equal(yamlScalar(first.verify), 'inspect the changes');
+  assert.equal(yamlScalar(first.done), 'foundation complete');
+  assert.match(yamlScalar(first.goal), /Foundation-only/);
+  assert.match(flawed, /No vertical-impossibility rationale, first consuming slice, or compatibility check is supplied/);
+});
+
 test('portable planning contracts require exact task-to-workstream routing', () => {
   assertWorkstreamRouting();
 });
@@ -330,6 +651,99 @@ for (const [path, phrase] of [
     assert.throws(() => assertWorkstreamRoutingContents(...fixture));
   });
 }
+
+for (const [path, terms] of Object.entries(DELIVERY_SLICE_CONTRACT_TERMS)) {
+  for (const phrase of terms) {
+    test(`delivery-slice contract rejects removal of ${phrase}`, () => {
+      const paths = Object.keys(DELIVERY_SLICE_CONTRACT_TERMS);
+      const originals = paths.map(readRel);
+      const index = paths.indexOf(path);
+      assert.ok(originals[index].includes(phrase), `delivery-slice fixture missing ${phrase}`);
+      const fixture = [...originals];
+      fixture[index] = fixture[index].replace(phrase, '');
+      assert.throws(() => assertDeliverySliceContractsContents(...fixture));
+    });
+  }
+}
+
+for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS)) {
+  for (const phrase of [...contract.ordered, ...contract.required]) {
+    test(`delivery orchestration rejects ${path} removal of ${phrase}`, () => {
+      const paths = Object.keys(DELIVERY_ORCHESTRATION_CONTRACTS);
+      const originals = paths.map((candidate) =>
+        normalizeOrchestrationWhitespace(readRel(candidate))
+      );
+      const index = paths.indexOf(path);
+      assert.ok(originals[index].includes(phrase), `orchestration fixture missing ${phrase}`);
+      const fixture = [...originals];
+      fixture[index] = fixture[index].replaceAll(phrase, '');
+      assert.throws(() => assertDeliveryOrchestrationContents(...fixture));
+    });
+  }
+}
+
+test('delivery orchestration accepts harmless Markdown whitespace reflow', () => {
+  const claude = readRel('source/skills/build/SKILL.md');
+  const codex = normalizeOrchestrationWhitespace(readRel('source/skills/build/SKILL.codex.md'));
+  const reflowed = codex.replace(
+    'integrate its exact `verify`/`must_haves` evidence',
+    'integrate\n\n    its exact `verify`/`must_haves` evidence',
+  );
+  assert.notEqual(reflowed, codex, 'reflow fixture must alter semantic-clause whitespace');
+  assertDeliveryOrchestrationContents(claude, reflowed);
+});
+
+for (const field of DELIVERY_SLICE_FIELDS) {
+  test(`delivery-slice sample rejects removal of ${field}`, () => {
+    const planner = readRel('source/skills/impl-plan/SKILL.md');
+    const sample = fencedYaml(planner, 'delivery_slices');
+    const indentation = field === 'id' ? '  - ' : '    ';
+    const line = new RegExp(`^${indentation}${field}:.*\\n`, 'm');
+    assert.match(sample, line, `delivery-slice sample missing ${field}`);
+    assert.throws(() => assertDeliverySliceContractsContents(
+      planner.replace(sample, sample.replace(line, '')),
+      readRel('source/skills/impl-plan/reference/plan-quality.md'),
+      readRel('source/skills/review-plan/SKILL.md'),
+    ));
+  });
+}
+
+test('delivery-slice sample rejects a task ID missing from the manifest', () => {
+  const planner = readRel('source/skills/impl-plan/SKILL.md');
+  const manifest = fencedYaml(planner, 'execution_manifest');
+  const taskEntry = /^  - id: T-002\n(?:    .*\n)+/m;
+  assert.match(manifest, taskEntry, 'execution-manifest sample missing T-002 entry');
+  const mutatedPlanner = planner.replace(manifest, manifest.replace(taskEntry, ''));
+
+  assert.throws(
+    () => assertDeliverySliceContractsContents(
+      mutatedPlanner,
+      readRel('source/skills/impl-plan/reference/plan-quality.md'),
+      readRel('source/skills/review-plan/SKILL.md'),
+    ),
+    /unknown task ID "T-002"/,
+  );
+});
+
+test('delivery-slice sample rejects Wave 0 slice membership', () => {
+  const planner = readRel('source/skills/impl-plan/SKILL.md');
+  const slices = fencedYaml(planner, 'delivery_slices');
+  const taskIds = /^    task_ids: \["T-002"\]$/m;
+  assert.match(slices, taskIds, 'delivery-slice sample missing canonical task_ids');
+  const mutatedPlanner = planner.replace(
+    slices,
+    slices.replace(taskIds, '    task_ids: ["T-001", "T-002"]'),
+  );
+
+  assert.throws(
+    () => assertDeliverySliceContractsContents(
+      mutatedPlanner,
+      readRel('source/skills/impl-plan/reference/plan-quality.md'),
+      readRel('source/skills/review-plan/SKILL.md'),
+    ),
+    /Wave 0 task T-001 must stay global/,
+  );
+});
 
 for (const [path, phrase] of [
   ['source/skills/impl-plan/SKILL.md', 'present pain or a real axis of variation'],

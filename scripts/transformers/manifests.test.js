@@ -103,7 +103,7 @@ test('all release-version carriers agree', () => {
     1,
     `Version drift across release files: ${carriers.map((c) => `${c.path}=${c.version}`).join(', ')}. Bump all ${carriers.length} together.`,
   );
-  assert.equal(unique[0], '1.9.0', 'release version must be 1.9.0');
+  assert.equal(unique[0], '1.10.0', 'release version must be 1.10.0');
 });
 
 test('Codex marketplace.json parses', () => {
