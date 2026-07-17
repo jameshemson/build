@@ -249,23 +249,23 @@ const DELIVERY_ORCHESTRATION_CONTRACTS = {
     ordered: [
       'persist `active_slice`',
       'dispatch only its tasks',
-      'integrate\nits exact `verify`/`must_haves` evidence',
+      'integrate its exact `verify`/`must_haves` evidence',
       'update `{slug}-implementation-summary.md`',
-      'root makes\nthe checkpoint commit',
+      'root makes the checkpoint commit',
       'record the checkpoint',
       'append the slice to `completed_slices`',
       'activate the next dependency-ready slice',
-      'Only after\nevery slice is completed',
+      'Only after every slice is completed',
       'transition to `verify`',
       'fresh whole-workflow authority',
       'Architect Review remains the whole-diff authority',
     ],
     required: [
-      'delivery\nslice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks',
+      'delivery slice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks',
       'A failure keeps the same active slice and blocks every successor',
       'Slice evidence is provisional and never substitutes for final verification',
       'Phase 4 owns one fresh full-suite result',
-      'root computes the\nreview target from `base_ref` and owns the git diff; slice evidence never substitutes',
+      'root computes the review target from `base_ref` and owns the git diff; slice evidence never substitutes',
     ],
   },
 };
@@ -396,14 +396,19 @@ function assertTermsInOrder(content, terms, path) {
   }
 }
 
+function normalizeOrchestrationWhitespace(content) {
+  return content.replace(/\s+/g, ' ').trim();
+}
+
 function assertDeliveryOrchestrationContents(claude, codex) {
   const contents = {
     'source/skills/build/SKILL.md': claude,
     'source/skills/build/SKILL.codex.md': codex,
   };
   for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS)) {
-    assertTermsInOrder(contents[path], contract.ordered, path);
-    assertRequiredTerms(contents[path], contract.required, path);
+    const normalized = normalizeOrchestrationWhitespace(contents[path]);
+    assertTermsInOrder(normalized, contract.ordered, path);
+    assertRequiredTerms(normalized, contract.required, path);
   }
 }
 
@@ -665,15 +670,28 @@ for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS))
   for (const phrase of [...contract.ordered, ...contract.required]) {
     test(`delivery orchestration rejects ${path} removal of ${phrase}`, () => {
       const paths = Object.keys(DELIVERY_ORCHESTRATION_CONTRACTS);
-      const originals = paths.map(readRel);
+      const originals = paths.map((candidate) =>
+        normalizeOrchestrationWhitespace(readRel(candidate))
+      );
       const index = paths.indexOf(path);
       assert.ok(originals[index].includes(phrase), `orchestration fixture missing ${phrase}`);
       const fixture = [...originals];
-      fixture[index] = fixture[index].replace(phrase, '');
+      fixture[index] = fixture[index].replaceAll(phrase, '');
       assert.throws(() => assertDeliveryOrchestrationContents(...fixture));
     });
   }
 }
+
+test('delivery orchestration accepts harmless Markdown whitespace reflow', () => {
+  const claude = readRel('source/skills/build/SKILL.md');
+  const codex = normalizeOrchestrationWhitespace(readRel('source/skills/build/SKILL.codex.md'));
+  const reflowed = codex.replace(
+    'integrate its exact `verify`/`must_haves` evidence',
+    'integrate\n\n    its exact `verify`/`must_haves` evidence',
+  );
+  assert.notEqual(reflowed, codex, 'reflow fixture must alter semantic-clause whitespace');
+  assertDeliveryOrchestrationContents(claude, reflowed);
+});
 
 for (const field of DELIVERY_SLICE_FIELDS) {
   test(`delivery-slice sample rejects removal of ${field}`, () => {
