@@ -140,6 +140,14 @@ execution_manifest:
     must_haves: ["test asserts the named user-visible behavior"]
     verify: "npm test -- tests/example.test.ts"
     done: "REQ-001 has command evidence and named assertions"
+  - id: T-002
+    wave: 1
+    depends_on: ["T-001"]
+    files_modified: ["src/example.ts"]
+    requirements: ["REQ-001"]
+    must_haves: ["the named user-visible behavior passes the Wave 0 assertion"]
+    verify: "npm test -- tests/example.test.ts"
+    done: "REQ-001 implementation passes the named Wave 0 test"
 ```
 
 `must_haves` are non-optional acceptance criteria. They must be observable in test names, command output, manual evidence, or changed files.

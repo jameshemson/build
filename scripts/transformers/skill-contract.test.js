@@ -326,10 +326,43 @@ function yamlList(value) {
 }
 
 function assertDeliverySliceContractsContents(planner, quality, reviewer) {
+  const manifest = parseYamlEntries(planner, 'execution_manifest');
   const slices = parseYamlEntries(planner, 'delivery_slices');
   assert.equal(slices.length, 1, 'impl-plan sample must contain exactly one ordinary slice');
   assert.equal(yamlScalar(slices[0].id), 'S-001');
   assert.deepEqual(Object.keys(slices[0]).sort(), [...DELIVERY_SLICE_FIELDS].sort());
+
+  const manifestIds = new Set(manifest.map((task) => yamlScalar(task.id)));
+  const sliceMembership = slices.flatMap((slice) => yamlList(slice.task_ids));
+  for (const taskId of sliceMembership) {
+    assert.ok(
+      manifestIds.has(taskId),
+      `delivery-slice sample contains unknown task ID ${JSON.stringify(taskId)}`,
+    );
+  }
+
+  const taskById = new Map(manifest.map((task) => [yamlScalar(task.id), task]));
+  const waveZeroTask = taskById.get('T-001');
+  const implementationTask = taskById.get('T-002');
+  assert.ok(waveZeroTask, 'impl-plan manifest sample must contain T-001');
+  assert.ok(implementationTask, 'impl-plan manifest sample must contain T-002');
+  assert.equal(Number(waveZeroTask.wave), 0, 'T-001 must be Wave 0');
+  assert.equal(Number(implementationTask.wave), 1, 'T-002 must be Wave 1');
+
+  for (const task of manifest) {
+    const taskId = yamlScalar(task.id);
+    const membershipCount = sliceMembership.filter((member) => member === taskId).length;
+    if (Number(task.wave) === 0) {
+      assert.equal(membershipCount, 0, `Wave 0 task ${taskId} must stay global`);
+    } else if (Number(task.wave) > 0) {
+      assert.equal(membershipCount, 1, `${taskId} must appear in exactly one slice`);
+    }
+  }
+  assert.equal(
+    sliceMembership.filter((taskId) => taskId === 'T-002').length,
+    1,
+    'T-002 must appear in exactly one slice',
+  );
 
   const contents = {
     'source/skills/impl-plan/SKILL.md': planner,
@@ -656,6 +689,43 @@ for (const field of DELIVERY_SLICE_FIELDS) {
     ));
   });
 }
+
+test('delivery-slice sample rejects a task ID missing from the manifest', () => {
+  const planner = readRel('source/skills/impl-plan/SKILL.md');
+  const manifest = fencedYaml(planner, 'execution_manifest');
+  const taskEntry = /^  - id: T-002\n(?:    .*\n)+/m;
+  assert.match(manifest, taskEntry, 'execution-manifest sample missing T-002 entry');
+  const mutatedPlanner = planner.replace(manifest, manifest.replace(taskEntry, ''));
+
+  assert.throws(
+    () => assertDeliverySliceContractsContents(
+      mutatedPlanner,
+      readRel('source/skills/impl-plan/reference/plan-quality.md'),
+      readRel('source/skills/review-plan/SKILL.md'),
+    ),
+    /unknown task ID "T-002"/,
+  );
+});
+
+test('delivery-slice sample rejects Wave 0 slice membership', () => {
+  const planner = readRel('source/skills/impl-plan/SKILL.md');
+  const slices = fencedYaml(planner, 'delivery_slices');
+  const taskIds = /^    task_ids: \["T-002"\]$/m;
+  assert.match(slices, taskIds, 'delivery-slice sample missing canonical task_ids');
+  const mutatedPlanner = planner.replace(
+    slices,
+    slices.replace(taskIds, '    task_ids: ["T-001", "T-002"]'),
+  );
+
+  assert.throws(
+    () => assertDeliverySliceContractsContents(
+      mutatedPlanner,
+      readRel('source/skills/impl-plan/reference/plan-quality.md'),
+      readRel('source/skills/review-plan/SKILL.md'),
+    ),
+    /Wave 0 task T-001 must stay global/,
+  );
+});
 
 for (const [path, phrase] of [
   ['source/skills/impl-plan/SKILL.md', 'present pain or a real axis of variation'],
