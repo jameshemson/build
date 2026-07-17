@@ -138,6 +138,91 @@ function assertProviderOutput({ providerName, config, sourceDir }) {
   }
 }
 
+function readSandboxSkill(config, skillName, relPath = 'SKILL.md') {
+  return readFileSync(join(sandbox, config.outputDir, skillName, relPath), 'utf8');
+}
+
+function assertGeneratedBuildDeliverySlices(content, providerName) {
+  for (const field of ['delivery_slices: []', 'active_slice: null', 'completed_slices: []']) {
+    assert.ok(content.includes(field), `${providerName}: generated build output missing ${field}`);
+  }
+  assert.match(
+    content,
+    /(?:route only task IDs in `active_slice\.task_ids`|Only the `active_slice` task IDs and their workstream batches may dispatch)/,
+    `${providerName}: generated build output must dispatch only the active slice`,
+  );
+  assert.match(
+    content,
+    /checkpoint commit;[\s\S]{0,400}(?:then\s+)?activate the next/,
+    `${providerName}: generated build output must checkpoint before activating the next slice`,
+  );
+  assert.match(
+    content,
+    /fresh whole-workflow (?:evidence|authority)/,
+    `${providerName}: generated build output must retain fresh whole-workflow final authority`,
+  );
+}
+
+function assertGeneratedPortableDeliverySlices(config, providerName) {
+  const planner = readSandboxSkill(config, 'impl-plan');
+  const quality = readSandboxSkill(config, 'impl-plan', 'reference/plan-quality.md');
+  const reviewer = readSandboxSkill(config, 'review-plan');
+
+  assert.match(planner, /delivery_slices:/, `${providerName}: planner missing delivery_slices schema`);
+  assert.match(
+    planner,
+    /Each `S-###` entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`/,
+    `${providerName}: planner missing exact delivery-slice fields`,
+  );
+  assert.match(
+    planner,
+    /delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks/,
+    `${providerName}: planner missing delivery-slice hierarchy`,
+  );
+
+  assert.match(
+    quality,
+    /Each entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`/,
+    `${providerName}: plan-quality missing exact delivery-slice fields`,
+  );
+  assert.match(
+    quality,
+    /delivery slice → dependency waves → disjoint workstreams → execution-manifest tasks/,
+    `${providerName}: plan-quality missing delivery-slice hierarchy`,
+  );
+  assert.match(
+    quality,
+    /foundation-only slice is valid only when/,
+    `${providerName}: plan-quality missing foundation-slice boundary`,
+  );
+
+  assert.match(
+    reviewer,
+    /Every slice must contain exactly these eight fields/,
+    `${providerName}: reviewer missing exact slice-schema review`,
+  );
+  assert.match(
+    reviewer,
+    /Preserve the hierarchy `delivery slice -> waves -> workstreams -> tasks`/,
+    `${providerName}: reviewer missing hierarchy enforcement`,
+  );
+  assert.match(
+    reviewer,
+    /unsafe hierarchy or membership is \*\*Critical\*\*/,
+    `${providerName}: reviewer missing unsafe-membership severity`,
+  );
+  assert.match(
+    reviewer,
+    /Forward references and cycles are \*\*Critical\*\*/,
+    `${providerName}: reviewer missing slice-dependency enforcement`,
+  );
+  assert.match(
+    reviewer,
+    /foundation-only slice is justified only when/,
+    `${providerName}: reviewer missing foundation-slice review`,
+  );
+}
+
 function writeCodexFamilyFixture() {
   const sample = [
     '---',
@@ -461,6 +546,10 @@ test('real source/skills: each provider emits expected skill set with no Claude-
       config,
       sourceDir,
     });
+    assertGeneratedPortableDeliverySlices(config, name);
+    if (name === 'claude' || name.startsWith('codex')) {
+      assertGeneratedBuildDeliverySlices(readSandboxSkill(config, 'build'), name);
+    }
   }
 
   const expectedCodexSkills = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];

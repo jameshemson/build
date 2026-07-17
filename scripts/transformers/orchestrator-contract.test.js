@@ -104,6 +104,42 @@ const BEHAVIORS = [
   ['completion route disclosure', 'requested model routes and every `model_fallback` (or explicitly `none`)'],
 ];
 
+const SLICE_ORCHESTRATOR_EVIDENCE = [
+  ['initial fields before planning', '`delivery_slices: []`, `active_slice: null`, `completed_slices: []`'],
+  ['resume through state schema', '`delivery_slices`/`active_slice`/`completed_slices` through the state schema'],
+  ['accepted slice persistence', 'validate and persist the accepted slice definitions'],
+  ['accepted-plan activation', 'first declared-order dependency-ready `active_slice` before implementation dispatch'],
+  ['slice hierarchy', 'slice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks hierarchy'],
+  ['active-only dispatch', 'Only the `active_slice` task IDs and their workstream batches may dispatch.'],
+  ['failure successor block', 'A failure keeps the same active slice and blocks every successor.'],
+  ['provisional slice evidence', 'Slice evidence is provisional and never substitutes for final verification.'],
+  ['fresh whole-workflow Verify', 'delegate `verify` with its effective route as the fresh whole-workflow authority'],
+  ['whole-diff Architect Review', 'Architect Review remains the whole-diff authority'],
+];
+
+const SLICE_STATE_EVIDENCE = [
+  ['fresh slice initialization', 'Every fresh plan-phase state starts with `delivery_slices: []`, `active_slice: null`, and `completed_slices: []`'],
+  ['accepted active slice before dispatch', 'After plan acceptance, persist the first declared-order incomplete slice whose `depends_on` IDs are all completed as `active_slice` before dispatch'],
+  ['active task dispatch boundary', "only tasks in that slice's `task_ids` may dispatch"],
+  ['checkpoint evidence and commit record', 'only after its exact `verify`/`must_haves` evidence passes, the implementation summary records that evidence, the checkpoint commit succeeds, and its commit ID is recorded in the summary'],
+  ['idempotent crash reconciliation', 'match the summary checkpoint to the git commit and append/select once without duplicating either completion or commit'],
+  ['task failure slice mapping', 'Map every named `T-###` failure or rework item through slice `task_ids`'],
+  ['transitive reopen and clearing', 'Reopening a completed owning slice also reopens every transitive dependent: remove their IDs from `completed_slices`, remove all of their task IDs from `completed_tasks`, and activate the earliest reopened slice'],
+  ['completed slice immutability', 'During ordinary re-plan, completed slice definitions and task membership are immutable; changes to either require reopening first'],
+  ['legacy compatibility slice', 'place all remaining manifest tasks into one stable compatibility `S-###` slice and activate it'],
+  ['legacy no-empty path', 'If no tasks remain, create no empty slice; initialize the three fields to their empty/null values, validate the implementation summary, and proceed to Verify only when that summary is complete'],
+];
+
+const SLICE_CHECKPOINT_COMPONENTS = [
+  ['exact evidence', 'its exact `verify`/`must_haves` evidence'],
+  ['implementation summary', 'update `{slug}-implementation-summary.md`'],
+  ['root ownership', 'root makes'],
+  ['checkpoint commit', 'the checkpoint commit'],
+  ['checkpoint record', 'record the checkpoint'],
+  ['slice completion', 'append the slice to `completed_slices`'],
+  ['next activation', 'activate the next dependency-ready slice'],
+];
+
 function readRel(path) {
   return readFileSync(join(ROOT, path), 'utf8');
 }
@@ -267,6 +303,21 @@ function assertDispatchModelArtifactContract(content) {
   ], 'architect artifact transition');
 }
 
+function assertDeliverySliceOrchestratorContract(content) {
+  for (const [behavior, evidence] of SLICE_ORCHESTRATOR_EVIDENCE) {
+    assert.ok(content.includes(evidence), `delivery-slice orchestrator missing ${behavior}`);
+  }
+  const implement = content.slice(
+    content.indexOf('## Phase 3: Implement'),
+    content.indexOf('## Phase 4: Verify'),
+  );
+  assertInOrder(
+    implement,
+    SLICE_CHECKPOINT_COMPONENTS.map(([, evidence]) => evidence),
+    'delivery-slice checkpoint order',
+  );
+}
+
 export function assertCodexOrchestrator(content) {
   for (const [behavior, evidence] of BEHAVIORS) {
     assert.ok(content.includes(evidence), `orchestrator must retain ${behavior}`);
@@ -289,6 +340,7 @@ export function assertCodexOrchestrator(content) {
   assertResumeRoutingContract(content);
   assertAgentProgressContract(content);
   assertDispatchModelArtifactContract(content);
+  assertDeliverySliceOrchestratorContract(content);
 }
 
 function withoutBehavior(content, evidence) {
@@ -310,6 +362,12 @@ function assertStateSchema(schema) {
     'Complete every applicable current routing mapping before switching branches',
     'Invalid routing preserves branch, state, history, and artifacts unchanged',
   ], 'state-schema resume validation barrier');
+  for (const [behavior, evidence] of SLICE_STATE_EVIDENCE) {
+    assert.ok(schema.includes(evidence), `delivery-slice state schema missing ${behavior}`);
+  }
+  assert.match(schema, /\| `delivery_slices` \|[^\n]*initial value `\[\]`/);
+  assert.match(schema, /\| `active_slice` \|[^\n]*initial value `null`/);
+  assert.match(schema, /\| `completed_slices` \|[^\n]*initial value `\[\]`/);
 }
 
 test('production Codex source satisfies the orchestrator contract', () => {
@@ -318,6 +376,11 @@ test('production Codex source satisfies the orchestrator contract', () => {
 
 test('production state schema carries Codex routing lifecycles', () => {
   assertStateSchema(readRel(SCHEMA_PATH));
+});
+
+test('Codex orchestrator source stays within its 300-line compression budget', () => {
+  const lines = readRel(ORCHESTRATOR_PATH).trimEnd().split(/\r?\n/).length;
+  assert.ok(lines <= 300, `Codex orchestrator has ${lines} lines; maximum is 300`);
 });
 
 test('installed-skill smoke requires terminal complete state', () => {
@@ -338,6 +401,47 @@ for (const [behavior, evidence] of ROUTING_EVIDENCE) {
   test(`negative fixture removing ${behavior} is rejected by orchestrator contract`, () => {
     const fixture = withoutBehavior(readRel(ORCHESTRATOR_PATH), evidence);
     assert.throws(() => assertCodexOrchestrator(fixture), new RegExp(behavior));
+  });
+}
+
+for (const [behavior, evidence] of SLICE_ORCHESTRATOR_EVIDENCE) {
+  test(`negative slice fixture removing ${behavior} is rejected`, () => {
+    const fixture = withoutBehavior(readRel(ORCHESTRATOR_PATH), evidence);
+    assert.throws(
+      () => assertCodexOrchestrator(fixture),
+      /delivery-slice orchestrator missing/,
+    );
+  });
+}
+
+for (const [component, evidence] of SLICE_CHECKPOINT_COMPONENTS) {
+  test(`negative slice fixture removing checkpoint ${component} is rejected`, () => {
+    const content = readRel(ORCHESTRATOR_PATH);
+    const fixture = withoutBehavior(content, evidence);
+    assert.throws(
+      () => assertDeliverySliceOrchestratorContract(fixture),
+      /delivery-slice checkpoint order/,
+    );
+  });
+}
+
+for (const [behavior, evidence] of SLICE_STATE_EVIDENCE) {
+  test(`negative state slice fixture removing ${behavior} is rejected`, () => {
+    const schema = readRel(SCHEMA_PATH);
+    const fixture = withoutBehavior(schema, evidence);
+    assert.throws(
+      () => assertStateSchema(fixture),
+      /delivery-slice state schema missing/,
+    );
+  });
+}
+
+for (const field of ['delivery_slices', 'active_slice', 'completed_slices']) {
+  test(`negative state slice fixture removing ${field} field row is rejected`, () => {
+    const schema = readRel(SCHEMA_PATH);
+    const rowKey = `| \`${field}\` |`;
+    const fixture = withoutBehavior(schema, rowKey);
+    assert.throws(() => assertStateSchema(fixture));
   });
 }
 
