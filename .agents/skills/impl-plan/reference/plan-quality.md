@@ -70,6 +70,16 @@ Plans must include a fenced YAML block named `execution_manifest`. Every task en
 
 Every `REQ-*` and `D-*` must appear in at least one task and at least one verification path. Same-wave tasks must not share `files_modified`; put shared files in a later dependent task or merge the workstreams.
 
+## Delivery Slice Rules
+
+Every plan must include a fenced YAML block named `delivery_slices`. Each entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`; IDs use `S-###`.
+
+Delivery slices preserve this hierarchy: delivery slice → dependency waves → disjoint workstreams → execution-manifest tasks. Wave 0 is global and must not appear in a slice. Every task in waves greater than 0 belongs to exactly one slice. Slice `depends_on` entries name existing earlier slices, and every task dependency must be in Wave 0, the same slice, or a declared predecessor slice.
+
+Ordinary work uses one slice. Multiple slices are valid only for dependency-ordered independently acceptable outcomes, materially distinct risk/recovery boundaries, or an integration checkpoint too broad to verify or recover coherently. Task count, multiple workstreams, and one writer's runtime are not sufficient reasons to split.
+
+Each slice is dependency-closed, preferably vertical, integrated and working at its boundary, and backed by exact verification for its named requirements and observable must-haves. A foundation-only slice is valid only when the plan explains why a vertical slice is impossible, names its first consuming slice, and provides exact compatibility evidence. Manifest task IDs remain planning, evidence, and completion units, not dispatch units.
+
 ## Workstream Routing Rules
 
 Every manifest task ID must belong to exactly one workstream, and every workstream `Task IDs` entry must name an existing manifest task. Missing, duplicate, or unknown membership is invalid. Each workstream's `Files` set must equal the union of `files_modified` for its member task IDs, with no extra or missing files. Workstreams whose dependencies allow concurrent execution must have disjoint file unions; otherwise merge them or order them through an explicit dependency.
@@ -113,7 +123,10 @@ Every task in the implementation order appears in `execution_manifest`, and ever
 ### 4b. Workstream membership and union safety
 Every manifest task ID belongs to exactly one workstream; no workstream contains an unknown ID, and no task has missing or duplicate membership. Each workstream's `Files` set exactly matches the union of its member tasks' `files_modified`, with no extra or missing files. File unions for concurrently eligible workstreams are disjoint.
 
-### 4c. Abstraction justification
+### 4c. Delivery slice integrity
+The `delivery_slices` block exists and every entry has exactly the required fields. Wave 0 appears in no slice; every wave-greater-than-0 task appears in exactly one. Slice IDs and dependencies are valid and ordered, and every task dependency is Wave 0, same-slice, or in a declared predecessor. Each slice is dependency-closed, integrated, independently acceptable, and has exact requirement/must-have evidence. Multiple slices have one of the permitted boundary reasons; foundation-only slices include the vertical-impossibility explanation, first consumer, and compatibility evidence. Slices do not replace workstream batching or turn manifest tasks into dispatch units.
+
+### 4d. Abstraction justification
 When the plan proposes a new interface, factory, design pattern, or abstraction layer for frontend, backend, CLI, or tooling work, verify that its Approach records, in order: (1) the present pain or a real axis of variation; (2) the simpler alternative and why it is insufficient; and (3) the added indirection or maintenance cost. A test seam, a second real implementation, and a deliberate architectural boundary are qualitative examples, not a numeric threshold. Future flexibility alone is insufficient. Do not require a dedicated section.
 
 ### 5. All sections present
