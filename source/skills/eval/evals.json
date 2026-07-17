@@ -12,6 +12,7 @@
         "steps-are-specific",
         "workstreams-defined",
         "manifest-valid",
+        "delivery-slices-valid",
         "requirements-covered"
       ]
     },
@@ -23,6 +24,19 @@
         "catches-placeholder-language",
         "catches-missing-observability",
         "catches-workstream-overlap",
+        "findings-have-severity",
+        "verdict-is-structured"
+      ]
+    },
+    {
+      "id": "review-plan-catches-delivery-slice-flaws",
+      "skill": "review-plan",
+      "input_fixture": "fixtures/flawed-delivery-slices-plan.md",
+      "assertions": [
+        "catches-forward-slice-dependency",
+        "catches-duplicate-or-missing-slice-membership",
+        "catches-missing-slice-evidence",
+        "catches-unjustified-foundation-slice",
         "findings-have-severity",
         "verdict-is-structured"
       ]

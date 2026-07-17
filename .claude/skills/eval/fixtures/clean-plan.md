@@ -152,12 +152,28 @@ N/A — standalone plan. User saves this file if durable context is needed.
 
 N/A — no UI files changed.
 
+## Delivery slices
+
+```yaml
+delivery_slices:
+  - id: S-001
+    goal: "Users can run /build:status to inspect active workflow state, and the command is documented in CLAUDE.md and README.md"
+    depends_on: []
+    task_ids: ["T-002", "T-003"]
+    requirements: ["REQ-001", "REQ-002"]
+    must_haves: ["status skill reports the no-workflow and active-workflow states", "CLAUDE.md and README.md document /build:status"]
+    verify: "Invoke /build:status with no state and with a known test state, then confirm grep -c '/build:status' README.md returns 1 and grep -c 'status' CLAUDE.md returns at least 1"
+    done: "The status command reports known state values and both documentation files contain their required status entries"
+```
+
+Wave 0 task `T-001` is global. The only implementation tasks, `T-002` and `T-003`, belong exactly once to `S-001`.
+
 ## Parallel workstreams
 
-| Workstream | Files | Complexity | Depends on |
-|-----------|-------|------------|------------|
-| status-skill | `.claude/skills/status/SKILL.md` | simple | None |
-| docs | `CLAUDE.md`, `README.md` | simple | status-skill |
+| Workstream | Task IDs | Files | Complexity | Depends on |
+|-----------|----------|-------|------------|------------|
+| status-skill | `T-002` | `.claude/skills/status/SKILL.md` | simple | None |
+| docs | `T-003` | `CLAUDE.md`, `README.md` | simple | status-skill |
 
 ## Implementation order
 
