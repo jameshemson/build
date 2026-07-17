@@ -16,6 +16,8 @@ Look in `.build/plans/` for `*-state.md` files (ignore `archive/`). Field format
 - **One state file**: read it. If $ARGUMENTS is empty or describes the same work as its `task:` field, resume at the recorded phase. When resuming, compare `git branch --show-current` with the state's `branch:` field; if they differ, check out the workflow branch before doing anything else. If state has no `branch:` field (pre-upgrade workflow), note that and continue on the current branch. If $ARGUMENTS describes different work, leave that workflow untouched and start a fresh one with a new slug.
 - **Multiple state files**: read each `task:` field. Resume the one $ARGUMENTS describes. If $ARGUMENTS is non-empty and matches none, start a fresh workflow. If $ARGUMENTS is empty, list the in-flight workflows and ask the user which to resume — choosing between live workflows is the user's call, not a session-switch stop.
 
+On resume or re-plan, reconcile delivery-slice fields, explicit reopenings, and legacy state exactly as the state schema specifies. Continue the incomplete `active_slice`; never infer slice completion from chat history.
+
 All files for a workflow use the slug as a prefix:
 - `{slug}-state.md` - workflow state
 - `{slug}-context.md` - repo conventions, user constraints, discovered patterns, assumptions, out-of-scope notes
@@ -36,7 +38,7 @@ Create the `.build/plans/` directory if it doesn't exist.
 
 **Trigger**: No state file, or state says `phase: plan`
 
-1. **Git preflight**: Run `git status --porcelain`. If output is non-empty, stop and show the user the dirty files — the workflow needs a clean tree so `base_ref` diffs and worktree merges contain only workflow changes. (This stop and the multiple-workflow choice are the only allowed pre-start stops.) Then run `git rev-parse HEAD` to capture `base_ref`, and create the workflow branch: `git checkout -b build/{slug}`.
+1. **Git preflight**: Run `git status --porcelain`. If output is non-empty, stop and show the user the dirty files — the workflow needs a clean tree so `base_ref` diffs and worktree merges contain only workflow changes. (This stop and the multiple-workflow choice are the only allowed pre-start stops.) Then run `git rev-parse HEAD` to capture `base_ref`, and create the workflow branch: `git checkout -b build/{slug}`. For a fresh workflow, immediately write the initial `phase: plan` state before exploration, including `delivery_slices: []`, `active_slice: null`, and `completed_slices: []`; retain the other initial fields required by the state schema.
 2. **Parallel codebase exploration**: Deploy multiple Explore agents simultaneously to understand the codebase. Split by concern area, e.g.:
    - Agent 1: Architecture, project structure, build system, existing patterns
    - Agent 2: The specific area(s) of code relevant to $ARGUMENTS
@@ -47,6 +49,7 @@ Create the `.build/plans/` directory if it doesn't exist.
 4. The plan MUST include:
    - **Requirements and Decisions**: `REQ-*`, `D-*`, and `A-*` inventories with acceptance criteria.
    - **Execution Manifest**: `execution_manifest` tasks with `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`.
+   - **Delivery Slices**: ordered `delivery_slices` above waves/workstreams/tasks, with Wave 0 global and every later task assigned exactly once.
    - **Wave 0 Validation Design**: tests, fixtures, commands, or manual evidence for each `REQ-*` before feature implementation.
    - **Workflow Artifacts**: which `{slug}-*.md` files each phase writes and reads.
    - **Parallel Workstreams**: Identify which implementation steps are independent and can be assigned to separate agents during Phase 3. Group related work into named workstreams.
@@ -55,7 +58,7 @@ Create the `.build/plans/` directory if it doesn't exist.
 5. Save the full plan to `.build/plans/{slug}-plan.md`.
 6. Write `.build/plans/{slug}-context.md` with repo conventions, user constraints, discovered patterns, assumptions, and out-of-scope notes from the plan.
 7. Write `.build/plans/{slug}-requirements.md` with canonical `REQ-*`, `D-*`, `A-*`, acceptance criteria, and `must_haves`.
-8. Write `.build/plans/{slug}-state.md`. `base_ref` and `branch` were captured during the git preflight; write both into state:
+8. Update the existing `.build/plans/{slug}-state.md` created during preflight; never reconstruct it. Preserve route, fallback, progress, audit-trail, and unknown fields. Update the planning inventories below; fresh workflows retain empty slice/task completion fields through review, while re-plans preserve completed slice definitions, `completed_slices`, and non-reopened `completed_tasks` until Phase 2 accepts revised incomplete definitions:
 
 ```
 slug: {slug}
@@ -71,12 +74,17 @@ decisions: [D-* list]
 assumptions_confirmed: [A-* list with status inferred|confirmed]
 workstreams: [list of named parallel workstreams from the plan]
 execution_manifest: [summary of task IDs, waves, depends_on, files_modified]
-completed_tasks: []
+delivery_slices: [preserved completed definitions on re-plan, or [] for fresh]
+active_slice: [preserved incomplete S-### on re-plan, or null for fresh]
+completed_slices: [preserved completed S-### IDs, or [] for fresh]
+completed_tasks: [preserved non-reopened T-### IDs, or [] for fresh]
 history:
   - [YYYY-MM-DD HH:MM] Plan created
 ```
 
 Set complexity to `complex` if the plan touches 5+ files or has multiple independent workstreams.
+
+Validate the proposed slice graph before saving it. On re-plan, preserve completed definitions and reconcile named reopenings per the schema rather than resetting slice progress.
 
 9. **Auto-continue**: Proceed directly to Phase 2 in this session. `/build:review-plan` pins its own model and context (`model: sonnet`, `context: fork`), so no agent wrapper is needed.
 
@@ -90,11 +98,11 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
 2. Invoke `/build:review-plan` via the Skill tool, passing the plan path
 3. Save the review to `.build/plans/{slug}-review.md`
 4. Map the review's one-line verdict:
-   - **"Proceed to implementation"**: update state to `phase: implement`.
-   - **"Proceed with fixes"**: revise `{slug}-plan.md` now, addressing every Important finding; record each change under `review_fixes_applied:` in state and append a history entry; then `phase: implement`. Do not re-run the full review — the mid-review gate covers the revisions.
+   - **"Proceed to implementation"**: accept the plan for the implementation transition.
+   - **"Proceed with fixes"**: revise `{slug}-plan.md` now, addressing every Important finding, and record each change under `review_fixes_applied:`. Do not re-run the full review — the mid-review gate covers the revisions.
    - **"Do not proceed"**: update state to `phase: plan` with `rework_notes:` listing each Critical finding, and re-enter Phase 1.
    - **No verdict line found**: treat as a phase-agent failure (see Circuit breakers).
-5. Append to history, then continue to the phase the state now names.
+5. For either accepted implementation path, validate and persist `delivery_slices`, preserve `completed_slices`, set `active_slice` to the first declared-order dependency-ready incomplete slice, then set `phase: implement` and append history. Continue to the phase the state now names.
 
 ---
 
@@ -102,9 +110,9 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
 
 **Trigger**: State says `phase: implement`
 
-1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, and `{slug}-review.md`. If there are rework notes from a previous review, address those first.
-2. Create tasks for each implementation step from the plan. Mark them as you go.
-3. **Deploy agents per workstream**: Prefer the plan's `execution_manifest`. Route tasks by `wave`, `depends_on`, and `files_modified`. If the manifest is absent or malformed, report that and fall back to the prose implementation order and parallel workstreams:
+1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, and `{slug}-review.md`. Reconcile resume, reopen, and legacy slice state through the schema. Persist the dependency-ready incomplete `active_slice` before any dispatch; if it is `null`, proceed only when every slice is complete. If there are rework notes from a previous review, address those first.
+2. Create tasks only for the active slice's implementation steps. Mark them as you go.
+3. **Deploy agents inside the active slice**: Preserve the hierarchy delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks. Prefer the manifest and route only task IDs in `active_slice.task_ids`, by `wave`, `depends_on`, and `files_modified`. Never dispatch a later slice. If the manifest is absent or malformed, report that and use prose order/workstreams only when their active-slice ownership is unambiguous; otherwise return to planning:
    - Each independent workstream gets its own agent running in an **isolated worktree** (`isolation: "worktree"`)
    - Give each agent only its assigned task IDs, files, `must_haves`, verification commands, and what "done" looks like
    - **Worktrees cannot see `.build/`**: workflow artifacts are normally gitignored, so they do not exist inside isolated worktrees. Dispatch prompts must inline every requirement, file path, must-have, and verification command the agent needs — never tell a workstream agent to read a `.build/plans/` file. Agents must not create or edit anything under `.build/`.
@@ -112,7 +120,7 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
    - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass, spec satisfied), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why), SCOPE_CHANGE (the plan is wrong or incomplete - you discovered something that changes the approach. Describe what you found and why the plan can't proceed as written)."
    - Run agents for independent workstreams in parallel (single message, multiple Agent tool calls)
    - For workstreams with dependencies, wait for the dependency to complete before launching the dependent agent
-   - On resume, skip task IDs already in `completed_tasks` unless `verification_failures`, `architect_fixes`, or `rework_notes` names those task IDs
+   - On resume, skip task IDs already in `completed_tasks` unless `verification_failures`, `architect_fixes`, or `rework_notes` reopens their owning slice under the schema
    - `completed_tasks` is task-ID memory only. It does not detect post-completion file reverts or edits; if files are reverted, clear the affected task IDs from state or add `rework_notes` naming them before resuming.
    - **Model guidance**: Prefer sonnet for single-file mechanical tasks with clear specs. Prefer fable — or opus when fable is unavailable — for multi-file integration, design judgment, or complex logic. This is guidance, not rigid - use judgment.
    - Use background agents for: running tests, linting, typechecking
@@ -132,13 +140,9 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
      c. If conflicts require judgment (overlapping changes to the same lines), spawn a fable agent (opus when fable is unavailable) with both worktrees' diffs, the plan context for the affected workstreams, and instructions to resolve the conflict. The agent must explain its resolution choices in its response. If the resolution agent fails, escalate to the user rather than retrying - merge conflicts requiring human judgment are a reasonable escalation point.
      d. After all merges complete, run the full test suite to verify the integrated code works. If tests fail, treat as a verification failure (return to implement phase for the affected area).
    - After a wave's worktrees are merged and integrated verification passes in the main worktree, append that wave's task IDs to `completed_tasks` and update `.build/plans/{slug}-implementation-summary.md` with final integrated status. Store task IDs only, such as `T-001`; do not store checksums or commit IDs.
-7. **Mid-review gate**: After all workstreams complete and merge (before verify), spawn a **Sonnet agent** for mid-review (Phase 3b). Pass it the plan, review, state, requirements, context, and implementation-summary paths plus a summary of what was built. For complex changes (state says `complexity: complex`), also run mid-reviews after each major workstream completes. When the agent returns, address any fixes needed. If it returns RETHINK, treat as a scope change — return to Phase 1 with rework notes.
-8. Commit working chunks with clear messages as you go.
-9. When all implementation is done and tests pass:
-   - Update `.build/plans/{slug}-implementation-summary.md` with final implementation state, completed waves, completed task IDs, files changed, deviations from plan, blockers, and verification commands run during implementation
-   - Update state to `phase: verify`
-   - Append to history
-   - **Auto-continue**: Proceed to Phase 3c (Verify).
+7. **Mid-review gate**: After all workstreams for the active slice complete and merge (before its checkpoint), spawn a **Sonnet agent** for mid-review (Phase 3b). Pass it the plan, review, state, requirements, context, and implementation-summary paths plus a summary of what was built. For complex changes (state says `complexity: complex`), also run mid-reviews after each major workstream completes. When the agent returns, address any fixes needed. If it returns RETHINK, treat as a scope change — return to Phase 1 with rework notes.
+8. **Checkpoint the active slice in strict order**: after its waves/workstreams integrate, run the slice's exact `verify` and observable `must_haves`; update the implementation summary with that provisional evidence; make the root checkpoint commit; record its commit ID in the summary; then append the slice to `completed_slices` and activate the next declared-order dependency-ready incomplete slice. Any evidence, integration, summary-write, or commit failure leaves the same `active_slice` in place and blocks every later slice. Repeat Phase 3 for the next slice.
+9. Only when every slice is complete and `active_slice: null`, validate the final implementation summary, update state to `phase: verify`, append history, and auto-continue to Phase 3c. Slice evidence is provisional and never substitutes for fresh whole-workflow verification.
 
 ---
 
@@ -165,7 +169,7 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
 **Trigger**: State says `phase: verify`
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-plan.md`, and `{slug}-implementation-summary.md`
-2. Invoke `/build:verify` via the Skill tool
+2. Invoke `/build:verify` via the Skill tool for fresh whole-workflow evidence; no slice, worker, wave, or checkpoint result substitutes for this final authority.
 3. Save the verification report to `.build/plans/{slug}-verify.md` before changing phase.
 4. If **VERIFIED**: Update state to `phase: architect-review`. Record `verify_verdict: VERIFIED`. Auto-continue to Phase 4.
 5. If **FAILED**: Update state back to `phase: implement` with `verification_failures:` field listing what failed. Address failures and re-verify.
@@ -179,7 +183,7 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
 **Trigger**: State says `phase: architect-review`
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. Stop and report any missing artifact before reviewing.
-2. Read the full diff since the workflow started. If `base_ref` exists in state, use `git diff {base_ref}...HEAD`; otherwise use `git diff HEAD` and report `base_ref unavailable`.
+2. Read the whole workflow diff since the workflow started. If `base_ref` exists in state, use `git diff {base_ref}...HEAD`; otherwise use `git diff HEAD` and report `base_ref unavailable`. Architect Review covers this whole diff, never only the final slice.
 3. Invoke `/build:architect-review` via the Skill tool with explicit context: workflow slug, state path, `{slug}-verify.md` path, verification verdict, and review target `git diff {base_ref}...HEAD` (or `git diff HEAD` if `base_ref` is unavailable).
 4. Save the review to `.build/plans/{slug}-architect-review.md` before changing phase.
 5. Update state:

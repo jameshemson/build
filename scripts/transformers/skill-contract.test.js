@@ -221,6 +221,55 @@ const DELIVERY_SLICE_CONTRACT_TERMS = {
   ],
 };
 
+const DELIVERY_ORCHESTRATION_CONTRACTS = {
+  'source/skills/build/SKILL.md': {
+    ordered: [
+      'Persist the dependency-ready incomplete `active_slice` before any dispatch',
+      'route only task IDs in `active_slice.task_ids`',
+      'run the slice\'s exact `verify` and observable `must_haves`',
+      'update the implementation summary with that provisional evidence',
+      'make the root checkpoint commit',
+      'record its commit ID in the summary',
+      'append the slice to `completed_slices`',
+      'activate the next declared-order dependency-ready incomplete slice',
+      'Only when every slice is complete and `active_slice: null`',
+      'update state to `phase: verify`',
+      'fresh whole-workflow evidence',
+      'Architect Review covers this whole diff',
+    ],
+    required: [
+      'delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks',
+      'Any evidence, integration, summary-write, or commit failure leaves the same `active_slice` in place and blocks every later slice',
+      'Slice evidence is provisional and never substitutes for fresh whole-workflow verification',
+      'no slice, worker, wave, or checkpoint result substitutes for this final authority',
+      'Read the whole workflow diff since the workflow started',
+    ],
+  },
+  'source/skills/build/SKILL.codex.md': {
+    ordered: [
+      'persist `active_slice`',
+      'dispatch only its tasks',
+      'integrate\nits exact `verify`/`must_haves` evidence',
+      'update `{slug}-implementation-summary.md`',
+      'root makes\nthe checkpoint commit',
+      'record the checkpoint',
+      'append the slice to `completed_slices`',
+      'activate the next dependency-ready slice',
+      'Only after\nevery slice is completed',
+      'transition to `verify`',
+      'fresh whole-workflow authority',
+      'Architect Review remains the whole-diff authority',
+    ],
+    required: [
+      'delivery\nslice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks',
+      'A failure keeps the same active slice and blocks every successor',
+      'Slice evidence is provisional and never substitutes for final verification',
+      'Phase 4 owns one fresh full-suite result',
+      'root computes the\nreview target from `base_ref` and owns the git diff; slice evidence never substitutes',
+    ],
+  },
+};
+
 function readRel(path) {
   return readFileSync(join(ROOT, path), 'utf8');
 }
@@ -301,6 +350,34 @@ function assertDeliverySliceContracts() {
     readRel('source/skills/impl-plan/SKILL.md'),
     readRel('source/skills/impl-plan/reference/plan-quality.md'),
     readRel('source/skills/review-plan/SKILL.md'),
+  );
+}
+
+function assertTermsInOrder(content, terms, path) {
+  let cursor = -1;
+  for (const term of terms) {
+    const next = content.indexOf(term, cursor + 1);
+    assert.ok(next >= 0, `${path} must include ordered clause ${JSON.stringify(term)}`);
+    assert.ok(next > cursor, `${path} has out-of-order clause ${JSON.stringify(term)}`);
+    cursor = next;
+  }
+}
+
+function assertDeliveryOrchestrationContents(claude, codex) {
+  const contents = {
+    'source/skills/build/SKILL.md': claude,
+    'source/skills/build/SKILL.codex.md': codex,
+  };
+  for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS)) {
+    assertTermsInOrder(contents[path], contract.ordered, path);
+    assertRequiredTerms(contents[path], contract.required, path);
+  }
+}
+
+function assertDeliveryOrchestration() {
+  assertDeliveryOrchestrationContents(
+    readRel('source/skills/build/SKILL.md'),
+    readRel('source/skills/build/SKILL.codex.md'),
   );
 }
 
@@ -437,6 +514,10 @@ test('portable planning and review skills retain the delivery-slice contract', (
   assertDeliverySliceContracts();
 });
 
+test('both Build orchestrators retain ordered delivery-slice checkpoints and final authorities', () => {
+  assertDeliveryOrchestration();
+});
+
 test('delivery-slice eval metadata and fixtures stay deterministic', () => {
   const evals = JSON.parse(readRel('source/skills/eval/evals.json')).evals;
   const grading = readRel('source/skills/eval/reference/grading.md');
@@ -543,6 +624,20 @@ for (const [path, terms] of Object.entries(DELIVERY_SLICE_CONTRACT_TERMS)) {
       const fixture = [...originals];
       fixture[index] = fixture[index].replace(phrase, '');
       assert.throws(() => assertDeliverySliceContractsContents(...fixture));
+    });
+  }
+}
+
+for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS)) {
+  for (const phrase of [...contract.ordered, ...contract.required]) {
+    test(`delivery orchestration rejects ${path} removal of ${phrase}`, () => {
+      const paths = Object.keys(DELIVERY_ORCHESTRATION_CONTRACTS);
+      const originals = paths.map(readRel);
+      const index = paths.indexOf(path);
+      assert.ok(originals[index].includes(phrase), `orchestration fixture missing ${phrase}`);
+      const fixture = [...originals];
+      fixture[index] = fixture[index].replace(phrase, '');
+      assert.throws(() => assertDeliveryOrchestrationContents(...fixture));
     });
   }
 }

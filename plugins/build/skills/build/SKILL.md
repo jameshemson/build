@@ -42,8 +42,9 @@ State selection remains the first read-only operation: inspect
   do not remove or record anything yet.
 
 Before routing validation, resume work is inventory only. On resume, validate that every artifact
-required by the recorded phase exists and identify the last durable artifact read-only;
-never advance state based only on chat history.
+required by the recorded phase exists, identify the last durable artifact, and reconcile
+`delivery_slices`/`active_slice`/`completed_slices` through the state schema; never advance
+state based only on chat history.
 
 The invocation and effective `AGENTS.md` may each contain at most one literal
 `## Build agent routing` block. Its body ends immediately before the next H2 heading or at EOF.
@@ -177,14 +178,15 @@ root captures `base_ref` with `git rev-parse HEAD`, records the current branch, 
 
 Immediately create an initial `phase: plan` state with identity, git refs, provisional
 complexity, all six agent routes, model routes, empty inventories, `completed_tasks: []`,
-`agent_progress: {}`, and initial history. This durable state must exist before the first
-explorer or companion dispatch so progress, fallback, failure, and resume evidence can be
-recorded from the start.
+`delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `agent_progress: {}`,
+and initial history. It must exist before the first dispatch so progress, fallback, failure,
+and resume evidence can be recorded from the start.
 
 Apply the complexity fan-out limits to route-selected read-only exploration of architecture,
 affected code, and tests. Root synthesizes their evidence and delegates `impl-plan` with
 the marker `[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence,
-a complete `execution_manifest`, and disjoint same-wave `files_modified`.
+a complete `execution_manifest` and `delivery_slices`, and the hierarchy delivery slice ->
+dependency waves -> disjoint workstreams -> `execution_manifest` tasks.
 
 Root determines final complexity, then writes and validates `{slug}-context.md`,
 `{slug}-requirements.md`, and `{slug}-plan.md`. Last, update state with final complexity,
@@ -195,6 +197,9 @@ model routes, inventories, manifest summary, and `phase: review`.
 Read state plus context, requirements, and plan. Delegate `review-plan` with the effective
 `review` route. Save `{slug}-review.md` before state changes.
 
+For either proceed verdict, after any fixes, validate and persist the accepted slice definitions
+and first declared-order dependency-ready `active_slice` before implementation dispatch.
+
 - `Proceed to implementation`: transition to `implement`.
 - `Proceed with fixes`: root revises and validates plan/requirements, records
   `review_fixes_applied`, then transitions to `implement`.
@@ -204,27 +209,29 @@ Read state plus context, requirements, and plan. Delegate `review-plan` with the
 
 ## Phase 3: Implement
 
-Read every prior artifact. Validate manifest dependencies and same-wave file ownership
-before dispatch. Also require every manifest ID in exactly one named workstream, every
-workstream ID to exist in the manifest, and each workstream's file set to equal the union
-of its member tasks' `files_modified`. Manifest IDs are planning, evidence, and completion
-units, not dispatch units. Never spawn one writer per manifest task. Group each
-workstream's ready frontier into the fewest bounded batches. Give each batch one or more IDs, their internal
-topological order, and the union of owned files. Split a batch only for an unresolved
-external dependency, union overlap, or runtime budget; concurrent batch unions must be
-disjoint. Dispatch every batch through the effective `implement` route. A successful non-null custom selection remains `profile-owned` and omits Build model/effort. Only a null/build-default route or a recorded `agent_selection_fallback` may request the complexity-table model/effort. Serialize dependencies or overlap. Root handles shared files, git operations, commits, and integration checks.
+Read every prior artifact and reconcile the active slice through the schema. Validate the delivery
+slice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks hierarchy,
+manifest dependencies, and same-wave ownership.
+Also require every manifest ID in exactly one named workstream, every workstream ID to exist in
+the manifest, and each workstream's file set to equal the union of its member `files_modified`.
+Only the `active_slice` task IDs and their workstream batches may dispatch. Group each
+workstream's ready frontier into the fewest bounded batches. Give each batch one or more IDs, their
+internal topological order, and the union of owned files. Manifest IDs remain planning, evidence,
+and completion units, not dispatch units. Never spawn one writer per manifest task.
+Split only for external dependency, overlap, or runtime; concurrent unions must be disjoint.
+Dispatch every batch through the effective `implement` route. A successful non-null custom selection remains `profile-owned` and omits Build model/effort. Only a null/build-default route or a recorded `agent_selection_fallback` may request the complexity-table model/effort. Serialize dependencies/overlap; root owns shared files, git operations, commits, and integration.
 
-Wave 0 collects the fastest targeted evidence. Run a full baseline only to diagnose a
-suspected pre-existing failure. Workers run scoped owned-file/task checks and never the
-full suite unless a dispatch explicitly assigns a named slow gate and runtime budget.
-After each completed wave, root runs each exact integration command once; deduplicate
-identical commands within and across batches. Phase 4 owns one fresh full-suite result
-and each unique plan-declared command; evidence from earlier layers never substitutes.
+Wave 0 collects the fastest targeted evidence; run a full baseline only to diagnose a
+suspected pre-existing failure. Workers run scoped owned-file/task checks and never the full suite
+unless assigned a named slow gate and runtime. Root runs each exact wave/slice integration command
+once, deduplicated across batches. Slice evidence is provisional and never substitutes for final verification.
 
-After the wave's integration commands pass, write/update
-`{slug}-implementation-summary.md` and append its task IDs to `completed_tasks`. On a
-failed check, keep `phase: implement` and record the failure. Once all tasks and must-haves
-have evidence, validate the final implementation summary, then transition to `verify`.
+For each slice the exact order is: persist `active_slice`; dispatch only its tasks; integrate
+its exact `verify`/`must_haves` evidence; update `{slug}-implementation-summary.md`; root makes
+the checkpoint commit; record the checkpoint and append the slice to `completed_slices`; then
+activate the next dependency-ready slice. Append wave task IDs to `completed_tasks` only after
+integration passes. A failure keeps the same active slice and blocks every successor. Only after
+every slice is completed may root validate the final implementation summary and transition to `verify`.
 
 Use read-only mid-review agents with the effective `review` route after major
 standard/complex waves. RETHINK or a valid
@@ -233,9 +240,9 @@ directly.
 
 ## Phase 4: Verify
 
-Read state, requirements, plan, and implementation summary. Delegate `verify` with its
-effective route, requiring exactly one fresh full-suite result, each unique plan-declared command,
-must-have coverage, and the debt scan. Save `{slug}-verify.md` before changing state.
+Read state, requirements, plan, and implementation summary. Only after every slice is completed,
+delegate `verify` with its effective route as the fresh whole-workflow authority. Phase 4 owns one fresh full-suite result, each unique plan-declared command, must-have coverage, and the debt scan.
+Save `{slug}-verify.md` before changing state.
 
 - `VERIFIED`: record verdict and transition to `architect-review`.
 - `FAILED`: record `verification_failures` and transition to `implement`.
@@ -245,7 +252,8 @@ must-have coverage, and the debt scan. Save `{slug}-verify.md` before changing s
 
 ## Phase 5: Architect review
 
-Read all artifacts. Root computes the review target from `base_ref`; it owns the git diff.
+Read all artifacts. Architect Review remains the whole-diff authority: root computes the
+review target from `base_ref` and owns the git diff; slice evidence never substitutes.
 Delegate `architect-review` with its effective route and the target and verify verdict.
 Save `{slug}-architect-review.md` before changing state.
 

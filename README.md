@@ -61,13 +61,15 @@ See [HARNESSES.md](HARNESSES.md) for the full capability matrix and install stor
 
 Both `/build <feature>` in Claude Code and `$build:build <feature>` in Codex drive a 5-phase cycle:
 
-1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit an `execution_manifest` whose task IDs map exactly once to named workstreams
+1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit delivery slices above an `execution_manifest` whose task IDs map exactly once to named workstreams
 2. **Review** - Adversarial senior engineer review: placeholder scan, workstream independence check, requirement/decision coverage, wave graph validation, test coverage mapping
-3. **Implement** - Batch each workstream's ready task IDs into the fewest safe writer dispatches, with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans.
+3. **Implement** - Execute one active delivery slice at a time, batching each workstream's ready task IDs into the fewest safe writer dispatches, with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans.
 4. **Verify** - Build one fresh ledger keyed by exact command string across detected checks and plan commands. Exact duplicates run once with unioned task, requirement, and `must_haves` evidence.
 5. **Architect Review** - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, weak-test audit, dependency audit
 
 The orchestrator manages state, auto-continues between phases, and deploys model-appropriate agents. Claude implementation agents use isolated worktrees and a structured merge protocol. Codex uses current instructed subagents in a shared workspace: read-only work can fan out, while write workers run concurrently only when same-wave `files_modified` sets are disjoint. The Codex root alone writes `.build/`, mutates git, inspects integrated diffs, and advances phases.
+
+Delivery slices bound large implementations without turning them into separate workflows. The hierarchy is delivery slice → dependency waves → disjoint workstreams → manifest tasks. Ordinary work gets one slice; Build splits only when there are dependency-ordered independently acceptable outcomes, materially different risk/recovery boundaries, or an integration checkpoint too broad to verify and recover coherently—not merely because there are many tasks, workstreams, or a long-running writer. Root dispatches only the active slice, records its exact evidence in the implementation summary, creates a checkpoint commit, then completes it and activates the next slice. Slice evidence is provisional: final Verify runs fresh whole-workflow checks, and Architect Review covers the whole workflow diff.
 
 Codex exploration is complexity-bounded: simple workflows use no explorer, standard uses at most two, and complex uses at most three. Explorers default to five minutes; writers and companion phases default to ten. Longer budgets require a named slow command and explicit duration.
 
@@ -77,7 +79,7 @@ Testing has one owner per layer: Wave 0 uses the fastest targeted evidence, work
 
 `/build` is file-backed. Each workflow writes durable artifacts under `.build/plans/` so later phases and fresh agents do not depend on chat history alone:
 
-- `{slug}-state.md` - current phase, `base_ref`, task IDs, completed tasks, blockers, history
+- `{slug}-state.md` - current phase, `base_ref`, delivery slices, active/completed slice IDs, task completion, blockers, history
 - `{slug}-context.md` - repo conventions, user constraints, discovered patterns, assumptions, out-of-scope notes
 - `{slug}-requirements.md` - canonical requirements, decisions, assumptions, acceptance criteria, `must_haves`
 - `{slug}-plan.md` - full implementation plan plus execution manifest
