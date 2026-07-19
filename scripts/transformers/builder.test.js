@@ -345,6 +345,38 @@ function assertGeneratedPortableDeliverySlices(config, providerName) {
   );
 }
 
+function assertGeneratedTypedEvidence(config, providerName) {
+  const planner = readSandboxSkill(config, 'impl-plan');
+  const quality = readSandboxSkill(config, 'impl-plan', 'reference/plan-quality.md');
+  const reviewer = readSandboxSkill(config, 'review-plan');
+  const verifier = readSandboxSkill(config, 'verify');
+  const evidence = readSandboxSkill(config, 'verify', 'reference/evidence-requirements.md');
+
+  assert.match(planner, /evidence_mode: typed/, `${providerName}: planner missing typed mode`);
+  assert.match(planner, /bindings/, `${providerName}: planner missing bindings`);
+  assert.match(planner, /behavioral-test[\s\S]*command-assertion[\s\S]*structural[\s\S]*manual-receipt/, `${providerName}: planner missing evidence kinds`);
+  assert.match(quality, /Every named symbol, behavior, and invariant in Approach/, `${providerName}: quality rules missing binding coverage`);
+  assert.match(reviewer, /unbound Approach obligation is \*\*Important\*\*/, `${providerName}: reviewer missing unbound-obligation gate`);
+  assert.match(reviewer, /non-atomic task is \*\*Important\*\*/, `${providerName}: reviewer missing evidence-atomicity gate`);
+  assert.match(verifier, /Structural evidence never proves behavior/, `${providerName}: verifier missing structural boundary`);
+  assert.match(evidence, /Missing or mismatched behavioral evidence is `PARTIAL` unless a command fails/, `${providerName}: evidence reference missing PARTIAL rule`);
+}
+
+function assertGeneratedCodexExecutionProfile(content, providerName) {
+  assert.match(content, /Build-default Plan, Implement, and Architect Review run inline in root/,
+    `${providerName}: generated Build missing inline phase authority`);
+  assert.match(content, /Plan Review and Verify use fresh-context agents/,
+    `${providerName}: generated Build missing fresh-context boundaries`);
+  assert.match(content, /Silence is unknown, not failure evidence/,
+    `${providerName}: generated Build missing terminal-only supervision`);
+  assert.match(content, /20-minute hard deadline/,
+    `${providerName}: generated Build missing fresh-agent deadline`);
+  assert.match(content, /literal `active-session`/,
+    `${providerName}: generated Build missing inline route disclosure`);
+  assert.doesNotMatch(content, /evidence_free_checks|deadline_status_requested_at|exactly one 60-second grace interval/,
+    `${providerName}: generated Build retained obsolete polling bookkeeping`);
+}
+
 function assertGeneratedBoundedEvidenceClauses(content, clauses, context) {
   const normalized = content.replace(/\s+/g, ' ').trim().toLowerCase();
   let clauseCursor = -1;
@@ -716,6 +748,7 @@ test('real source/skills: each provider emits expected skill set with no Claude-
       const generatedBuild = readSandboxSkill(config, 'build');
       assertGeneratedBuildDeliverySlices(generatedBuild, name);
       assertGeneratedBuildBoundedEvidence(generatedBuild, name);
+      if (name.startsWith('codex')) assertGeneratedCodexExecutionProfile(generatedBuild, name);
     }
   }
 
@@ -745,6 +778,18 @@ test('real source/skills: each provider emits expected skill set with no Claude-
         `${providerName}: ${relPath} diverged from codex output`,
       );
     }
+  }
+});
+
+test('real provider outputs retain the shared typed-evidence contract', () => {
+  cpSync(join(ROOT, 'source/skills'), join(sandbox, 'source/skills'), {
+    recursive: true,
+  });
+  const sourceDir = join(sandbox, 'source/skills');
+
+  for (const [name, config] of Object.entries(REAL_PROVIDERS)) {
+    buildProvider({ root: sandbox, sourceDir, providerName: name, config });
+    assertGeneratedTypedEvidence(config, name);
   }
 });
 

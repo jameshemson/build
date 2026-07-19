@@ -77,17 +77,16 @@ const REQUIRED_TERMS = {
     'gpt-5.6-luna',
     '`xhigh`',
     '`max`',
-    'Companion-skill delegation',
-    'run that skill\'s documented contract inline',
+    'Codex execution and supervision',
+    'Build-default Plan, Implement, and Architect Review run inline in root',
+    'Plan Review and Verify use fresh-context agents',
     'Concurrent writer agents',
-    'Agent progress protocol',
     'agent_progress',
-    'deadline_status_requested_at',
-    'exactly one 60-second grace interval',
+    'Silence is unknown, not failure evidence',
+    '20-minute hard deadline',
+    'send no child status prompts',
+    'interrupt only at hard expiry',
     'Never spawn one writer per manifest task',
-    'STARTED',
-    'EDITING',
-    'VERIFYING',
     'handoff-timeout',
     'Implementation workers must not invoke',
     'Artifact-before-state invariant',
@@ -157,6 +156,64 @@ const DELIVERY_SLICE_FIELDS = [
   'must_haves',
   'verify',
   'done',
+];
+
+const TYPED_EVIDENCE_CONTRACT_TERMS = {
+  'source/skills/impl-plan/SKILL.md': [
+    '`evidence_mode: typed`',
+    '`bindings` entries have exactly `id`, `kind`, `name`, `task_id`, and `must_have_id`',
+    '`must_haves` item has exactly `id`, `claim`, and `evidence`',
+    '`evidence` has exactly `kind` and `ref`',
+    '`behavioral-test`, `command-assertion`, `structural`, or `manual-receipt`',
+  ],
+  'source/skills/impl-plan/reference/plan-quality.md': [
+    'Typed evidence contract',
+    'Every named symbol, behavior, and invariant in Approach',
+    'one binding, one manifest task, and one must-have',
+    'independently observed in one bounded implement-verify cycle',
+    '`legacy-untyped`',
+  ],
+  'source/skills/review-plan/SKILL.md': [
+    'Validate the typed evidence contract',
+    'unbound Approach obligation is **Important**',
+    'non-atomic task is **Important**',
+    'unsupported evidence kind',
+    'Reopened `legacy-untyped` tasks must upgrade',
+  ],
+  'source/skills/verify/SKILL.md': [
+    'evidence mode',
+    'evidence kind',
+    'Structural evidence never proves behavior',
+    'changed files prove only structural claims',
+  ],
+  'source/skills/verify/reference/evidence-requirements.md': [
+    'Typed evidence kinds',
+    '`behavioral-test`',
+    '`command-assertion`',
+    '`structural`',
+    '`manual-receipt`',
+    'Missing or mismatched behavioral evidence is `PARTIAL` unless a command fails',
+    '`legacy-untyped`',
+  ],
+  'source/skills/build/SKILL.md': [
+    '`evidence_mode`',
+    '`bindings`',
+    '`legacy-untyped`',
+    'reopened tasks',
+  ],
+  'source/skills/build/SKILL.codex.md': [
+    '`evidence_mode`',
+    '`bindings`',
+    '`legacy-untyped`',
+    'reopened tasks',
+  ],
+};
+
+const KEMET_EVIDENCE_ASSERTIONS = [
+  'catches-unbound-approach-obligation',
+  'catches-non-atomic-task',
+  'verdict-partial',
+  'behavioral-evidence-gap-shown',
 ];
 
 const DELIVERY_SLICE_ASSERTIONS = [
@@ -463,6 +520,18 @@ function assertRequiredTerms(content, terms, path) {
       `${path} must include required contract term ${JSON.stringify(term)}`,
     );
   }
+}
+
+function assertTypedEvidenceContractsContents(contents) {
+  for (const [path, terms] of Object.entries(TYPED_EVIDENCE_CONTRACT_TERMS)) {
+    assertRequiredTerms(contents[path], terms, path);
+  }
+}
+
+function assertTypedEvidenceContracts() {
+  assertTypedEvidenceContractsContents(Object.fromEntries(
+    Object.keys(TYPED_EVIDENCE_CONTRACT_TERMS).map((path) => [path, readRel(path)]),
+  ));
 }
 
 function fencedYaml(content, root) {
@@ -782,6 +851,60 @@ test('both Build orchestrators retain ordered delivery-slice checkpoints and fin
 
 test('both Build orchestrators and all portable skills retain bounded evidence contracts', () => {
   assertBoundedEvidenceSources();
+});
+
+test('planner, reviewer, verifier, and both orchestrators retain typed evidence contracts', () => {
+  assertTypedEvidenceContracts();
+});
+
+test('Kemet-derived evidence eval metadata and fixtures stay deterministic', () => {
+  const evals = JSON.parse(readRel('source/skills/eval/evals.json')).evals;
+  const grading = readRel('source/skills/eval/reference/grading.md');
+  const flawed = readRel('source/skills/eval/fixtures/flawed-evidence-contract-plan.md');
+  const projectRoot = 'source/skills/eval/fixtures/behavioral-evidence-project';
+  const projectPlan = readRel(`${projectRoot}/plan.md`);
+  const feature = readRel(`${projectRoot}/src/feature.js`);
+  const smoke = readRel(`${projectRoot}/test/smoke.test.js`);
+  const packageJson = JSON.parse(readRel(`${projectRoot}/package.json`));
+
+  for (const assertionId of KEMET_EVIDENCE_ASSERTIONS) {
+    assert.equal(
+      evals.flatMap((entry) => entry.assertions).filter((id) => id === assertionId).length,
+      1,
+      `${assertionId} must have exactly one eval reference`,
+    );
+    assert.equal(
+      [...grading.matchAll(/^### ([a-z0-9-]+)$/gm)].filter(
+        (match) => match[1] === assertionId,
+      ).length,
+      1,
+      `${assertionId} must have exactly one grading heading`,
+    );
+  }
+
+  const reviewEval = evals.find((entry) => entry.id === 'review-plan-catches-evidence-contract-flaws');
+  assert.equal(reviewEval?.input_fixture, 'fixtures/flawed-evidence-contract-plan.md');
+  assert.ok(reviewEval.assertions.includes('catches-unbound-approach-obligation'));
+  assert.ok(reviewEval.assertions.includes('catches-non-atomic-task'));
+  assert.match(flawed, /TryAdoptLegacyBuildingPose/);
+  assert.match(flawed, /TryAdoptLegacyJobPose/);
+  assert.doesNotMatch(flawed, /name: "TryAdoptLegacy(?:Building|Job)Pose"/);
+  assert.match(flawed, /id: T-200/);
+  assert.equal(
+    JSON.parse(flawed.match(/files_modified: (\[[^\n]+\])/)[1]).length,
+    18,
+    'T-200 fixture must retain its 18-file non-atomic shape',
+  );
+
+  const verifyEval = evals.find((entry) => entry.id === 'verify-rejects-indirect-behavior-evidence');
+  assert.equal(verifyEval?.target, 'fixtures/behavioral-evidence-project');
+  assert.ok(verifyEval.assertions.includes('verdict-partial'));
+  assert.ok(verifyEval.assertions.includes('behavioral-evidence-gap-shown'));
+  assert.equal(packageJson.scripts.test, 'node --test');
+  assert.match(projectPlan, /kind: behavioral-test/);
+  assert.match(projectPlan, /test\/feature\.test\.js#preserves-valid-legacy-geometry/);
+  assert.match(feature, /adoptLegacyPose/);
+  assert.doesNotMatch(smoke, /adoptLegacyPose|feature\.js|legacy/i);
 });
 
 test('delivery-slice eval metadata and fixtures stay deterministic', () => {

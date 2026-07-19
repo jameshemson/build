@@ -16,7 +16,7 @@ This table is the authoritative reference for transformer decisions. Any new ski
 
 | Skill | Claude Code | OpenCode | Codex | Notes |
 | --- | --- | --- | --- | --- |
-| `build` | Yes | No | Yes | Provider-specific orchestrators: Claude uses isolated worktrees; Codex uses instructed subagents in a shared workspace |
+| `build` | Yes | No | Yes | Provider-specific orchestrators: Claude uses subagents and isolated worktrees; Codex keeps root-continuity phases inline and fresh-context judgment phases delegated |
 | `eval` | Yes | No | No | Requires `Skill` tool dispatch |
 | `impl-plan` | Yes | Yes | Yes | Portable |
 | `review-plan` | Yes | Yes | Yes | Portable |
@@ -50,26 +50,17 @@ A user who both clones the repo AND installs the plugin will see duplicate entri
 
 ### Codex end-to-end flow
 
-Run `$build:build <feature>` once to drive Plan → Plan Review → Implement → Verify → Architect Review, including repair loops and resumable `.build/plans/` artifacts. The root orchestrator owns workflow state, branch and commit operations, diff inspection, integrated checks, and phase transitions. It gives read-heavy phases and reviews to fresh instructed subagents when the current surface supports delegation; otherwise it runs the companion skill inline and records that fallback.
+Run `$build:build <feature>` once to drive Plan → Plan Review → Implement → Verify → Architect Review, including repair loops and resumable `.build/plans/` artifacts. The root orchestrator owns workflow state, branch and commit operations, diff inspection, integrated checks, and phase transitions. Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents. Explicit non-null custom routes may opt any phase into delegation.
 
 Codex subagents share one workspace. Exploration fan-out is 0/2/3 for simple/standard/complex workflows, with a five-minute default. Manifest task IDs are evidence and completion units, not dispatch units: root groups each workstream's ready frontier into the fewest bounded writer batches. Concurrent batch file unions must be disjoint; any overlap, formatter, generator, lockfile, manifest, migration, or generated-output task is serialized. Workers edit only assigned files and never write `.build/` or mutate git.
 
 Claude and Codex place delivery slices above the existing dependency waves → disjoint workstreams → manifest tasks hierarchy. Ordinary work has one slice. Build uses multiple slices only for dependency-ordered independently acceptable outcomes, distinct risk/recovery boundaries, or an integration checkpoint too broad to verify and recover coherently; task count, workstream count, and writer runtime alone are not split triggers. Only the active slice dispatches. After its exact integration evidence passes, root updates the implementation summary, creates a checkpoint commit, records completion, and activates the next dependency-ready slice. Resume and replan preserve completed slice boundaries through durable state. These checkpoints are provisional: final Verify owns fresh whole-workflow evidence, and Architect Review owns the whole workflow diff.
 
-The root supervises every delegated role through boundary milestones (`STARTED`, `EDITING`, `VERIFYING`, then terminal), persisted ISO timestamps, immutable absolute deadlines, and status/diff checks at intervals no longer than 60 seconds. Root polls do not count as agent evidence. Two evidence-free checks request status without moving the deadline. At the deadline, every agent—with or without edits—gets exactly one deadline request and one 60-second grace period before interruption. Defaults are five minutes for explorers and ten for writers/companions; only a named slow command may declare longer. This is a deterministic prompt/state contract rather than a host-harness timing guarantee.
+Codex supervision is terminal-only: silence is unknown, not failure evidence. Root sends no child status prompts, waits for a terminal event, and interrupts only at an immutable hard deadline. Fresh Plan Review and Verify use a 20-minute hard deadline and at most one fresh retry; a second independent Plan Review failure blocks implementation. Explorers default to five minutes, and only a named slow command may declare longer before dispatch. This is a deterministic prompt/state contract rather than a host-harness timing guarantee.
 
 Wave 0 uses targeted evidence, workers own scoped checks, and root runs each integration command once per completed wave. The portable verifier collects detected and plan-declared candidates into one same-invocation ledger keyed by exact command string, unions their evidence provenance, runs each key once, and invalidates earlier rows after any later content change. Earlier workflow layers never substitute for final fresh evidence.
 
-Model routing is an auditable request, not a guaranteed pin:
-
-| Phase | Simple | Standard | Complex or high-risk |
-| --- | --- | --- | --- |
-| Plan / Plan Review | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` |
-| Exploration / Verify | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` with narrower agents |
-| Implement | `gpt-5.6-luna` / `max` for mechanical work | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` |
-| Architect Review | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` for a broad diff | `gpt-5.6-sol` / `xhigh` |
-
-The orchestrator classifies complexity before Plan and refines it from the plan. If the active spawn surface cannot override the child model or reasoning effort, the phase inherits the current session model and the workflow records `model_fallback` visibly in state and the final summary.
+Model routing is an auditable request, not a guaranteed pin. Inline phases inherit the active root session, so the recommended normal complex-build session is `gpt-5.6-sol` at high effort. Fresh Plan Review and Verify request Sol at `medium`, `high`, or `xhigh` for simple, standard, or complex work; exploration requests `gpt-5.6-luna` / `max`. If the active spawn surface cannot override a child model or effort, the workflow records `model_fallback` visibly in state and the final summary. Inline phases record `active-session` instead of claiming a downshift.
 
 #### Custom agent routing contract
 
