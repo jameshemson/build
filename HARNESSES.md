@@ -60,6 +60,8 @@ Codex supervision is terminal-only: silence is unknown, not failure evidence. Ro
 
 Wave 0 uses targeted evidence, workers own scoped checks, and root runs each integration command once per completed wave. The portable verifier collects detected and plan-declared candidates into one same-invocation ledger keyed by exact command string, unions their evidence provenance, runs each key once, and invalidates earlier rows after any later content change. Earlier workflow layers never substitute for final fresh evidence.
 
+Typed evidence is portable across all three harnesses. New plans declare `evidence_mode: typed`, bind each named Approach symbol, behavior, or invariant to one task and must-have ID, and give every must-have an exact evidence kind and reference. The four kinds are `behavioral-test`, `command-assertion`, `structural`, and `manual-receipt`. Changed files satisfy only structural claims; they cannot prove behavior. Missing modes are `legacy-untyped`, while reopened legacy tasks must upgrade. Missing or mismatched behavioral evidence yields `PARTIAL` unless the underlying command fails.
+
 Model routing is an auditable request, not a guaranteed pin. Inline phases inherit the active root session, so the recommended normal complex-build session is `gpt-5.6-sol` at high effort. Fresh Plan Review and Verify request Sol at `medium`, `high`, or `xhigh` for simple, standard, or complex work; exploration requests `gpt-5.6-luna` / `max`. If the active spawn surface cannot override a child model or effort, the workflow records `model_fallback` visibly in state and the final summary. Inline phases record `active-session` instead of claiming a downshift.
 
 #### Custom agent routing contract

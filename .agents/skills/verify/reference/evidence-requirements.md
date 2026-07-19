@@ -21,6 +21,31 @@ Every claim requires specific evidence. No exceptions.
 | "Secrets are not exposed" | Grep output showing no hardcoded secrets, API keys, or credentials in committed files | "We use environment variables" |
 | "CSRF protection works" | Test showing cross-origin request without valid token is rejected | "The CSRF middleware is enabled" |
 
+## Typed evidence kinds
+
+New plans use `evidence_mode: typed`. Each must-have declares one kind and a non-empty
+ref; Verify reports evidence against the declared claim, kind, and ref rather than
+crediting any convenient output.
+
+- `behavioral-test`: the ref names the exact test file and test ID/name. Fresh runner
+  output must show that test executed and passed. The file's presence is only structural.
+- `command-assertion`: the ref names an exact command and expected output/assertion. Exit
+  zero alone is insufficient when the claim requires a particular value or invariant.
+- `structural`: the ref names the file, symbol, field, or source inspection. A diff or
+  changed-file list can prove existence/shape only. Structural evidence never proves behavior.
+- `manual-receipt`: the ref names the steps and expected observation. The receipt records
+  the fresh action, actual observation, and result; a prediction is not a receipt.
+
+Stronger direct evidence may support a structural claim, but weaker evidence never supports
+a behavioral claim. Passing unrelated tests, broad suite success without the named test,
+and changed production files do not satisfy behavioral evidence. Missing or mismatched behavioral evidence is `PARTIAL` unless a command fails; an executed nonzero command is
+`FAILED`.
+
+An existing plan with no mode is `legacy-untyped`. Classify each string by its claim:
+behavioral strings require fresh behavioral-test, command-assertion, or manual-receipt
+evidence, while changed files may support only structural strings. Reopened legacy tasks
+upgrade during re-plan; unchanged completed tasks do not require bulk rewriting.
+
 ## Common Verification Commands by Stack
 
 ### Node.js / TypeScript

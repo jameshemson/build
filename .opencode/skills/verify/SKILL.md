@@ -16,7 +16,7 @@ If `.build/plans/*-state.md` exists, read the active state file first. Treat a s
 - `.build/plans/{slug}-plan.md`
 - `.build/plans/{slug}-implementation-summary.md`
 
-If an active workflow is present and one of those required artifacts is missing, record it as missing context and make the final verdict `PARTIAL` unless a command fails. From the plan, extract any `execution_manifest` tasks. Use their `requirements`, `must_haves`, and `verify` fields as plan-declared evidence requirements. If the request itself names a plan file, read it and use its `execution_manifest` the same way.
+If an active workflow is present and one of those required artifacts is missing, record it as missing context and make the final verdict `PARTIAL` unless a command fails. From the plan, extract its evidence mode, `bindings`, and `execution_manifest` tasks. Use each task's `requirements`, typed `must_haves` evidence kind/ref, and `verify` as plan-declared requirements. Missing mode means `legacy-untyped`. If the request names a plan file, read it the same way.
 
 If no active workflow state exists, record workflow artifacts as `N/A - standalone verification`. Missing `.build/plans/` artifacts must not make standalone verification `PARTIAL`.
 
@@ -28,7 +28,7 @@ Collect every command candidate before executing anything. Detect available chec
 - **Type check**: `tsconfig.json`, `mypy.ini`, `pyproject.toml` (mypy/pyright config)
 - **Lint**: `package.json` scripts (lint), `.eslintrc`, `ruff.toml`, `Cargo.toml` (clippy)
 
-Also collect every `execution_manifest.verify` command. Evidence is duplicate only when it proves the same claim at the same lifecycle authority.
+Also collect every `execution_manifest.verify` command and executable `command-assertion` ref. Evidence is duplicate only when it proves the same claim at the same lifecycle authority.
 Union candidates with identical exact command strings into one entry. Key the ledger by the exact
 command string; do not normalize whitespace, aliases, or environment prefixes. For each unioned entry, union its detected categories, task IDs, `requirements`, and `must_haves`. Worker, integration, slice, and final gates prove distinct claims and remain mandatory.
 Preserve commands required by those distinct lifecycle claims and plan- or repository-required categories. Within one authority, select the smallest claim-covering ledger using the narrowest direct command for each claim; exclude an overlapping non-identical candidate when it proves no unique required claim or category. When there is no manifest, use only detected candidates.
@@ -48,11 +48,9 @@ so implementation can integrate it before verification restarts.
 
 ### 4. Evaluate results and coverage
 
-For unavailable detected categories, record `N/A` with a brief reason. For every task,
-report whether each `must_haves` item has observable evidence in its shared ledger output,
-test names, manual evidence text, or changed files.
+For unavailable detected categories, record `N/A` with a brief reason. For every typed must-have, evaluate only its declared evidence kind and ref using the reference mapping. Structural evidence never proves behavior; changed files prove only structural claims. A `behavioral-test` needs the named test result, a `command-assertion` its asserted output, and a `manual-receipt` the fresh observed result. For `legacy-untyped`, classify the claim: behavioral strings still need direct test, command, or manual evidence, never changed files.
 
-If a command fails, final verdict is `FAILED`. If commands pass but any `REQ-*` has no fresh evidence, any `must_haves` item lacks evidence, or required workflow artifacts are missing, final verdict is `PARTIAL` with an `uncovered requirements` section. If all available checks and plan-declared evidence pass, final verdict is `VERIFIED`. Stop after selected fresh direct coverage proves every claim actually made.
+If a command fails, final verdict is `FAILED`. If commands pass but any `REQ-*` has no fresh evidence, any must-have has missing or mismatched evidence, or required workflow artifacts are missing, final verdict is `PARTIAL` with an `uncovered requirements` section. If all available checks and plan-declared evidence pass, final verdict is `VERIFIED`. Stop after selected fresh direct coverage proves every claim actually made.
 
 ### 4.5 Debt scan on changed files
 

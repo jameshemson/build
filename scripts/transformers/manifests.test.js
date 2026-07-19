@@ -210,6 +210,13 @@ test('Codex documentation describes provider phase authority, custom routing, sh
   assert.match(copy, /gpt-5\.6-sol/i);
   assert.match(copy, /model_fallback/);
 
+  assert.match(copy, /`evidence_mode: typed`/);
+  assert.match(copy, /behavioral-test[^\n]*command-assertion[^\n]*structural[^\n]*manual-receipt/);
+  assert.match(copy, /Changed files[^\n]*only structural claims[^\n]*cannot prove behavior/i);
+  assert.match(copy, /missing mode[^\n]*`legacy-untyped`/i);
+  assert.match(copy, /reopened(?: legacy)? tasks?[^\n]*upgrade/i);
+  assert.match(copy, /missing or mismatched behavioral evidence[^\n]*`PARTIAL`/i);
+
   assert.match(copy, /optional literal `## Build agent routing` block/i);
   assert.match(copy, /- plan: [^\n]+[\s\S]*- review: [^\n]+[\s\S]*- explore: [^\n]+[\s\S]*- implement: [^\n]+[\s\S]*- verify: [^\n]+[\s\S]*- architect-review: [^\n]+/);
   assert.match(copy, /`review` also controls the mid-implementation review/i);
