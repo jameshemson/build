@@ -36,6 +36,14 @@ const TYPED_STATE_EVIDENCE = [
   '`bindings` | typed binding summary',
 ];
 
+const TYPED_ORCHESTRATOR_EVIDENCE = [
+  ['fresh typed state', 'Fresh workflows set `evidence_mode` to `typed` and start with `bindings: []`'],
+  ['legacy classification', 'A missing mode on resume is `legacy-untyped`'],
+  ['reopened-task upgrade', 'reopened tasks must upgrade to typed must-haves and bindings'],
+  ['typed dispatch payload', 'each must-have `id`, `claim`, evidence `kind`, and `ref`'],
+  ['structural boundary', 'changed files prove only structural claims'],
+];
+
 const ROUTING_KEYS = ['plan', 'review', 'explore', 'implement', 'verify', 'architect-review'];
 
 const ROUTING_EVIDENCE = [
@@ -421,6 +429,12 @@ export function assertCodexOrchestrator(content) {
       `orchestrator must retain ${behavior}`,
     );
   }
+  for (const [behavior, evidence] of TYPED_ORCHESTRATOR_EVIDENCE) {
+    assert.ok(
+      normalized.includes(normalizeContractWhitespace(evidence)),
+      `orchestrator must retain typed evidence ${behavior}`,
+    );
+  }
 
   const phases = [...content.matchAll(/^## Phase \d+: (.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(phases, ['Plan', 'Review', 'Implement', 'Verify', 'Architect review']);
@@ -514,6 +528,16 @@ for (const [behavior, evidence] of ROUTING_EVIDENCE) {
   test(`negative fixture removing ${behavior} is rejected by orchestrator contract`, () => {
     const fixture = withoutBehavior(readRel(ORCHESTRATOR_PATH), evidence);
     assert.throws(() => assertCodexOrchestrator(fixture), new RegExp(behavior));
+  });
+}
+
+for (const [behavior, evidence] of TYPED_ORCHESTRATOR_EVIDENCE) {
+  test(`negative typed orchestrator fixture removing ${behavior} is rejected`, () => {
+    const fixture = withoutBehavior(readRel(ORCHESTRATOR_PATH), evidence);
+    assert.throws(
+      () => assertCodexOrchestrator(fixture),
+      new RegExp(`typed evidence ${behavior}`),
+    );
   });
 }
 

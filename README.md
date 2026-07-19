@@ -77,6 +77,8 @@ Codex supervision is terminal-only. Silence is unknown, not failure evidence, so
 
 Testing has one owner per layer: Wave 0 uses the fastest targeted evidence, workers use scoped checks, root deduplicates integration commands once per completed wave, and final verification owns the fresh full suite and exact-command ledger. Baseline, worker, and wave output never substitutes for final evidence after the latest change.
 
+New plans use `evidence_mode: typed`. Every named symbol, behavior, and invariant in the Approach is bound to one manifest task and one must-have ID; each must-have declares one of `behavioral-test`, `command-assertion`, `structural`, or `manual-receipt` plus the exact evidence reference. Tasks must be evidence-atomic: every must-have must be independently observable in one bounded implement-verify cycle. Changed-file lists prove only structural claims, never behavior. A missing mode is treated as `legacy-untyped`; unchanged legacy tasks may continue, but reopened tasks must upgrade to typed must-haves and bindings. Verify reports `PARTIAL` when behavioral evidence is missing or mismatched, unless an evidence command itself fails.
+
 `/build` is file-backed. Each workflow writes durable artifacts under `.build/plans/` so later phases and fresh agents do not depend on chat history alone:
 
 - `{slug}-state.md` - current phase, `base_ref`, delivery slices, active/completed slice IDs, task completion, blockers, history

@@ -18,7 +18,7 @@ Look in `.build/plans/` for `*-state.md` files (ignore `archive/`). Field format
 - **One state file**: read it. If $ARGUMENTS is empty or describes the same work as its `task:` field, resume at the recorded phase. When resuming, compare `git branch --show-current` with the state's `branch:` field; if they differ, check out the workflow branch before doing anything else. If state has no `branch:` field (pre-upgrade workflow), note that and continue on the current branch. If $ARGUMENTS describes different work, leave that workflow untouched and start a fresh one with a new slug.
 - **Multiple state files**: read each `task:` field. Resume the one $ARGUMENTS describes. If $ARGUMENTS is non-empty and matches none, start a fresh workflow. If $ARGUMENTS is empty, list the in-flight workflows and ask the user which to resume — choosing between live workflows is the user's call, not a session-switch stop.
 
-On resume or re-plan, reconcile delivery-slice fields, explicit reopenings, and legacy state exactly as the state schema specifies. Continue the incomplete `active_slice`; never infer slice completion from chat history.
+On resume or re-plan, reconcile delivery-slice fields, explicit reopenings, and legacy state exactly as the state schema specifies. A missing mode on resume is `legacy-untyped`; unchanged tasks continue, but reopened tasks must upgrade to typed must-haves and bindings. Continue the incomplete `active_slice`; never infer slice completion from chat history.
 
 All files for a workflow use the slug as a prefix:
 - `{slug}-state.md` - workflow state
@@ -50,7 +50,7 @@ Create the `.build/plans/` directory if it doesn't exist.
 3. Invoke `/build:impl-plan` via the Skill tool for: [orchestrated] $ARGUMENTS
 4. The plan MUST include:
    - **Requirements and Decisions**: `REQ-*`, `D-*`, and `A-*` inventories with acceptance criteria.
-   - **Execution Manifest**: `execution_manifest` tasks with `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`.
+   - **Execution Manifest**: a contract with `evidence_mode` set to `typed`, exact `bindings`, and `execution_manifest` tasks with `id`, `wave`, `depends_on`, `files_modified`, `requirements`, typed `must_haves`, `verify`, and `done`.
    - **Delivery Slices**: ordered `delivery_slices` above waves/workstreams/tasks, with Wave 0 global and every later task assigned exactly once.
    - **Wave 0 Validation Design**: tests, fixtures, commands, or manual evidence for each `REQ-*` before feature implementation.
    - **Workflow Artifacts**: which `{slug}-*.md` files each phase writes and reads.
@@ -74,6 +74,8 @@ complexity: [simple|complex]
 requirements: [REQ-* list]
 decisions: [D-* list]
 assumptions_confirmed: [A-* list with status inferred|confirmed]
+evidence_mode: [typed|legacy-untyped]
+bindings: [typed binding summary]
 workstreams: [list of named parallel workstreams from the plan]
 execution_manifest: [summary of task IDs, waves, depends_on, files_modified]
 delivery_slices: [preserved completed definitions on re-plan, or [] for fresh]
@@ -116,7 +118,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 2. Create tasks only for the active slice's implementation steps. Mark them as you go.
 3. **Deploy agents inside the active slice**: Preserve the hierarchy delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks. Prefer the manifest and route only task IDs in `active_slice.task_ids`, by `wave`, `depends_on`, and `files_modified`. Never dispatch a later slice. If the manifest is absent or malformed, report that and use prose order/workstreams only when their active-slice ownership is unambiguous; otherwise return to planning:
    - Each independent workstream gets its own agent running in an **isolated worktree** (`isolation: "worktree"`)
-   - Give each agent only its assigned task IDs, files, `must_haves`, verification commands, and what "done" looks like
+   - Give each agent only its assigned task IDs, files, each must-have `id`, `claim`, evidence `kind`, and `ref`, verification commands, and what "done" looks like. Structural evidence and changed files prove only structural claims.
    - **Worktrees cannot see `.build/`**: workflow artifacts are normally gitignored, so they do not exist inside isolated worktrees. Dispatch prompts must inline every requirement, file path, must-have, and verification command the agent needs — never tell a workstream agent to read a `.build/plans/` file. Agents must not create or edit anything under `.build/`.
    - **Spec compliance**: Each agent must verify its output against its assigned spec from the plan before reporting done. Include in every dispatch prompt: "Before reporting DONE, check your work against the plan's spec for this workstream. Every file, behavior, and test listed in your spec must be accounted for. If you built something the spec didn't ask for, or skipped something it did, report that."
    - **Agent status reporting**: Include this in every agent dispatch prompt: "When finished, report your status as one of: DONE (all work complete, tests pass, spec satisfied), DONE_WITH_CONCERNS (complete but flagging doubts), NEEDS_CONTEXT (missing information, cannot proceed), BLOCKED (cannot complete, explain why), SCOPE_CHANGE (the plan is wrong or incomplete - you discovered something that changes the approach. Describe what you found and why the plan can't proceed as written)."

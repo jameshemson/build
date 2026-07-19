@@ -50,7 +50,8 @@ State selection remains the first read-only operation: inspect
 Before routing validation, resume work is inventory only. On resume, validate that every artifact
 required by the recorded phase exists, identify the last durable artifact, and reconcile
 `delivery_slices`/`active_slice`/`completed_slices` through the state schema; never advance
-state based only on chat history.
+state based only on chat history. A missing mode on resume is `legacy-untyped`; unchanged tasks
+continue, but reopened tasks must upgrade to typed must-haves and bindings.
 
 The invocation and effective `AGENTS.md` may each contain at most one literal
 `## Build agent routing` block. Its body ends immediately before the next H2 heading or at EOF.
@@ -147,18 +148,18 @@ root captures `base_ref` with `git rev-parse HEAD`, records the current branch, 
 Immediately create an initial `phase: plan` state with identity, git refs, provisional
 complexity, all six agent routes, model routes, empty inventories, `completed_tasks: []`,
 `delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `agent_progress: {}`,
-and initial history. It must exist before the first dispatch so progress, fallback, failure,
+and initial history. Fresh workflows set `evidence_mode` to `typed` and start with `bindings: []`. It must exist before the first dispatch so progress, fallback, failure,
 and resume evidence can be recorded from the start.
 
 Apply the complexity fan-out limits to route-selected read-only exploration of architecture,
 affected code, and tests. Root synthesizes their evidence and runs `impl-plan` inline with
 the marker `[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence,
-a complete `execution_manifest` and `delivery_slices`, and the hierarchy delivery slice ->
+a complete typed `execution_manifest`, `bindings` coverage, and `delivery_slices`, and the hierarchy delivery slice ->
 dependency waves -> disjoint workstreams -> `execution_manifest` tasks.
 
 Root determines final complexity, then writes and validates `{slug}-context.md`,
 `{slug}-requirements.md`, and `{slug}-plan.md`. Last, update state with final complexity,
-model routes, inventories, manifest summary, and `phase: review`.
+model routes, evidence mode, typed binding summary, inventories, manifest summary, and `phase: review`.
 
 ## Phase 2: Review
 
@@ -179,7 +180,7 @@ and first declared-order dependency-ready `active_slice` before implementation d
 
 Read every prior artifact and reconcile the active slice through the schema. Validate the delivery
 slice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks hierarchy,
-manifest dependencies, and same-wave ownership.
+manifest dependencies, same-wave ownership, and that every dispatch includes each must-have `id`, `claim`, evidence `kind`, and `ref`. Structural evidence and changed files prove only structural claims.
 Also require every manifest ID in exactly one named workstream, every workstream ID to exist in
 the manifest, and each workstream's file set to equal the union of its member `files_modified`.
 Only the `active_slice` task IDs and their workstream batches may dispatch. Group each

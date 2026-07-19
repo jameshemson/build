@@ -75,9 +75,17 @@ Check that a "Parallel workstreams" section exists and contains at least one nam
 **Fail**: section missing, or workstreams lack required fields.
 
 ### manifest-valid
-Find a fenced ```yaml block containing `execution_manifest:`. For each task entry (lines beginning `- id:`), check all eight fields are present: `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, `done`.
-**Pass**: block exists and every task has all eight fields.
-**Fail**: no block found, or list each task ID with its missing fields.
+Find a fenced ```yaml block containing `evidence_mode: typed`, `bindings:`, and
+`execution_manifest:`. Check that every binding has exactly `id`, `kind`, `name`,
+`task_id`, and `must_have_id`, and every task has all eight fields: `id`, `wave`,
+`depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, `done`. Each
+must-have must have exactly `id`, `claim`, and `evidence`; evidence must contain exactly
+`kind` and `ref`, with kind `behavioral-test`, `command-assertion`, `structural`, or
+`manual-receipt`. Every binding must resolve to one declared task and must-have.
+**Pass**: the typed block exists and every binding, task, must-have, and evidence object
+satisfies the schema and resolves exactly.
+**Fail**: the typed block is missing, or list each ID with its missing, extra, invalid,
+or unresolved field.
 
 ### delivery-slices-valid
 Find a fenced YAML block containing `delivery_slices:` and parse it together with the fenced `execution_manifest:` block. Check all of the following:

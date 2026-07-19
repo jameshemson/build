@@ -130,16 +130,21 @@ What don't we know? What assumptions are we making? For each assumption, explain
 Before implementation tasks, define the fastest test, fixture, command, or manual evidence that will prove each `REQ-*`. If a requirement cannot be tested before coding, say exactly why and identify the first implementation task that will make it testable.
 
 ### Execution manifest
-Include a compact fenced YAML block named `execution_manifest`. Each task entry must include `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`.
+Include one compact fenced YAML contract. New plans declare `evidence_mode: typed`. `bindings` entries have exactly `id`, `kind`, `name`, `task_id`, and `must_have_id`; binding kind is `symbol`, `behavior`, or `invariant`. Every task includes `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`. Each `must_haves` item has exactly `id`, `claim`, and `evidence`; `evidence` has exactly `kind` and `ref`. Evidence kind is `behavioral-test`, `command-assertion`, `structural`, or `manual-receipt`.
 
 ```yaml
+evidence_mode: typed
+bindings:
+  - { id: B-001, kind: invariant, name: "Wave 0 test names the expected behavior", task_id: T-001, must_have_id: MH-001 }
+  - { id: B-002, kind: behavior, name: "named user-visible behavior", task_id: T-002, must_have_id: MH-002 }
 execution_manifest:
   - id: T-001
     wave: 0
     depends_on: []
     files_modified: ["tests/example.test.ts"]
     requirements: ["REQ-001"]
-    must_haves: ["test asserts the named user-visible behavior"]
+    must_haves:
+      - { id: MH-001, claim: "test names and asserts the user-visible behavior", evidence: { kind: structural, ref: "tests/example.test.ts test name and assertion" } }
     verify: "npm test -- tests/example.test.ts"
     done: "REQ-001 has command evidence and named assertions"
   - id: T-002
@@ -147,12 +152,15 @@ execution_manifest:
     depends_on: ["T-001"]
     files_modified: ["src/example.ts"]
     requirements: ["REQ-001"]
-    must_haves: ["the named user-visible behavior passes the Wave 0 assertion"]
+    must_haves:
+      - { id: MH-002, claim: "the named user-visible behavior passes the Wave 0 assertion", evidence: { kind: behavioral-test, ref: "tests/example.test.ts#named-user-visible-behavior" } }
     verify: "npm test -- tests/example.test.ts"
     done: "REQ-001 implementation passes the named Wave 0 test"
 ```
 
-`must_haves` are non-optional acceptance criteria. They must be observable in test names, command output, manual evidence, or changed files.
+Every named symbol, behavior, and invariant in Approach maps through one binding to one manifest task and one must-have. A task is evidence-atomic: each must-have can be independently observed in one bounded implement-verify cycle. Split a task when that is not true. Structural evidence proves only structural claims; behavior requires a behavioral test, command assertion, or manual receipt.
+
+An existing plan without `evidence_mode` is `legacy-untyped`: unchanged tasks may continue, but behavioral strings still require direct evidence. During re-plan, reopened tasks must upgrade to typed must-haves and bindings; do not bulk-rewrite completed tasks.
 
 ### Delivery slices
 Include a fenced YAML block named `delivery_slices`. A delivery slice is a dependency-closed, independently acceptable implementation checkpoint, not a dispatch unit. Use this hierarchy: delivery slice → dependency waves → disjoint workstreams → `execution_manifest` tasks. Wave 0 is global and excluded from slices; every task in waves greater than 0 belongs to exactly one slice.
