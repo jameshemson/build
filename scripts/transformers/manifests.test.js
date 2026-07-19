@@ -15,6 +15,7 @@ const sourceCommandsDir = join(ROOT, 'source/commands');
 const sourceSkillsDir = join(ROOT, 'source/skills');
 const readmePath = join(ROOT, 'README.md');
 const harnessesPath = join(ROOT, 'HARNESSES.md');
+const roadmapPath = join(ROOT, 'ROADMAP.md');
 
 const OPENCODE_SKILLS = ['architect-review', 'impl-plan', 'review-plan', 'verify'];
 const CODEX_SKILLS = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
@@ -103,7 +104,7 @@ test('all release-version carriers agree', () => {
     1,
     `Version drift across release files: ${carriers.map((c) => `${c.path}=${c.version}`).join(', ')}. Bump all ${carriers.length} together.`,
   );
-  assert.equal(unique[0], '1.11.0', 'release version must be 1.11.0');
+  assert.equal(unique[0], '1.11.1', 'release version must be 1.11.1');
 });
 
 test('Codex marketplace.json parses', () => {
@@ -195,15 +196,18 @@ test('OpenCode skill output contains exactly the four standalone skills', () => 
   );
 });
 
-test('Codex documentation describes instructed subagents, custom routing, shared-workspace safety, and fallbacks', () => {
+test('Codex documentation describes provider phase authority, custom routing, shared-workspace safety, and fallbacks', () => {
   const copy = [readFileSync(readmePath, 'utf8'), readFileSync(harnessesPath, 'utf8')].join('\n');
   assert.match(copy, /\$build:build <feature>/);
-  assert.match(copy, /instructed subagents/i);
+  assert.match(copy, /Claude[\s\S]*subagents[\s\S]*worktrees/i);
+  assert.match(copy, /Codex[\s\S]*Plan, Implement, and Architect Review[\s\S]*inline/i);
+  assert.match(copy, /Plan Review and Verify[\s\S]*fresh-context/i);
+  assert.match(copy, /silence is unknown, not failure evidence/i);
+  assert.match(copy, /20-minute hard deadline/i);
+  assert.match(copy, /Sol[\s\S]*high effort/i);
   assert.match(copy, /shared workspace/i);
   assert.match(copy, /disjoint/i);
   assert.match(copy, /gpt-5\.6-sol/i);
-  assert.match(copy, /gpt-5\.6-luna/i);
-  assert.match(copy, /\| Plan \/ Plan Review \|[^\n]*gpt-5\.6-sol[^\n]*xhigh/i);
   assert.match(copy, /model_fallback/);
 
   assert.match(copy, /optional literal `## Build agent routing` block/i);
@@ -241,6 +245,15 @@ test('Codex documentation describes instructed subagents, custom routing, shared
   assert.match(copy, /requests the exact profile only where the active API exposes agent selection[\s\S]*documented fallback/i);
   assert.match(copy, /does not add host selectors/i);
   assertNoObsoleteCodexClaims(copy, 'README.md and HARNESSES.md');
+});
+
+test('ROADMAP sequences deterministic Build authority without claiming deferred machinery is shipped', () => {
+  const roadmap = readFileSync(roadmapPath, 'utf8');
+  assert.match(roadmap, /v1\.11\.1[\s\S]*typed evidence[\s\S]*provider-specific Codex execution/i);
+  assert.match(roadmap, /v1\.12[\s\S]*validate-plan[\s\S]*compile[\s\S]*contract\.json[\s\S]*run-evidence/i);
+  assert.match(roadmap, /v1\.13[\s\S]*complete-slice[\s\S]*transition/i);
+  assert.match(roadmap, /portable[\s\S]*(?:fallback|OpenCode|Codex)/i);
+  assert.match(roadmap, /Deferred[\s\S]*leases[\s\S]*domain[\s\S]*trajectory[\s\S]*routing/i);
 });
 
 test('negative fixture rejects four-skill Codex set', () => {

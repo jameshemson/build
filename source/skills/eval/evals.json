@@ -52,6 +52,17 @@
       ]
     },
     {
+      "id": "review-plan-catches-evidence-contract-flaws",
+      "skill": "review-plan",
+      "input_fixture": "fixtures/flawed-evidence-contract-plan.md",
+      "assertions": [
+        "catches-unbound-approach-obligation",
+        "catches-non-atomic-task",
+        "findings-have-severity",
+        "verdict-is-structured"
+      ]
+    },
+    {
       "id": "verify-reports-evidence",
       "skill": "verify",
       "target": ".",
@@ -89,6 +100,17 @@
         "verdict-verified",
         "debt-scan-reported",
         "deferred-marker-listed",
+        "commands-shown"
+      ]
+    },
+    {
+      "id": "verify-rejects-indirect-behavior-evidence",
+      "skill": "verify",
+      "target": "fixtures/behavioral-evidence-project",
+      "prompt": "Verify the project at {this-skill-dir}/fixtures/behavioral-evidence-project. Run all commands inside that directory. Treat {this-skill-dir}/fixtures/behavioral-evidence-project/plan.md as the plan under verification and use its typed execution_manifest.",
+      "assertions": [
+        "verdict-partial",
+        "behavioral-evidence-gap-shown",
         "commands-shown"
       ]
     },

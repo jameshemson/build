@@ -1,0 +1,7 @@
+{
+  "name": "behavioral-evidence-project",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

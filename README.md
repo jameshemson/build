@@ -67,13 +67,13 @@ Both `/build <feature>` in Claude Code and `$build:build <feature>` in Codex dri
 4. **Verify** - Build one fresh ledger keyed by exact command string across detected checks and plan commands. Exact duplicates run once with unioned task, requirement, and `must_haves` evidence.
 5. **Architect Review** - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, weak-test audit, dependency audit
 
-The orchestrator manages state, auto-continues between phases, and deploys model-appropriate agents. Claude implementation agents use isolated worktrees and a structured merge protocol. Codex uses current instructed subagents in a shared workspace: read-only work can fan out, while write workers run concurrently only when same-wave `files_modified` sets are disjoint. The Codex root alone writes `.build/`, mutates git, inspects integrated diffs, and advances phases.
+The orchestrator manages state and auto-continues between phases. Claude continues to use subagents, isolated worktrees, and a structured merge protocol. Codex uses a narrower provider profile: Build-default Plan, Implement, and Architect Review run inline in root, while Plan Review and Verify use fresh-context agents. Codex agents share a shared workspace; read-only exploration may fan out, and custom-routed writers may overlap only when their `files_modified` unions are disjoint. The Codex root alone writes `.build/`, mutates git, inspects integrated diffs, and advances phases.
 
 Delivery slices bound large implementations without turning them into separate workflows. The hierarchy is delivery slice → dependency waves → disjoint workstreams → manifest tasks. Ordinary work gets one slice; Build splits only when there are dependency-ordered independently acceptable outcomes, materially different risk/recovery boundaries, or an integration checkpoint too broad to verify and recover coherently—not merely because there are many tasks, workstreams, or a long-running writer. Root dispatches only the active slice, records its exact evidence in the implementation summary, creates a checkpoint commit, then completes it and activates the next slice. Slice evidence is provisional: final Verify runs fresh whole-workflow checks, and Architect Review covers the whole workflow diff.
 
-Codex exploration is complexity-bounded: simple workflows use no explorer, standard uses at most two, and complex uses at most three. Explorers default to five minutes; writers and companion phases default to ten. Longer budgets require a named slow command and explicit duration.
+Codex exploration is complexity-bounded: simple workflows use no explorer, standard uses at most two, and complex uses at most three. Explorers default to five minutes. Fresh Plan Review and Verify agents have a 20-minute hard deadline; longer budgets require a named slow command and explicit duration.
 
-Codex agent progress uses structured boundary milestones and durable absolute deadlines. Root checks status and assigned diffs at intervals no longer than 60 seconds, without counting its own polls as agent evidence. Two evidence-free checks request status without moving the deadline. Every overdue agent—edited or not—gets one deadline request and one 60-second grace period before interruption. Updates show the agent label, stage, elapsed/deadline, command, and last evidence; preserved writer edits are verified rather than restarted. These Markdown and state contracts make supervision auditable, but cannot guarantee host-harness wall-clock behavior.
+Codex supervision is terminal-only. Silence is unknown, not failure evidence, so root sends no child status prompts and does not duplicate work after empty observations. It waits for a terminal event and interrupts only at the immutable hard deadline. One fresh retry is allowed; a second independent Plan Review failure blocks implementation instead of silently falling back to inline self-review. These Markdown and state contracts make supervision auditable, but cannot guarantee host-harness wall-clock behavior.
 
 Testing has one owner per layer: Wave 0 uses the fastest targeted evidence, workers use scoped checks, root deduplicates integration commands once per completed wave, and final verification owns the fresh full suite and exact-command ledger. Baseline, worker, and wave output never substitutes for final evidence after the latest change.
 
@@ -92,16 +92,9 @@ Skill prompts are intentionally kept compact. Detailed planning rules live in re
 
 ### Codex model routing
 
-The Codex orchestrator requests models adaptively after a targeted read classifies work as simple, standard, or complex/high-risk:
+Inline phases inherit the active root session; Build cannot downshift their model or effort. For normal complex Codex work, start Build in a Sol (`gpt-5.6-sol`) session at high effort. That avoids paying `xhigh` implementation cost merely because planning is complex. Build-default fresh Plan Review and Verify request Sol at `medium`, `high`, or `xhigh` according to simple, standard, or complex classification; exploration requests `gpt-5.6-luna` / `max`.
 
-| Phase | Simple | Standard | Complex/high-risk |
-|-------|--------|----------|-------------------|
-| Plan / Plan Review | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` |
-| Exploration / Verify | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` | `gpt-5.6-luna` / `max` with narrower agents |
-| Implement | `gpt-5.6-luna` / `max` for mechanical work | `gpt-5.6-sol` / `medium` | `gpt-5.6-sol` / `high` |
-| Architect Review | `gpt-5.6-sol` / `high` | `gpt-5.6-sol` / `xhigh` for a broad diff | `gpt-5.6-sol` / `xhigh` |
-
-These are requests rather than guaranteed pins. When the current spawn surface cannot override a child model or effort, the phase inherits the active session model and the workflow records `model_fallback` in its state and final summary instead of claiming the requested route occurred.
+These are requests rather than guaranteed pins. When the current spawn surface cannot override a child model or effort, the workflow records `model_fallback` in state and the final summary instead of claiming the requested route occurred. Inline phases record `active-session`; they do not invent a fallback.
 
 ### Custom Build agents
 
@@ -121,9 +114,13 @@ Codex users may add an optional literal `## Build agent routing` block to the cu
 
 For a non-null requested profile, the route is `profile-owned`: Build requests the exact name with no Build model or effort override and no inherited history (`fork_turns: "none"` where exposed). For a null Build-default route, Build makes no named selection attempt and creates no `agent_selection_fallback` record. `default` is an opaque selectable agent name, not a reserved sentinel. For a fresh workflow, restore adaptive Build default by removing or editing the `AGENTS.md` mapping before invocation. A live workflow keeps its saved snapshot: `AGENTS.md` edits do not change it, and only a valid current invocation block may replace named keys.
 
+An explicit non-null route opts that phase into delegation, including phases whose Build default is inline. If exact custom selection is unavailable or rejected, Build appends `agent_selection_fallback` before using the Build-default model route or inline authority. A later model override failure is recorded independently in `model_fallback`; execution failures use `agent_failures`.
+
 Configuration requests the exact profile only where the active API exposes agent selection; otherwise the documented fallback applies. This repository does not add host selectors.
 
 Generated skill outputs are committed artifacts. When changing `source/skills/`, run `npm run build` and commit the source changes, regenerated provider outputs, and any test updates together. `npm run check-sync` intentionally fails on an uncommitted source/output change set because it compares generated outputs against git.
+
+See [ROADMAP.md](ROADMAP.md) for the deterministic evidence and transition-authority sequence.
 
 ## Standalone use
 

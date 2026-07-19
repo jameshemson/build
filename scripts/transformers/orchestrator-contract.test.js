@@ -15,6 +15,7 @@ const STATE_EVIDENCE = [
   '`source: invocation | AGENTS.md | build-default`',
   '`model_routes` | map of phase or role to requested model + effort',
   'literal `profile-owned`',
+  'literal `active-session`',
   '`model_fallback` | append-only entries',
   'never (audit trail); omit when no fallback occurred',
   '`agent_selection_fallback` | append-only entries',
@@ -22,14 +23,17 @@ const STATE_EVIDENCE = [
   'Resume inspection before routing validation is read-only',
   'Invalid routing preserves branch, state, history, and artifacts unchanged',
   '`agent_progress` | map keyed by agent label',
-  '`STARTED`/`EDITING`/`VERIFYING` stage',
+  '`supervision_mode: terminal-only`',
   '`dispatched_at`',
   'immutable `deadline_at`',
-  '`last_checked_at`',
-  '`last_evidence_at`',
-  '`evidence_free_checks`',
-  '`deadline_status_requested_at`, initialized to `null`',
+  '`terminal_status`',
+  '`interrupt_outcome`',
   'orphaned handoff',
+];
+
+const TYPED_STATE_EVIDENCE = [
+  '`evidence_mode` | `typed` or `legacy-untyped`',
+  '`bindings` | typed binding summary',
 ];
 
 const ROUTING_KEYS = ['plan', 'review', 'explore', 'implement', 'verify', 'architect-review'];
@@ -71,9 +75,9 @@ const ROUTING_EVIDENCE = [
   ['selection fallback ordering', 'Append this entry before requesting the Build model route'],
   ['independent fallback ledgers', '`model_fallback` remains independent and is appended only if that subsequent model/effort request is unavailable'],
   ['execution failure distinction', 'A later execution failure follows normal `agent_failures` handling, never agent-selection fallback'],
-  ['universal effective route', 'Every phase companion, explorer, writer, reviewer, and mid-review dispatch applies its effective role route'],
+  ['universal effective route', 'Every delegated explorer, fresh-context judge, custom-routed phase, and mid-review dispatch applies its effective role route'],
   ['successful custom implement boundary', 'A successful non-null custom selection remains `profile-owned` and omits Build model/effort.'],
-  ['default implement model boundary', 'Only a null/build-default route or a recorded `agent_selection_fallback` may request the complexity-table model/effort.'],
+  ['build-default phase authority boundary', 'inline phases use\nroot, while fresh phases request the route above'],
   ['completion agent disclosure', 'all six agent routes and sources, every `agent_selection_fallback` (or explicitly `none`)'],
   ['completion profile route disclosure', 'including literal `profile-owned` wherever selected'],
 ];
@@ -86,17 +90,18 @@ const BEHAVIORS = [
   ['resume protocol', 'On resume, validate that every artifact'],
   ['abort protocol', 'Never delete workflow evidence'],
   ['circuit breakers', 'Never increase a limit, skip a phase, or hide a failure'],
-  ['companion delegation', 'Tell the subagent to invoke the named skill'],
-  ['inline companion fallback', "run that skill's documented contract inline"],
+  ['provider phase authority', 'Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents'],
+  ['custom route delegation', 'A valid non-null custom route explicitly opts that phase into delegation'],
   ['disjoint shared-workspace writers', 'Concurrent writer agents are\nallowed only when their assigned file sets are disjoint'],
-  ['adaptive route table', '| `complex` | 6+ files, multiple workstreams, high risk, or cross-cutting | `gpt-5.6-sol`, `xhigh` | `gpt-5.6-sol`, `high` | `gpt-5.6-luna`, `max` |'],
+  ['root session recommendation', 'Recommend a `gpt-5.6-sol` session at `high` effort for normal complex Codex builds'],
+  ['inline route disclosure', 'records their `model_routes` value as the literal `active-session`'],
   ['model fallback lifecycle', 'Historical fallback entries are never cleared'],
   ['implementation skill recursion guard', 'Implementation workers must not invoke `impl-plan`'],
-  ['adaptive implementation dispatch', 'Dispatch every batch through the effective `implement` route.'],
-  ['structured agent progress', 'Require these milestone messages at boundaries'],
-  ['bounded progress monitoring', 'At intervals of no more than 60'],
-  ['universal deadline supervision', 'writer with or without edits, explorer, companion, reviewer, or mid-review'],
-  ['fixed deadline grace', 'exactly one 60-second grace interval'],
+  ['inline implementation default', 'Build-default implementation remains inline even when the plan has multiple batches'],
+  ['terminal-only supervision', 'Silence is unknown, not failure evidence'],
+  ['fresh judgment deadline', '20-minute hard deadline'],
+  ['no child status prompts', 'send no child status prompts'],
+  ['hard-expiry interrupt', 'interrupt only at hard expiry'],
   ['workstream batching', 'Never spawn one writer per manifest task.'],
   ['root workstream membership validation', 'every manifest ID in exactly one named workstream'],
   ['layered test ownership', 'Wave 0 collects the fastest targeted evidence'],
@@ -113,7 +118,7 @@ const SLICE_ORCHESTRATOR_EVIDENCE = [
   ['active-only dispatch', 'Only the `active_slice` task IDs and their workstream batches may dispatch.'],
   ['failure successor block', 'A failure keeps the same active slice and blocks every successor.'],
   ['provisional slice evidence', 'Slice evidence is provisional and never substitutes for final verification.'],
-  ['fresh whole-workflow Verify', 'delegate `verify` with its effective route as the fresh whole-workflow authority'],
+  ['fresh whole-workflow Verify', 'run `verify` in a fresh-context agent as the fresh whole-workflow authority'],
   ['whole-diff Architect Review', 'Architect Review remains the whole-diff authority'],
 ];
 
@@ -218,6 +223,10 @@ function normalizePromptContract(content) {
   return content.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function normalizeContractWhitespace(content) {
+  return content.replace(/\s+/g, ' ').trim();
+}
+
 function assertBoundedClause(content, clause, context = 'Codex orchestrator', after = -1) {
   const normalized = normalizePromptContract(content);
   let cursor = after;
@@ -285,37 +294,43 @@ function assertResumeRoutingContract(content) {
   assert.match(content, /; `review` also governs mid-review\./);
 }
 
-function assertAgentProgressContract(content) {
+function assertTerminalSupervisionContract(content) {
   const progress = content.slice(
-    content.indexOf('## Agent progress protocol'),
+    content.indexOf('## Codex execution and supervision'),
     content.indexOf('## Artifact-before-state invariant'),
   );
-  for (const field of [
-    'dispatched_at',
-    'deadline_at',
-    'last_checked_at',
-    'last_evidence_at',
-    'evidence_free_checks',
-    'deadline_status_requested_at',
+  for (const evidence of [
+    '`dispatched_at`',
+    '`deadline_at`',
+    '`supervision_mode: terminal-only`',
+    '`terminal_status`',
+    '`interrupt_outcome`',
   ]) {
-    assert.ok(progress.includes('`' + field + '`'), `agent progress must persist ${field}`);
+    assert.ok(progress.includes(evidence), `terminal supervision must persist ${evidence}`);
   }
-  assert.match(progress, /`deadline_status_requested_at: null`/);
-  assert.doesNotMatch(progress, /optional `deadline_status_requested_at`/);
-  assert.match(progress, /After two consecutive evidence-free checks[\s\S]*structured status request/);
-  assert.match(progress, /Status replies and[\s\S]*root\s+polling never extend `deadline_at`/);
+  assert.match(progress, /Silence is unknown, not failure evidence/);
+  assert.match(progress, /send no child status prompts/);
+  assert.match(progress, /Fresh-context Plan Review and Verify agents get a 20-minute hard deadline/);
   assertInOrder(progress, [
     'At `deadline_at`',
-    'exactly one deadline status request',
-    'exactly one 60-second grace interval',
-    'interrupt it',
-  ], 'deadline watchdog sequence');
-  assert.doesNotMatch(progress, /If an agent has made/);
-  assert.doesNotMatch(progress, /bounded grace interval/);
+    'interrupt only at hard expiry',
+    'one fresh retry',
+  ], 'terminal-only deadline sequence');
+  for (const forbidden of [
+    'STARTED',
+    'EDITING',
+    'VERIFYING',
+    'evidence_free_checks',
+    'deadline_status_requested_at',
+    'structured status request',
+    '60-second grace',
+  ]) {
+    assert.ok(!progress.includes(forbidden), `terminal supervision must omit ${forbidden}`);
+  }
 }
 
 function assertDispatchModelArtifactContract(content) {
-  assert.match(content, /simple uses\s+no explorer, standard uses at most two, and complex uses at most three/);
+  assert.match(content, /simple uses\s+no explorer, standard uses at most two,\s+and complex uses at most three/);
   assert.match(content, /Every explorer\s+has the default five-minute runtime/);
   assert.match(content, /Group each\s+workstream's ready frontier[\s\S]*fewest bounded batches/);
   assert.match(content, /every manifest ID in exactly one named workstream[\s\S]*every\s+workstream ID to exist[\s\S]*file set to equal the union/);
@@ -323,29 +338,10 @@ function assertDispatchModelArtifactContract(content) {
   assert.match(content, /Workers run scoped owned-file\/task checks[\s\S]*never the\s+full suite/);
   assert.match(content, /Phase 4 owns one fresh full-suite result/);
 
-  for (const [phase, skill] of [
-    ['plan', 'impl-plan'],
-    ['review', 'review-plan'],
-    ['verify', 'verify'],
-    ['architect-review', 'architect-review'],
-  ]) {
-    assert.ok(
-      content.includes('- ' + phase + ': `' + skill + '`'),
-      `orchestrator must delegate ${skill}`,
-    );
-  }
-
-  for (const [complexity, planEffort, implementModel, implementEffort] of [
-    ['simple', 'medium', 'gpt-5.6-luna', 'max'],
-    ['standard', 'high', 'gpt-5.6-sol', 'medium'],
-    ['complex', 'xhigh', 'gpt-5.6-sol', 'high'],
-  ]) {
-    assert.match(content, new RegExp(
-      '\\| `' + complexity + '` .*\\| `gpt-5\\.6-sol`, `' + planEffort + '` \\| `' +
-        implementModel.replaceAll('.', '\\.') + '`, `' + implementEffort +
-        '` \\| `gpt-5\\.6-luna`, `max` \\|',
-    ), `orchestrator must route ${complexity}`);
-  }
+  assert.match(content, /Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents/);
+  assert.match(content, /Explicit non-null custom routes remain opt-in delegation for any phase/);
+  assert.match(content, /Inline phases inherit the active root session; Build cannot downshift their model or effort/);
+  assert.match(content, /Recommend a `gpt-5\.6-sol` session at `high` effort for normal complex Codex builds/);
 
   const implementPhase = content.slice(
     content.indexOf('## Phase 3: Implement'),
@@ -355,10 +351,9 @@ function assertDispatchModelArtifactContract(content) {
     !implementPhase.includes('routed Sol effort'),
     'orchestrator must not hard-code Sol in adaptive implementation dispatch',
   );
-  assert.match(implementPhase, /Dispatch every batch through the effective `implement` route\./);
-  assert.match(implementPhase, /successful non-null custom selection remains `profile-owned` and omits Build model\/effort/);
-  assert.match(implementPhase, /Only a null\/build-default route or a recorded `agent_selection_fallback` may request the complexity-table model\/effort/);
-  assert.doesNotMatch(implementPhase, /Dispatch at the routed implementation model and effort/);
+  assert.match(implementPhase, /Build-default implementation remains inline even when the plan has multiple batches/);
+  assert.match(implementPhase, /[Ss]uccessful non-null\s+custom selection remains `profile-owned` and omits Build model\/effort/);
+  assert.match(implementPhase, /A\s+non-null custom `implement` route may delegate a bounded, disjoint batch/);
   for (const [start, end, forbidden] of [
     ['## Phase 1: Plan', '## Phase 2: Review', /Luna|Sol/],
     ['## Phase 2: Review', '## Phase 3: Implement', /Luna|Sol/],
@@ -369,7 +364,7 @@ function assertDispatchModelArtifactContract(content) {
     assert.doesNotMatch(section, forbidden, `${start} must use the effective route, not a profile name`);
   }
 
-  assertInOrder(content, [
+  assertInOrder(normalizeContractWhitespace(content), [
     'agent_selection_fallback` with `timestamp`',
     'Append this entry before requesting the Build model route',
     '`model_fallback` remains independent',
@@ -394,8 +389,12 @@ function assertDispatchModelArtifactContract(content) {
 }
 
 function assertDeliverySliceOrchestratorContract(content) {
+  const normalized = normalizeContractWhitespace(content);
   for (const [behavior, evidence] of SLICE_ORCHESTRATOR_EVIDENCE) {
-    assert.ok(content.includes(evidence), `delivery-slice orchestrator missing ${behavior}`);
+    assert.ok(
+      normalized.includes(normalizeContractWhitespace(evidence)),
+      `delivery-slice orchestrator missing ${behavior}`,
+    );
   }
   const implement = content.slice(
     content.indexOf('## Phase 3: Implement'),
@@ -409,11 +408,18 @@ function assertDeliverySliceOrchestratorContract(content) {
 }
 
 export function assertCodexOrchestrator(content) {
+  const normalized = normalizeContractWhitespace(content);
   for (const [behavior, evidence] of BEHAVIORS) {
-    assert.ok(content.includes(evidence), `orchestrator must retain ${behavior}`);
+    assert.ok(
+      normalized.includes(normalizeContractWhitespace(evidence)),
+      `orchestrator must retain ${behavior}`,
+    );
   }
   for (const [behavior, evidence] of ROUTING_EVIDENCE) {
-    assert.ok(content.includes(evidence), `orchestrator must retain ${behavior}`);
+    assert.ok(
+      normalized.includes(normalizeContractWhitespace(evidence)),
+      `orchestrator must retain ${behavior}`,
+    );
   }
 
   const phases = [...content.matchAll(/^## Phase \d+: (.+)$/gm)].map((match) => match[1]);
@@ -428,15 +434,21 @@ export function assertCodexOrchestrator(content) {
   ], 'durable state before delegation');
 
   assertResumeRoutingContract(content);
-  assertAgentProgressContract(content);
+  assertTerminalSupervisionContract(content);
   assertDispatchModelArtifactContract(content);
   assertDeliverySliceOrchestratorContract(content);
   assertBoundedEvidenceContract(content);
 }
 
 function withoutBehavior(content, evidence) {
-  assert.ok(content.includes(evidence), `fixture evidence missing: ${evidence}`);
-  return content.replace(evidence, '');
+  const pattern = evidence
+    .trim()
+    .split(/\s+/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+');
+  const match = new RegExp(pattern).exec(content);
+  assert.ok(match, `fixture evidence missing: ${evidence}`);
+  return content.slice(0, match.index) + content.slice(match.index + match[0].length);
 }
 
 function assertStateSchema(schema) {
@@ -461,12 +473,22 @@ function assertStateSchema(schema) {
   assert.match(schema, /\| `completed_slices` \|[^\n]*initial value `\[\]`/);
 }
 
+function assertTypedStateSchema(schema) {
+  for (const evidence of TYPED_STATE_EVIDENCE) {
+    assert.ok(schema.includes(evidence), `typed state schema missing ${JSON.stringify(evidence)}`);
+  }
+}
+
 test('production Codex source satisfies the orchestrator contract', () => {
   assertCodexOrchestrator(readRel(ORCHESTRATOR_PATH));
 });
 
 test('production state schema carries Codex routing lifecycles', () => {
   assertStateSchema(readRel(SCHEMA_PATH));
+});
+
+test('production state schema carries typed evidence mode and bindings', () => {
+  assertTypedStateSchema(readRel(SCHEMA_PATH));
 });
 
 test('Codex orchestrator source stays within its 300-line compression budget', () => {
@@ -559,28 +581,29 @@ test('negative fixture declaring a seventh public routing key is rejected', () =
   assert.throws(() => assertCodexOrchestrator(fixture), /exact public routing keys/);
 });
 
-test('negative fixture making the deadline request field optional is rejected', () => {
-  const content = readRel(ORCHESTRATOR_PATH);
-  const fixture = content.replace(
-    '`deadline_status_requested_at: null`',
-    'optional `deadline_status_requested_at`',
-  );
-  assert.throws(() => assertCodexOrchestrator(fixture), /deadline_status_requested_at: null/);
-});
-
 for (const field of [
   '`dispatched_at`',
   'immutable `deadline_at`',
-  '`last_checked_at`',
-  '`last_evidence_at`',
-  '`evidence_free_checks`',
-  '`deadline_status_requested_at`, initialized to `null`',
+  '`supervision_mode: terminal-only`',
+  '`terminal_status`',
+  '`interrupt_outcome`',
 ]) {
   test(`negative state fixture removing ${field} is rejected`, () => {
     const schema = readRel(SCHEMA_PATH);
     assert.ok(schema.includes(field), `state fixture missing ${field}`);
     const fixture = schema.replaceAll(field, '');
     assert.throws(() => assertStateSchema(fixture), /state schema missing/);
+  });
+}
+
+for (const evidence of TYPED_STATE_EVIDENCE) {
+  test(`negative typed state fixture removing ${evidence} is rejected`, () => {
+    const schema = readRel(SCHEMA_PATH);
+    assert.ok(schema.includes(evidence), `typed state fixture missing ${evidence}`);
+    assert.throws(
+      () => assertTypedStateSchema(schema.replaceAll(evidence, '')),
+      /typed state schema missing/,
+    );
   });
 }
 

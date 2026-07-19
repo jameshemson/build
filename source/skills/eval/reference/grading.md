@@ -157,6 +157,22 @@ The delivery-slice fixture labels `S-001` as foundation-only but does not explai
 **Pass**: `S-001` is flagged as an unjustified foundation-only slice with a specific missing justification, consumer, or compatibility check.
 **Fail**: the foundation slice is accepted or criticized without naming a required exception condition.
 
+### catches-unbound-approach-obligation
+The evidence-contract fixture names `TryAdoptLegacyBuildingPose` and
+`TryAdoptLegacyJobPose` in Approach, but neither symbol appears in `bindings`.
+
+**Pass**: review flags at least one named API as an unbound Approach obligation.
+**Fail**: both missing bindings are accepted or discussed without naming either API.
+
+### catches-non-atomic-task
+The evidence-contract fixture puts 18 files and several independently observable pose,
+persistence, migration, fixture, and balance claims into `T-200`, with one broad
+must-have and `dotnet test` command.
+
+**Pass**: review flags `T-200` as non-atomic and requires a split into independently
+observable bounded implement-verify cycles.
+**Fail**: review accepts `T-200`, or criticizes its size without evidence atomicity.
+
 ## architect-review assertions
 
 ### architect-verdict-present
@@ -209,6 +225,19 @@ Check the verdict is FAILED (not VERIFIED, not PARTIAL).
 ### verdict-verified
 Check the verdict is VERIFIED (not FAILED, not PARTIAL).
 **Pass**: verdict is VERIFIED. **Fail**: any other or missing verdict.
+
+### verdict-partial
+Check the verdict is PARTIAL (not FAILED, not VERIFIED).
+**Pass**: verdict is PARTIAL. **Fail**: any other or missing verdict.
+
+### behavioral-evidence-gap-shown
+The fixture's `npm test` command passes an unrelated smoke test, while typed must-have
+`MH-001` requires the absent direct test
+`test/feature.test.js#preserves-valid-legacy-geometry`.
+
+**Pass**: the report names `MH-001` or the missing direct test as uncovered and explains
+that passing unrelated tests or changed `src/feature.js` cannot prove the behavior.
+**Fail**: the report treats the smoke test or changed production source as behavioral proof.
 
 ### debt-scan-reported
 Check the output contains a Debt scan section reporting how many files were scanned and a PASS, FAIL, or N/A result.

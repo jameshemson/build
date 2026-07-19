@@ -67,103 +67,65 @@ Only after all applicable current routing validates may root switch branches, re
 
 Agent names are opaque. Never discover, validate, normalize, alias, create, copy, edit, install, bundle, or overwrite agent profiles; `default` is an ordinary selectable opaque name, not a sentinel.
 
-## Complexity and model routing
+## Complexity, model routing, and phase authority
 
-Before planning, classify `provisional_complexity` from the request and targeted reads.
-After the plan names files, risks, dependencies, and workstreams, set final `complexity`
-to `simple`, `standard`, or `complex` and refresh `model_routes`:
+Before planning, classify `provisional_complexity` from targeted reads. After the plan names
+files, risks, dependencies, and workstreams, set final `complexity` to `simple`, `standard`,
+or `complex`. Risk overrides file count upward; auth, security, destructive, or high-risk data
+work is always `complex`.
 
-| Complexity | Typical shape | Plan / review | Implement | Explore / verify |
-|---|---|---|---|---|
-| `simple` | 1-2 files, mechanical, one workstream | `gpt-5.6-sol`, `medium` | `gpt-5.6-luna`, `max` | `gpt-5.6-luna`, `max` |
-| `standard` | 3-5 files or moderate integration | `gpt-5.6-sol`, `high` | `gpt-5.6-sol`, `medium` | `gpt-5.6-luna`, `max` |
-| `complex` | 6+ files, multiple workstreams, high risk, or cross-cutting | `gpt-5.6-sol`, `xhigh` | `gpt-5.6-sol`, `high` | `gpt-5.6-luna`, `max` |
+Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents. Inline phases inherit the active root session; Build cannot downshift their model or effort, and records their `model_routes` value as the literal `active-session`. Recommend a `gpt-5.6-sol` session at `high` effort for normal complex Codex builds. This is cost guidance, not a host-enforced route.
 
-Risk overrides file count upward; never downgrade high-risk data, auth, security, or
-destructive work below `complex`. Build-default plan, review, mid-review, and
-architect-review use `xhigh` effort for complex work. Architect-review also upgrades
-Build-default effort to `xhigh` for broad diffs, PARTIAL verification, plan deviations,
-or auth/data/public-API changes; a small fully verified simple diff uses `high`.
+Build-default fresh judgment routes are `gpt-5.6-sol`/`medium` for simple,
+`gpt-5.6-sol`/`high` for standard, and `gpt-5.6-sol`/`xhigh` for complex. Read-only
+exploration uses `gpt-5.6-luna`/`max`: simple uses no explorer, standard uses at most two,
+and complex uses at most three. Every explorer has the default five-minute runtime; use
+partial evidence when it expires.
 
-Exploration fan-out follows the current provisional or final classification: simple uses
-no explorer, standard uses at most two, and complex uses at most three. Every explorer
-has the default five-minute runtime; use partial evidence when that deadline expires.
+Explicit non-null custom routes remain opt-in delegation for any phase. A valid non-null
+custom route explicitly opts that phase into delegation. Every delegated explorer,
+fresh-context judge, custom-routed phase, and mid-review dispatch applies its effective role route.
+For a non-null `requested_agent`, request that exact agent type, omit Build model and effort,
+set `fork_turns: "none"`, and record its `model_routes` route as the literal `profile-owned`;
+never combine named selection with a Build model/effort override. For null/build-default,
+never attempt named selection and never create `agent_selection_fallback`; inline phases use
+root, while fresh phases request the route above with `fork_turns: "none"` because this is an
+explicit model/effort request.
 
-Request these routes when spawning agents. If a model or effort override is unavailable,
-continue with the best available agent or inline execution. Append a `model_fallback`
-entry containing phase, requested route, actual route, reason, and timestamp before
-using it. Historical fallback entries are never cleared. Lack of an override is not a
-reason to skip a phase.
+If a requested non-null selection is absent because the selector is unavailable, or is rejected,
+first append `agent_selection_fallback` with `timestamp`, `phase`, `role`, `requested_agent`,
+`actual_agent`, `fallback_route`, `reason`, and `detail`. Use `actual_agent: unknown` if unreported;
+`fallback_route` names the Build model/effort route or inline; use `selector-unavailable` for a
+selector schema limitation or `selection-rejected` for the exact rejection. Append this entry
+before requesting the Build model route. `model_fallback` remains independent and is appended
+only if that subsequent model/effort request is unavailable. Historical fallback entries are
+never cleared. A later execution failure follows normal `agent_failures` handling, never
+agent-selection fallback.
 
-Every phase companion, explorer, writer, reviewer, and mid-review dispatch applies its effective role route. For a non-null `requested_agent`, request that exact agent type, omit Build model and effort, set `fork_turns: "none"`, and record its `model_routes` route as the literal `profile-owned`; never combine named selection with a Build model/effort override. For null/build-default, never attempt named selection and never create `agent_selection_fallback`; request the complexity-table model/effort (or execute inline) with `fork_turns: "none"` because this is an explicit model/effort request.
+## Codex execution and supervision
 
-If a requested non-null selection is absent because the selector is unavailable, or is rejected, first append `agent_selection_fallback` with `timestamp`, `phase`, `role`, `requested_agent`, `actual_agent`, `fallback_route`, `reason`, and `detail`. Use `actual_agent: unknown` if unreported; `fallback_route` names the Build model/effort route or inline; use `selector-unavailable` for a selector schema limitation or `selection-rejected` for the exact rejection, with that limitation/rejection in `detail`. Append this entry before requesting the Build model route. `model_fallback` remains independent and is appended only if that subsequent model/effort request is unavailable. A later execution failure follows normal `agent_failures` handling, never agent-selection fallback.
+Root invokes the documented `impl-plan` and `architect-review` contracts inline. It dispatches
+`review-plan` and `verify` as fresh-context judgments. Root saves every artifact and updates state.
+Implementation workers must not invoke `impl-plan`, `review-plan`, `verify`, `architect-review`,
+or another workflow skill; a custom-routed writer returns only a terminal `DONE`,
+`DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, `BLOCKED`, or `SCOPE_CHANGE` handoff.
 
-## Companion-skill delegation
+Every dispatch names an agent label, task IDs, owned files, current command, and runtime. Record
+`agent_progress` with `supervision_mode: terminal-only`, `dispatched_at`, immutable `deadline_at`,
+`terminal_status`, and `interrupt_outcome`. Silence is unknown, not failure evidence. Wait for
+terminal events and send no child status prompts; user-facing progress comes from root-owned work
+and host-observed terminal state, not child milestone bookkeeping.
 
-Delegate each companion skill to a subagent with the route above and a bounded prompt:
+Fresh-context Plan Review and Verify agents get a 20-minute hard deadline. At `deadline_at`,
+interrupt only at hard expiry, record `handoff-timeout`, then allow at most one fresh retry. A
+second Plan Review failure blocks implementation; never replace independent review with inline
+self-review unless the user explicitly overrides that boundary. A named slow command may declare
+a longer deadline before dispatch, never after it starts.
 
-- plan: `impl-plan`
-- review: `review-plan`
-- verify: `verify`
-- architect-review: `architect-review`
-
-Tell the subagent to invoke the named skill and return its complete output to root.
-If skill invocation is unavailable or fails twice, run that skill's documented contract inline,
-log both failures in `agent_failures`, and produce the same required verdict.
-Root, not the companion or subagent, saves the returned artifact and updates state.
-
-Every writer dispatch must require one status: `DONE`, `DONE_WITH_CONCERNS`,
-`NEEDS_CONTEXT`, `BLOCKED`, or `SCOPE_CHANGE`, plus a final check against its assigned
-files, behaviors, tests, and must-haves. Provide missing context and retry
-`NEEDS_CONTEXT`; log concerns; escalate `BLOCKED`; send `SCOPE_CHANGE` to re-planning.
-Implementation workers must not invoke `impl-plan`, `review-plan`, `verify`,
-`architect-review`, or another workflow skill. They run only the exact scoped commands
-in their dispatch and return a terminal status immediately after those commands finish.
-
-## Agent progress protocol
-
-Every dispatch names an agent label, task IDs, owned files, the next expected command,
-and a runtime. Default runtime is five minutes for an explorer and ten minutes for a
-writer or companion (including reviewer and mid-review). A longer runtime is allowed
-only for a named slow command with an explicit duration. At dispatch, root records these
-`agent_progress` fields using ISO-8601 timestamps with timezone: `dispatched_at`, an
-immutable `deadline_at` computed once, `last_checked_at`, `last_evidence_at`,
-`evidence_free_checks`, and `deadline_status_requested_at: null`. Status replies and root
-polling never extend `deadline_at`.
-
-Require these milestone messages at boundaries, not periodic heartbeats:
-
-- `STARTED`: task IDs and owned files accepted;
-- `EDITING`: files changed and next action;
-- `VERIFYING`: exact command and start time;
-- terminal status: final files, command result, and concerns.
-
-Root maintains `agent_progress`; agents never write it. At intervals of no more than 60
-seconds while any agent runs, root checks/lists agents, inspects each assigned-file diff,
-updates state, and reports to the user. Each agent row contains `label | stage |
-elapsed/deadline | command | last evidence`; a bare waiting message is insufficient.
-Among timestamps, polling updates only `last_checked_at`; an evidence-free poll also
-increments `evidence_free_checks`. Only an agent milestone/status reply or a new
-assigned-file diff updates `last_evidence_at` and resets that counter. Changed files are
-activity, not completion.
-
-After two consecutive evidence-free checks, root sends a structured status request with
-the task IDs, last stage, command, assigned-file diff evidence, missing milestone, and
-immutable deadline. This request does not slide the deadline. At `deadline_at`, every
-agent—writer with or without edits, explorer, companion, reviewer, or mid-review—gets
-exactly one deadline status request, recorded in `deadline_status_requested_at`, followed
-by exactly one 60-second grace interval. If no terminal handoff arrives, interrupt it and
-record `handoff-timeout`. Preserve and freshly verify writer edits, retain partial
-explorer evidence, and apply retry-then-inline to phase companions. Never redo work that
-the diff and fresh evidence prove; redispatch only a named missing must-have.
-
-On integration, append the terminal outcome to history before removing the live entry.
-Legacy `agent_progress` entries missing supervision fields are orphaned handoffs: never
-fabricate timestamps. Record reconciliation, inspect and preserve their assigned diffs,
-obtain fresh scoped evidence, then complete them or redispatch only a named missing
-must-have. This is a deterministic prompt/state contract, not a host-harness timing
-guarantee.
+On integration, record the terminal outcome before removing the live entry. Legacy
+`agent_progress` rows are orphaned handoffs: preserve known fields and assigned diffs, never
+invent timestamps or liveness evidence, and obtain fresh scoped evidence before completion.
+This is a deterministic prompt/state contract, not a host-harness timing guarantee.
 
 ## Artifact-before-state invariant
 
@@ -189,7 +151,7 @@ and initial history. It must exist before the first dispatch so progress, fallba
 and resume evidence can be recorded from the start.
 
 Apply the complexity fan-out limits to route-selected read-only exploration of architecture,
-affected code, and tests. Root synthesizes their evidence and delegates `impl-plan` with
+affected code, and tests. Root synthesizes their evidence and runs `impl-plan` inline with
 the marker `[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence,
 a complete `execution_manifest` and `delivery_slices`, and the hierarchy delivery slice ->
 dependency waves -> disjoint workstreams -> `execution_manifest` tasks.
@@ -200,8 +162,8 @@ model routes, inventories, manifest summary, and `phase: review`.
 
 ## Phase 2: Review
 
-Read state plus context, requirements, and plan. Delegate `review-plan` with the effective
-`review` route. Save `{slug}-review.md` before state changes.
+Read state plus context, requirements, and plan. Run `review-plan` in a fresh-context agent
+with the effective `review` route. Save `{slug}-review.md` before state changes.
 
 For either proceed verdict, after any fixes, validate and persist the accepted slice definitions
 and first declared-order dependency-ready `active_slice` before implementation dispatch.
@@ -225,7 +187,10 @@ workstream's ready frontier into the fewest bounded batches. Give each batch one
 internal topological order, and the union of owned files. Manifest IDs remain planning, evidence,
 and completion units, not dispatch units. Never spawn one writer per manifest task.
 Split only for external dependency, overlap, or runtime; concurrent unions must be disjoint.
-Dispatch every batch through the effective `implement` route. A successful non-null custom selection remains `profile-owned` and omits Build model/effort. Only a null/build-default route or a recorded `agent_selection_fallback` may request the complexity-table model/effort. Serialize dependencies/overlap; root owns shared files, git operations, commits, and integration.
+Build-default implementation remains inline even when the plan has multiple batches. A
+non-null custom `implement` route may delegate a bounded, disjoint batch. A successful non-null
+custom selection remains `profile-owned` and omits Build model/effort. Serialize dependencies
+and overlap; root owns shared files, git operations, commits, and integration.
 
 Wave 0 collects the fastest targeted evidence; run a full baseline only to diagnose a
 suspected pre-existing failure. Workers run scoped owned-file/task checks and never the full suite
@@ -247,7 +212,7 @@ directly.
 ## Phase 4: Verify
 
 Read state, requirements, plan, and implementation summary. Only after every slice is completed,
-delegate `verify` with its effective route as the fresh whole-workflow authority. Phase 4 owns one fresh full-suite result, each unique plan-declared command, must-have coverage, and the debt scan.
+run `verify` in a fresh-context agent as the fresh whole-workflow authority. Phase 4 owns one fresh full-suite result, each unique plan-declared command, must-have coverage, and the debt scan.
 Save `{slug}-verify.md` before changing state.
 
 - `VERIFIED`: record verdict and transition to `architect-review`.
@@ -260,7 +225,8 @@ Save `{slug}-verify.md` before changing state.
 
 Read all artifacts. Architect Review remains the whole-diff authority: root computes the
 review target from `base_ref` and owns the git diff; slice evidence never substitutes.
-Delegate `architect-review` with its effective route and the target and verify verdict.
+Run the `architect-review` contract inline with the target and verify verdict. A non-null
+custom `architect-review` route may explicitly delegate it.
 Save `{slug}-architect-review.md` before changing state.
 
 - `PASS` or `PASS_WITH_NOTES`: transition to terminal `complete`.
@@ -284,11 +250,10 @@ tasks, branch, and commits. Then set `phase: aborted`, `halted: true`, and
 Before every dispatch or transition, count prior history and failures:
 
 - Same workstream: at most two redispatches; then halt with `agent-retry-limit`.
-- Phase agent: retry once for an error/missing verdict, then execute inline.
-- Agent handoff: enforce the deterministic deadline protocol above for every agent;
-  interrupt after its single deadline request and 60-second grace interval.
-- Agent visibility: never exceed one 60-second monitoring interval without refreshing
-  `agent_progress` and reporting a concise phase/agent update while work is active.
+- Fresh judgment: retry once for an error, timeout, or missing verdict; a second failure
+  halts with `phase-agent-failure` unless the user explicitly changes the boundary.
+- Agent handoff: enforce the terminal-only deadline protocol above; silence alone never
+  triggers a retry, and interruption occurs only at the immutable hard deadline.
 - Same phase re-entry: more than three returns halts with `phase-loop-limit`.
 - Plan-review: more than three total plan iterations halts with `plan-review-limit`.
 - Scope change: the third report halts with `scope-change-limit`.
