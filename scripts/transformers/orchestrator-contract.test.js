@@ -140,6 +140,66 @@ const SLICE_CHECKPOINT_COMPONENTS = [
   ['next activation', 'activate the next dependency-ready slice'],
 ];
 
+const BOUNDED_EVIDENCE_CLAUSES = [
+  {
+    name: 'least-expansive interpretation',
+    tokens: ['least-expansive reasonable interpretation'],
+  },
+  {
+    name: 'material-delta investigation gate',
+    tokens: [
+      'investigate uncertainty only when',
+      'materially change',
+      'requested outcome',
+      'scope',
+      'authority',
+      'significant risk',
+    ],
+  },
+  {
+    name: 'evidence consequence and fix finding gate',
+    tokens: [
+      'report a finding only when',
+      'evidence',
+      'plausible material consequence',
+      'specific in-scope fix',
+    ],
+  },
+  {
+    name: 'claim-sized fresh evidence',
+    tokens: ['smallest sufficient fresh evidence', 'claims actually made'],
+  },
+  {
+    name: 'material completion stop',
+    tokens: [
+      'stop when',
+      'requested outcome exists',
+      'required direct verification passes',
+      'nothing unresolved can materially change the result',
+    ],
+  },
+  {
+    name: 'boundedness mandatory-authority exception',
+    tokens: [
+      'boundedness never skips',
+      'required phases',
+      'worker',
+      'integration',
+      'slice',
+      'final authorities',
+      'phase 4',
+      'exactly one fresh full suite',
+      'safety',
+      'security',
+      'data rigor',
+      'scope change',
+      'user-only decisions',
+    ],
+  },
+];
+
+const BOUNDED_CLAUSE_MAX_SPAN = 900;
+
 function readRel(path) {
   return readFileSync(join(ROOT, path), 'utf8');
 }
@@ -151,6 +211,36 @@ function assertInOrder(content, needles, message) {
     assert.ok(next >= 0, `${message}: missing ${JSON.stringify(needle)}`);
     assert.ok(next > cursor, `${message}: ${JSON.stringify(needle)} is out of order`);
     cursor = next;
+  }
+}
+
+function normalizePromptContract(content) {
+  return content.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function assertBoundedClause(content, clause, context = 'Codex orchestrator', after = -1) {
+  const normalized = normalizePromptContract(content);
+  let cursor = after;
+  let first = -1;
+  let lastEnd = -1;
+  for (const token of clause.tokens) {
+    const next = normalized.indexOf(token, cursor + 1);
+    assert.ok(next >= 0, `${context} missing ${clause.name}: ${JSON.stringify(token)}`);
+    if (first < 0) first = next;
+    cursor = next;
+    lastEnd = next + token.length;
+  }
+  assert.ok(
+    lastEnd - first <= BOUNDED_CLAUSE_MAX_SPAN,
+    `${context} has unbounded ${clause.name} clause`,
+  );
+  return lastEnd;
+}
+
+function assertBoundedEvidenceContract(content) {
+  let cursor = -1;
+  for (const clause of BOUNDED_EVIDENCE_CLAUSES) {
+    cursor = assertBoundedClause(content, clause, 'Codex orchestrator', cursor);
   }
 }
 
@@ -341,6 +431,7 @@ export function assertCodexOrchestrator(content) {
   assertAgentProgressContract(content);
   assertDispatchModelArtifactContract(content);
   assertDeliverySliceOrchestratorContract(content);
+  assertBoundedEvidenceContract(content);
 }
 
 function withoutBehavior(content, evidence) {
@@ -421,6 +512,19 @@ for (const [component, evidence] of SLICE_CHECKPOINT_COMPONENTS) {
     assert.throws(
       () => assertDeliverySliceOrchestratorContract(fixture),
       /delivery-slice checkpoint order/,
+    );
+  });
+}
+
+for (const clause of BOUNDED_EVIDENCE_CLAUSES) {
+  test(`negative bounded-evidence fixture removing ${clause.name} is rejected`, () => {
+    const normalized = normalizePromptContract(readRel(ORCHESTRATOR_PATH));
+    const anchor = clause.tokens[0];
+    assert.ok(normalized.includes(anchor), `bounded-evidence fixture missing ${anchor}`);
+    const fixture = normalized.replaceAll(anchor, '');
+    assert.throws(
+      () => assertBoundedEvidenceContract(fixture),
+      new RegExp(clause.name),
     );
   });
 }

@@ -30,6 +30,128 @@ const PROVIDERS = {
   },
 };
 
+const GENERATED_BUILD_BOUNDED_EVIDENCE_BASE_CLAUSES = [
+  ['least-expansive interpretation', ['least-expansive reasonable interpretation']],
+  ['material-delta investigation gate', [
+    'investigate uncertainty only when',
+    'materially change',
+    'requested outcome',
+    'scope',
+    'authority',
+    'significant risk',
+  ]],
+  ['evidence consequence and fix finding gate', [
+    'report a finding only when',
+    'evidence',
+    'plausible material consequence',
+    'specific in-scope fix',
+  ]],
+  ['claim-sized fresh evidence', ['smallest sufficient fresh evidence', 'claims actually made']],
+  ['material completion stop', [
+    'stop when',
+    'requested outcome exists',
+    'required direct verification passes',
+    'nothing unresolved can materially change the result',
+  ]],
+];
+
+function generatedBuildBoundedEvidenceClauses(providerName) {
+  const finalVerificationPhase = providerName === 'claude' ? 'phase 3c' : 'phase 4';
+  return [
+    ...GENERATED_BUILD_BOUNDED_EVIDENCE_BASE_CLAUSES,
+    [`${finalVerificationPhase} boundedness mandatory-authority exception`, [
+      'boundedness never skips',
+      'required phases',
+      'worker',
+      'integration',
+      'slice',
+      'final authorities',
+      finalVerificationPhase,
+      'exactly one fresh full suite',
+      'safety',
+      'security',
+      'data rigor',
+      'scope change',
+      'user-only decisions',
+    ]],
+  ];
+}
+
+const GENERATED_FINDING_AND_STOP_CLAUSES = [
+  ['evidence consequence and fix finding gate', [
+    'report a finding only when',
+    'evidence',
+    'plausible material consequence',
+    'specific in-scope fix',
+  ]],
+  ['material review stop', ['stop after', 'required coverage', 'no unresolved material issue']],
+];
+
+const GENERATED_PORTABLE_BOUNDED_EVIDENCE_CLAUSES = {
+  'impl-plan': [
+    ['least-expansive interpretation', ['least-expansive reasonable interpretation']],
+    ['material-delta discovery gate', [
+      'investigate uncertainty only when',
+      'materially change',
+      'requested outcome',
+      'scope',
+      'authority',
+      'significant risk',
+    ]],
+    ['sufficient planning evidence stop', [
+      'stop discovery when enough evidence maps',
+      'requirements',
+      'files',
+      'risks',
+      'acceptance',
+      'exact verification',
+    ]],
+  ],
+  'review-plan': GENERATED_FINDING_AND_STOP_CLAUSES,
+  verify: [
+    ['claim-sized fresh evidence', ['smallest sufficient fresh evidence', 'claims actually made']],
+    ['candidate collection before selection', [
+      'collect every command candidate before executing anything',
+    ]],
+    ['same-claim same-authority duplicate definition', [
+      'duplicate only when',
+      'same claim',
+      'same lifecycle authority',
+    ]],
+    ['identical exact-command union', [
+      'union candidates with identical exact command strings',
+      'categories',
+      'task ids',
+      'requirements',
+      'must_haves',
+    ]],
+    ['distinct mandatory lifecycle coverage', [
+      'worker, integration, slice, and final gates',
+      'prove distinct claims',
+      'remain mandatory',
+      'preserve commands required by those distinct lifecycle claims',
+      'plan- or repository-required categories',
+    ]],
+    ['smallest claim-covering ledger selection', [
+      'within one authority',
+      'select the smallest claim-covering ledger',
+      'narrowest direct command',
+    ]],
+    ['overlapping non-identical candidate exclusion', [
+      'exclude an overlapping non-identical candidate',
+      'no unique required claim or category',
+    ]],
+    ['execute selected entries once', ['run each selected exact command once']],
+    ['single phase-neutral final fresh full suite', [
+      'final verification authority owns exactly one fresh full suite',
+    ]],
+    ['selected fresh direct coverage stop', ['stop after selected fresh direct coverage']],
+  ],
+  'architect-review': GENERATED_FINDING_AND_STOP_CLAUSES,
+};
+
+const GENERATED_BOUNDED_EVIDENCE_MAX_SPAN = 900;
+
 let sandbox;
 
 beforeEach(() => {
@@ -220,6 +342,48 @@ function assertGeneratedPortableDeliverySlices(config, providerName) {
     reviewer,
     /foundation-only slice is justified only when/,
     `${providerName}: reviewer missing foundation-slice review`,
+  );
+}
+
+function assertGeneratedBoundedEvidenceClauses(content, clauses, context) {
+  const normalized = content.replace(/\s+/g, ' ').trim().toLowerCase();
+  let clauseCursor = -1;
+  for (const [name, tokens] of clauses) {
+    let cursor = clauseCursor;
+    let first = -1;
+    let lastEnd = -1;
+    for (const token of tokens) {
+      const next = normalized.indexOf(token, cursor + 1);
+      assert.ok(next >= 0, `${context}: missing ${name}: ${JSON.stringify(token)}`);
+      if (first < 0) first = next;
+      cursor = next;
+      lastEnd = next + token.length;
+    }
+    assert.ok(
+      lastEnd - first <= GENERATED_BOUNDED_EVIDENCE_MAX_SPAN,
+      `${context}: unbounded ${name} clause`,
+    );
+    clauseCursor = lastEnd;
+  }
+}
+
+function assertGeneratedPortableBoundedEvidence(config, providerName) {
+  for (const [skillName, clauses] of Object.entries(
+    GENERATED_PORTABLE_BOUNDED_EVIDENCE_CLAUSES,
+  )) {
+    assertGeneratedBoundedEvidenceClauses(
+      readSandboxSkill(config, skillName),
+      clauses,
+      `${providerName}: generated ${skillName}`,
+    );
+  }
+}
+
+function assertGeneratedBuildBoundedEvidence(content, providerName) {
+  assertGeneratedBoundedEvidenceClauses(
+    content,
+    generatedBuildBoundedEvidenceClauses(providerName),
+    `${providerName}: generated build`,
   );
 }
 
@@ -547,8 +711,11 @@ test('real source/skills: each provider emits expected skill set with no Claude-
       sourceDir,
     });
     assertGeneratedPortableDeliverySlices(config, name);
+    assertGeneratedPortableBoundedEvidence(config, name);
     if (name === 'claude' || name.startsWith('codex')) {
-      assertGeneratedBuildDeliverySlices(readSandboxSkill(config, 'build'), name);
+      const generatedBuild = readSandboxSkill(config, 'build');
+      assertGeneratedBuildDeliverySlices(generatedBuild, name);
+      assertGeneratedBuildBoundedEvidence(generatedBuild, name);
     }
   }
 

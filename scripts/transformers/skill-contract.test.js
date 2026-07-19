@@ -270,6 +270,184 @@ const DELIVERY_ORCHESTRATION_CONTRACTS = {
   },
 };
 
+const BUILD_BOUNDED_EVIDENCE_BASE_CLAUSES = [
+  {
+    name: 'least-expansive interpretation',
+    tokens: ['least-expansive reasonable interpretation'],
+  },
+  {
+    name: 'material-delta investigation gate',
+    tokens: [
+      'investigate uncertainty only when',
+      'materially change',
+      'requested outcome',
+      'scope',
+      'authority',
+      'significant risk',
+    ],
+  },
+  {
+    name: 'evidence consequence and fix finding gate',
+    tokens: [
+      'report a finding only when',
+      'evidence',
+      'plausible material consequence',
+      'specific in-scope fix',
+    ],
+  },
+  {
+    name: 'claim-sized fresh evidence',
+    tokens: ['smallest sufficient fresh evidence', 'claims actually made'],
+  },
+  {
+    name: 'material completion stop',
+    tokens: [
+      'stop when',
+      'requested outcome exists',
+      'required direct verification passes',
+      'nothing unresolved can materially change the result',
+    ],
+  },
+];
+
+function buildBoundedEvidenceClauses(finalVerificationPhase) {
+  return [
+    ...BUILD_BOUNDED_EVIDENCE_BASE_CLAUSES,
+    {
+      name: `${finalVerificationPhase} boundedness mandatory-authority exception`,
+      tokens: [
+        'boundedness never skips',
+        'required phases',
+        'worker',
+        'integration',
+        'slice',
+        'final authorities',
+        finalVerificationPhase,
+        'exactly one fresh full suite',
+        'safety',
+        'security',
+        'data rigor',
+        'scope change',
+        'user-only decisions',
+      ],
+    },
+  ];
+}
+
+const FINDING_AND_STOP_CLAUSES = [
+  {
+    name: 'evidence consequence and fix finding gate',
+    tokens: [
+      'report a finding only when',
+      'evidence',
+      'plausible material consequence',
+      'specific in-scope fix',
+    ],
+  },
+  {
+    name: 'material review stop',
+    tokens: ['stop after', 'required coverage', 'no unresolved material issue'],
+  },
+];
+
+const BOUNDED_EVIDENCE_CONTRACTS = {
+  'source/skills/build/SKILL.md': buildBoundedEvidenceClauses('phase 3c'),
+  'source/skills/build/SKILL.codex.md': buildBoundedEvidenceClauses('phase 4'),
+  'source/skills/impl-plan/SKILL.md': [
+    {
+      name: 'least-expansive interpretation',
+      tokens: ['least-expansive reasonable interpretation'],
+    },
+    {
+      name: 'material-delta discovery gate',
+      tokens: [
+        'investigate uncertainty only when',
+        'materially change',
+        'requested outcome',
+        'scope',
+        'authority',
+        'significant risk',
+      ],
+    },
+    {
+      name: 'sufficient planning evidence stop',
+      tokens: [
+        'stop discovery when enough evidence maps',
+        'requirements',
+        'files',
+        'risks',
+        'acceptance',
+        'exact verification',
+      ],
+    },
+  ],
+  'source/skills/review-plan/SKILL.md': FINDING_AND_STOP_CLAUSES,
+  'source/skills/architect-review/SKILL.md': FINDING_AND_STOP_CLAUSES,
+  'source/skills/verify/SKILL.md': [
+    {
+      name: 'claim-sized fresh evidence',
+      tokens: ['smallest sufficient fresh evidence', 'claims actually made'],
+    },
+    {
+      name: 'candidate collection before selection',
+      tokens: ['collect every command candidate before executing anything'],
+    },
+    {
+      name: 'same-claim same-authority duplicate definition',
+      tokens: ['duplicate only when', 'same claim', 'same lifecycle authority'],
+    },
+    {
+      name: 'identical exact-command union',
+      tokens: [
+        'union candidates with identical exact command strings',
+        'categories',
+        'task ids',
+        'requirements',
+        'must_haves',
+      ],
+    },
+    {
+      name: 'distinct mandatory lifecycle coverage',
+      tokens: [
+        'worker, integration, slice, and final gates',
+        'prove distinct claims',
+        'remain mandatory',
+        'preserve commands required by those distinct lifecycle claims',
+        'plan- or repository-required categories',
+      ],
+    },
+    {
+      name: 'smallest claim-covering ledger selection',
+      tokens: [
+        'within one authority',
+        'select the smallest claim-covering ledger',
+        'narrowest direct command',
+      ],
+    },
+    {
+      name: 'overlapping non-identical candidate exclusion',
+      tokens: [
+        'exclude an overlapping non-identical candidate',
+        'no unique required claim or category',
+      ],
+    },
+    {
+      name: 'execute selected entries once',
+      tokens: ['run each selected exact command once'],
+    },
+    {
+      name: 'single phase-neutral final fresh full suite',
+      tokens: ['final verification authority owns exactly one fresh full suite'],
+    },
+    {
+      name: 'selected fresh direct coverage stop',
+      tokens: ['stop after selected fresh direct coverage'],
+    },
+  ],
+};
+
+const BOUNDED_EVIDENCE_MAX_SPAN = 900;
+
 function readRel(path) {
   return readFileSync(join(ROOT, path), 'utf8');
 }
@@ -396,6 +574,45 @@ function assertTermsInOrder(content, terms, path) {
   }
 }
 
+function normalizeBoundedEvidenceWhitespace(content) {
+  return content.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function assertBoundedEvidenceClause(content, clause, path, after = -1) {
+  const normalized = normalizeBoundedEvidenceWhitespace(content);
+  let cursor = after;
+  let first = -1;
+  let lastEnd = -1;
+  for (const token of clause.tokens) {
+    const next = normalized.indexOf(token, cursor + 1);
+    assert.ok(next >= 0, `${path} missing ${clause.name}: ${JSON.stringify(token)}`);
+    if (first < 0) first = next;
+    cursor = next;
+    lastEnd = next + token.length;
+  }
+  assert.ok(
+    lastEnd - first <= BOUNDED_EVIDENCE_MAX_SPAN,
+    `${path} has unbounded ${clause.name} clause`,
+  );
+  return lastEnd;
+}
+
+function assertBoundedEvidenceContents(contents) {
+  for (const [path, clauses] of Object.entries(BOUNDED_EVIDENCE_CONTRACTS)) {
+    assert.ok(Object.hasOwn(contents, path), `bounded-evidence fixture missing ${path}`);
+    let cursor = -1;
+    for (const clause of clauses) {
+      cursor = assertBoundedEvidenceClause(contents[path], clause, path, cursor);
+    }
+  }
+}
+
+function assertBoundedEvidenceSources() {
+  assertBoundedEvidenceContents(Object.fromEntries(
+    Object.keys(BOUNDED_EVIDENCE_CONTRACTS).map((path) => [path, readRel(path)]),
+  ));
+}
+
 function normalizeOrchestrationWhitespace(content) {
   return content.replace(/\s+/g, ' ').trim();
 }
@@ -489,11 +706,18 @@ function assertAbstractionJustification() {
 
 function assertVerifyCommandLedger(content) {
   const collect = content.indexOf('Collect every command candidate before executing anything');
-  const execute = content.indexOf('### 3. Execute the ledger once');
-  assert.ok(collect >= 0 && execute > collect, 'ledger candidates must be collected before execution');
+  const union = content.indexOf('Union candidates with identical exact command strings');
+  const select = content.indexOf('select the smallest claim-covering ledger');
+  const executeSection = content.indexOf('### 3. Execute the selected ledger once');
+  const execute = content.indexOf('Run each selected exact command once');
+  assert.ok(collect >= 0, 'ledger candidates must be collected');
+  assert.ok(union > collect, 'identical exact commands must be unioned after collection');
+  assert.ok(select > union, 'the smallest claim-covering ledger must be selected after union');
+  assert.ok(executeSection > select, 'selected-ledger execution must follow selection');
+  assert.ok(execute > executeSection, 'only selected entries may execute');
   assert.match(content, /Key the ledger by the exact\s+command string; do not normalize/);
-  assert.match(content, /union its detected categories, task IDs, `requirements`, and `must_haves`/);
-  assert.match(content, /Run each exact command once/);
+  assert.match(content, /Preserve commands required by those distinct lifecycle claims and plan- or repository-required categories/);
+  assert.match(content, /exclude an overlapping non-identical candidate when it proves no unique required claim or category/);
   assert.match(content, /same invocation[\s\S]*after the latest code, dependency, or content change/);
   assert.match(content, /prior-invocation output never substitutes/);
   assert.match(content, /git status --short[\s\S]*git diff --name-only/);
@@ -554,6 +778,10 @@ test('portable planning and review skills retain the delivery-slice contract', (
 
 test('both Build orchestrators retain ordered delivery-slice checkpoints and final authorities', () => {
   assertDeliveryOrchestration();
+});
+
+test('both Build orchestrators and all portable skills retain bounded evidence contracts', () => {
+  assertBoundedEvidenceSources();
 });
 
 test('delivery-slice eval metadata and fixtures stay deterministic', () => {
@@ -682,6 +910,26 @@ for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS))
   }
 }
 
+for (const [path, clauses] of Object.entries(BOUNDED_EVIDENCE_CONTRACTS)) {
+  for (const clause of clauses) {
+    test(`bounded-evidence contract rejects ${path} removal of ${clause.name}`, () => {
+      const originals = Object.fromEntries(
+        Object.keys(BOUNDED_EVIDENCE_CONTRACTS).map((candidate) => [
+          candidate,
+          normalizeBoundedEvidenceWhitespace(readRel(candidate)),
+        ]),
+      );
+      const anchor = clause.tokens[0];
+      assert.ok(originals[path].includes(anchor), `bounded-evidence fixture missing ${anchor}`);
+      originals[path] = originals[path].replaceAll(anchor, '');
+      assert.throws(
+        () => assertBoundedEvidenceContents(originals),
+        new RegExp(clause.name),
+      );
+    });
+  }
+}
+
 test('delivery orchestration accepts harmless Markdown whitespace reflow', () => {
   const claude = readRel('source/skills/build/SKILL.md');
   const codex = normalizeOrchestrationWhitespace(readRel('source/skills/build/SKILL.codex.md'));
@@ -775,7 +1023,11 @@ for (const [path, phrase] of [
 
 for (const phrase of [
   'Collect every command candidate before executing anything',
-  'exact command once',
+  'Union candidates with identical exact command strings',
+  'Preserve commands required by those distinct lifecycle claims',
+  'select the smallest claim-covering ledger',
+  'exclude an overlapping non-identical candidate',
+  'Run each selected exact command once',
   'same invocation',
   'earlier entries stale',
 ]) {

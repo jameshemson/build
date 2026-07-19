@@ -9,6 +9,8 @@ context: fork
 
 Review the implementation plan. Assume every section is weak until the plan's own evidence proves otherwise. Your job is to find everything that would cause problems during implementation.
 
+Report a finding only when supported by evidence, a plausible material consequence, and a specific in-scope fix. Stop after required coverage when there is no unresolved material issue.
+
 $ARGUMENTS
 
 If the argument names a file path, read that file — it is the plan under review. If sibling artifacts exist beside it (`{slug}-requirements.md`, `{slug}-context.md`), read those too before reviewing.
