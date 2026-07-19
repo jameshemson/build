@@ -100,6 +100,7 @@ const BEHAVIORS = [
   ['circuit breakers', 'Never increase a limit, skip a phase, or hide a failure'],
   ['provider phase authority', 'Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents'],
   ['custom route delegation', 'A valid non-null custom route explicitly opts that phase into delegation'],
+  ['custom plan route boundary', 'a non-null custom `plan` route instead delegates\n`impl-plan` through the effective `plan` route'],
   ['disjoint shared-workspace writers', 'Concurrent writer agents are\nallowed only when their assigned file sets are disjoint'],
   ['root session recommendation', 'Recommend a `gpt-5.6-sol` session at `high` effort for normal complex Codex builds'],
   ['inline route disclosure', 'records their `model_routes` value as the literal `active-session`'],

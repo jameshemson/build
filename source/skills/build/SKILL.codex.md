@@ -105,7 +105,8 @@ agent-selection fallback.
 
 ## Codex execution and supervision
 
-Root invokes the documented `impl-plan` and `architect-review` contracts inline. It dispatches
+Under Build-default, root invokes the documented `impl-plan` and `architect-review` contracts
+inline. Explicit custom routes may delegate them as their phase clauses specify. Root dispatches
 `review-plan` and `verify` as fresh-context judgments. Root saves every artifact and updates state.
 Implementation workers must not invoke `impl-plan`, `review-plan`, `verify`, `architect-review`,
 or another workflow skill; a custom-routed writer returns only a terminal `DONE`,
@@ -152,8 +153,9 @@ and initial history. Fresh workflows set `evidence_mode` to `typed` and start wi
 and resume evidence can be recorded from the start.
 
 Apply the complexity fan-out limits to route-selected read-only exploration of architecture,
-affected code, and tests. Root synthesizes their evidence and runs `impl-plan` inline with
-the marker `[orchestrated]`. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence,
+affected code, and tests. Root synthesizes their evidence. Build-default Plan runs `impl-plan`
+inline with the marker `[orchestrated]`; a non-null custom `plan` route instead delegates
+`impl-plan` through the effective `plan` route with the same marker. Require canonical `REQ-*`, `D-*`, and `A-*`, Wave 0 evidence,
 a complete typed `execution_manifest`, `bindings` coverage, and `delivery_slices`, and the hierarchy delivery slice ->
 dependency waves -> disjoint workstreams -> `execution_manifest` tasks.
 
