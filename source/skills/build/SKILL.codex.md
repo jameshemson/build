@@ -189,7 +189,8 @@ internal topological order, and the union of owned files. Manifest IDs remain pl
 and completion units, not dispatch units. Never spawn one writer per manifest task.
 Split only for external dependency, overlap, or runtime; concurrent unions must be disjoint.
 Build-default implementation remains inline even when the plan has multiple batches. A
-non-null custom `implement` route may delegate a bounded, disjoint batch. A successful non-null
+non-null custom `implement` route may delegate a bounded, disjoint batch. Dispatch it through the
+effective `implement` route. A successful non-null
 custom selection remains `profile-owned` and omits Build model/effort. Serialize dependencies
 and overlap; root owns shared files, git operations, commits, and integration.
 
