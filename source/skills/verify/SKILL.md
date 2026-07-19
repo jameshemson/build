@@ -6,7 +6,7 @@ argument-hint: "[what to verify]"
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
-No completion claims without fresh verification evidence.
+Use the smallest sufficient fresh evidence for the claims actually made; no completion claims without fresh verification evidence.
 
 Read the [evidence requirements](reference/evidence-requirements.md) for the full claims-to-evidence mapping and per-stack command reference.
 
@@ -31,17 +31,17 @@ Collect every command candidate before executing anything. Detect available chec
 - **Type check**: `tsconfig.json`, `mypy.ini`, `pyproject.toml` (mypy/pyright config)
 - **Lint**: `package.json` scripts (lint), `.eslintrc`, `ruff.toml`, `Cargo.toml` (clippy)
 
-Also collect every `execution_manifest.verify` command. Key the ledger by the exact
-command string; do not normalize whitespace, aliases, or environment prefixes. For each
-duplicate key, union its detected categories, task IDs, `requirements`, and `must_haves`
-onto one entry. When there is no manifest, use only detected candidates.
+Also collect every `execution_manifest.verify` command. Evidence is duplicate only when it proves the same claim at the same lifecycle authority.
+Union candidates with identical exact command strings into one entry. Key the ledger by the exact
+command string; do not normalize whitespace, aliases, or environment prefixes. For each unioned entry, union its detected categories, task IDs, `requirements`, and `must_haves`. Worker, integration, slice, and final gates prove distinct claims and remain mandatory.
+Preserve commands required by those distinct lifecycle claims and plan- or repository-required categories. Within one authority, select the smallest claim-covering ledger using the narrowest direct command for each claim; exclude an overlapping non-identical candidate when it proves no unique required claim or category. When there is no manifest, use only detected candidates.
 
-### 3. Execute the ledger once with a freshness barrier
+### 3. Execute the selected ledger once with a freshness barrier
 
-Run each exact command once, read its full output, and attach the result to every unioned
+Run each selected exact command once, read its full output, and attach the result to every unioned
 category and evidence consumer. An entry is valid only in the same invocation when
 executed after the latest code, dependency, or content change. Baseline, worker, wave,
-cached, remembered, and prior-invocation output never substitutes for this evidence.
+cached, remembered, and prior-invocation output never substitutes for this evidence. The final verification authority owns exactly one fresh full suite.
 
 After every content-writing command, run `git status --short` and
 `git diff --name-only` before consuming the next ledger result. Any later content change
@@ -55,7 +55,7 @@ For unavailable detected categories, record `N/A` with a brief reason. For every
 report whether each `must_haves` item has observable evidence in its shared ledger output,
 test names, manual evidence text, or changed files.
 
-If a command fails, final verdict is `FAILED`. If commands pass but any `REQ-*` has no fresh evidence, any `must_haves` item lacks evidence, or required workflow artifacts are missing, final verdict is `PARTIAL` with an `uncovered requirements` section. If all available checks and plan-declared evidence pass, final verdict is `VERIFIED`.
+If a command fails, final verdict is `FAILED`. If commands pass but any `REQ-*` has no fresh evidence, any `must_haves` item lacks evidence, or required workflow artifacts are missing, final verdict is `PARTIAL` with an `uncovered requirements` section. If all available checks and plan-declared evidence pass, final verdict is `VERIFIED`. Stop after selected fresh direct coverage proves every claim actually made.
 
 ### 4.5 Debt scan on changed files
 

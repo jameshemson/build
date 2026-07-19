@@ -5,6 +5,8 @@ description: Architecture review of completed work. 10 review lenses with severi
 
 Review the work just completed. Implementation summaries are claims, not evidence: assume each lens fails until the diff or fresh verification output proves it passes. If there's a user story or implementation plan for this work, read it first so you know the intent.
 
+Report a finding only when supported by evidence, a plausible material consequence, and a specific in-scope fix. Stop after required coverage when there is no unresolved material issue.
+
 ## Before reviewing
 
 First identify both the review target and verification evidence. The current conversation is valid input: do not ignore a user-named target, pasted diff, implementation summary, or earlier `## Verification Report` just because no `.build/plans/` artifact exists.

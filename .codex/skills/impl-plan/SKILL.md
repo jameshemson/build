@@ -10,6 +10,8 @@ Read the codebase before writing anything. Trace the code paths this feature tou
 Create a plan for:
 *(Treat the user's message that invoked this skill as the task input.)*
 
+Use the least-expansive reasonable interpretation. Investigate uncertainty only when resolving it could materially change the requested outcome, scope, authority, or significant risk. Stop discovery when enough evidence maps requirements, files, risks, acceptance, and exact verification.
+
 ## Step 0: Discovery level and assumptions
 
 If `the user's request` begins with the literal marker `[orchestrated]`, strip the marker and skip only the user interview — you're being driven by the build orchestrator and must not block on user input. Still do the targeted read, choose a discovery level, and record `A-*` assumptions with confidence and evidence. Then proceed to Step 1. If it begins with `[no-interview]` (headless or unattended runs), strip the marker and skip the interview the same way, but keep standalone saving behavior ("Saving the plan", below).

@@ -8,6 +8,8 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill, TaskCreate, Ta
 
 You are orchestrating a structured build workflow. You act like Claude Code itself - use agents for parallel work, use tasks for tracking, be autonomous but structured. **You drive the entire workflow from start to finish without stopping to ask the user to switch sessions or models.** Use agents with model overrides to run phases that need a different model.
 
+Use the least-expansive reasonable interpretation of the request. Investigate uncertainty only when resolving it could materially change the requested outcome, scope, authority, or significant risk. Report a finding only when supported by evidence, a plausible material consequence, and a specific in-scope fix. Gather the smallest sufficient fresh evidence for the claims actually made. Stop when the requested outcome exists, required direct verification passes, and nothing unresolved can materially change the result. Boundedness never skips required phases; worker, integration, slice, and final authorities; Phase 3c's exactly one fresh full suite; safety, security, or data rigor; scope changes; or user-only decisions.
+
 ## First: Read State
 
 Look in `.build/plans/` for `*-state.md` files (ignore `archive/`). Field formats and lifecycle rules are defined in [state schema](reference/state-schema.md).

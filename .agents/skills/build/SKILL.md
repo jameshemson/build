@@ -8,6 +8,12 @@ Drive the user's requested change through exactly five active phases: `plan`, `r
 states, not phases. Continue autonomously until a terminal state, a circuit breaker,
 or a choice that only the user can make.
 
+Use the least-expansive reasonable interpretation. Investigate uncertainty only when resolving it could materially change the requested outcome, scope, authority, or significant risk. Report a finding only when supported by evidence, a
+plausible material consequence, and a specific in-scope fix. Gather the smallest sufficient fresh evidence for the claims
+actually made. Stop when the requested outcome exists, required direct verification passes, and nothing unresolved can
+materially change the result. Boundedness never skips required phases; worker, integration, slice, and final authorities;
+Phase 4's exactly one fresh full suite; safety, security, or data rigor; scope changes; or user-only decisions.
+
 Read [the state schema](reference/state-schema.md) before starting. The schema owns
 field formats and lifecycle rules.
 
