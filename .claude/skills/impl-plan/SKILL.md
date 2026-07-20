@@ -71,7 +71,7 @@ List canonical requirements as `REQ-001`, `REQ-002`, etc. List decisions as `D-0
 One sentence. What are we solving and for whom?
 
 ### Approach
-How we're solving it. Be specific about patterns, data flow, and where this lives in the existing architecture. Include a diagram if the data flow isn't obvious.
+How we're solving it. Be specific about patterns, data flow, and where this lives in the existing architecture. Include a diagram if the data flow isn't obvious. Prefix each named symbol, behavior, or invariant obligation with one unique literal `[B-###]` marker that equals its binding ID.
 
 After drafting the approach, stress-test it. Look at the existing code you'll be integrating with - does your approach actually fit how the codebase works today? Are you assuming an interface, pattern, or data shape that doesn't exist? Call out anything you're unsure about rather than glossing over it.
 
@@ -130,9 +130,12 @@ What don't we know? What assumptions are we making? For each assumption, explain
 Before implementation tasks, define the fastest test, fixture, command, or manual evidence that will prove each `REQ-*`. If a requirement cannot be tested before coding, say exactly why and identify the first implementation task that will make it testable.
 
 ### Execution manifest
-Include one compact fenced YAML contract. New plans declare `evidence_mode: typed`. `bindings` entries have exactly `id`, `kind`, `name`, `task_id`, and `must_have_id`; binding kind is `symbol`, `behavior`, or `invariant`. Every task includes `id`, `wave`, `depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, and `done`. Each `must_haves` item has exactly `id`, `claim`, and `evidence`; `evidence` has exactly `kind` and `ref`. Evidence kind is `behavioral-test`, `command-assertion`, `structural`, or `manual-receipt`.
+Include one compact fenced YAML contract. New plans declare top-level `requirements`, `decisions`, `assumptions`, and `evidence_mode: typed`. `bindings` entries have exactly `id`, `kind`, `name`, `task_id`, and `must_have_id`; binding kind is `symbol`, `behavior`, or `invariant`. Every task includes `id`, `wave`, `depends_on`, `workstream`, `files_modified`, `requirements`, `decisions`, `must_haves`, `verify`, and `done`. Each `must_haves` item has exactly `id`, `claim`, and `evidence`; `evidence` has exactly `kind` and `ref`. Evidence kind is `behavioral-test`, `command-assertion`, `structural`, or `manual-receipt`.
 
 ```yaml
+requirements: [REQ-001]
+decisions: [D-001]
+assumptions: [A-001]
 evidence_mode: typed
 bindings:
   - { id: B-001, kind: invariant, name: "Wave 0 test names the expected behavior", task_id: T-001, must_have_id: MH-001 }
@@ -141,8 +144,10 @@ execution_manifest:
   - id: T-001
     wave: 0
     depends_on: []
+    workstream: validation
     files_modified: ["tests/example.test.ts"]
     requirements: ["REQ-001"]
+    decisions: ["D-001"]
     must_haves:
       - { id: MH-001, claim: "test names and asserts the user-visible behavior", evidence: { kind: structural, ref: "tests/example.test.ts test name and assertion" } }
     verify: "npm test -- tests/example.test.ts"
@@ -150,15 +155,16 @@ execution_manifest:
   - id: T-002
     wave: 1
     depends_on: ["T-001"]
+    workstream: implementation
     files_modified: ["src/example.ts"]
     requirements: ["REQ-001"]
+    decisions: ["D-001"]
     must_haves:
-      - { id: MH-002, claim: "the named user-visible behavior passes the Wave 0 assertion", evidence: { kind: behavioral-test, ref: "tests/example.test.ts#named-user-visible-behavior" } }
+      - { id: MH-002, claim: "the named user-visible behavior passes the Wave 0 assertion", evidence: { kind: behavioral-test, ref: "npm test -- tests/example.test.ts :: named-user-visible-behavior passes" } }
     verify: "npm test -- tests/example.test.ts"
     done: "REQ-001 implementation passes the named Wave 0 test"
 ```
-
-Every named symbol, behavior, and invariant in Approach maps through one binding to one manifest task and one must-have. A task is evidence-atomic: each must-have can be independently observed in one bounded implement-verify cycle. Split a task when that is not true. Structural evidence proves only structural claims; behavior requires a behavioral test, command assertion, or manual receipt.
+Every named symbol, behavior, and invariant in Approach has exactly one literal marker, equal binding, manifest task, and must-have. Each new compiled task has exactly one marker/binding/must-have chain and is evidence-atomic in one bounded implement-verify cycle. Behavioral-test and command-assertion refs use `<exact command> :: <expected observation>`; structural evidence proves only structural claims.
 
 An existing plan without `evidence_mode` is `legacy-untyped`: unchanged tasks may continue, but behavioral strings still require direct evidence. During re-plan, reopened tasks must upgrade to typed must-haves and bindings; do not bulk-rewrite completed tasks.
 
