@@ -18,15 +18,17 @@ import {
 } from './plan-contract.js';
 import { captureRepositoryIdentity } from './repository.js';
 
-const DEFAULT_MAX_OUTPUT_BYTES = 16 * 1024;
-const MAX_OUTPUT_BYTES = 1024 * 1024;
+const KIBIBYTE = 1024;
+const HEX_RADIX = 16;
+const DEFAULT_MAX_OUTPUT_BYTES = HEX_RADIX * KIBIBYTE;
+const MAX_OUTPUT_BYTES = KIBIBYTE * KIBIBYTE;
 const MAX_PASSES = 3;
 
 function atomicWrite(path, content) {
   mkdirSync(dirname(path), { recursive: true });
   const temporary = join(
     dirname(path),
-    `.${basename(path)}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`,
+    `.${basename(path)}.${process.pid}.${Math.random().toString(HEX_RADIX).slice(2)}.tmp`,
   );
   writeFileSync(temporary, content, { encoding: 'utf8', flag: 'wx' });
   renameSync(temporary, path);
