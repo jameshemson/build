@@ -62,9 +62,9 @@ Every file in this map must appear in the implementation steps. Every file in th
 
 New plans declare `evidence_mode: typed` beside `execution_manifest`. The allowed modes are `typed` and `legacy-untyped`; a missing mode on an existing plan means `legacy-untyped`. Every typed `must_haves` item has exactly `id`, `claim`, and `evidence`; evidence has exactly `kind` and `ref`. Kinds are `behavioral-test`, `command-assertion`, `structural`, and `manual-receipt`. IDs are unique `MH-###` values. Refs name the exact test/test ID, command plus expected assertion, source/symbol inspection, or observed manual receipt. Changed files and source inspection are structural evidence only.
 
-Typed plans also declare `bindings`. Each binding has exactly `id`, `kind`, `name`, `task_id`, and `must_have_id`; IDs are unique `B-###` values and kinds are `symbol`, `behavior`, or `invariant`. Every named symbol, behavior, and invariant in Approach must follow one binding, one manifest task, and one must-have. Every referenced task and must-have exists, and the must-have belongs to that task.
+Typed plans also declare top-level `requirements`, `decisions`, and `assumptions`, plus `bindings`. Each binding has exactly `id`, `kind`, `name`, `task_id`, and `must_have_id`; IDs are unique `B-###` values and kinds are `symbol`, `behavior`, or `invariant`. Every named symbol, behavior, and invariant in Approach starts with one unique literal `[B-###]` marker equal to its binding ID and follows one binding, one manifest task, and one must-have. Every referenced must-have belongs to that task.
 
-Evidence atomicity is semantic, not a file-count threshold. Each task must let every must-have be independently observed in one bounded implement-verify cycle. Split unrelated claims, APIs, migrations, fixtures, or invariants when one broad command cannot identify which obligation is missing. Multiple files are valid when they form one independently evidenced outcome.
+Evidence atomicity is semantic, not a file-count threshold. Each new compiled task has exactly one marker, one binding, and one must-have that can be independently observed in one bounded implement-verify cycle. Split unrelated claims, APIs, migrations, fixtures, or invariants. Behavioral-test and command-assertion refs use `<exact command> :: <expected observation>`; multiple files remain valid for one independently evidenced outcome.
 
 Existing missing-mode plans remain `legacy-untyped`; unchanged tasks continue, but changed files never prove behavioral strings. Reopened tasks must upgrade their must-haves and named obligations to the typed contract during re-plan. Completed tasks are not bulk-rewritten.
 
@@ -72,8 +72,10 @@ Plans must include a fenced YAML block named `execution_manifest`. Every task en
 - `id`: stable task ID like `T-001`
 - `wave`: integer execution wave; lower waves run first
 - `depends_on`: list of task IDs that must complete first
+- `workstream`: one declared workstream name
 - `files_modified`: exact files created or modified by the task
 - `requirements`: `REQ-*` IDs the task satisfies
+- `decisions`: `D-*` IDs the task implements
 - `must_haves`: typed, observable acceptance criteria, not advice
 - `verify`: exact command or inspection that proves the task
 - `done`: observable completion statement
@@ -119,7 +121,7 @@ Read the feature description again. For each requirement, can you point to a spe
 Every `REQ-*` and `D-*` appears in the execution manifest, implementation order, and verification plan. Every task has observable `must_haves`.
 
 ### 1b. Binding coverage and evidence atomicity
-Every named Approach obligation has one valid binding to its owning typed must-have. Every evidence kind and ref fits the claim, and every task's must-haves can be independently observed in one bounded implement-verify cycle. Reopened `legacy-untyped` tasks are upgraded; completed legacy tasks are preserved.
+Every named Approach obligation has one unique literal `[B-###]` marker and equal binding to its owning typed must-have. Every new compiled task has exactly one marker/binding/must-have chain; behavioral/command refs use exact command `::` expected observation. Reopened `legacy-untyped` tasks are upgraded; completed legacy tasks are preserved.
 
 ### 2. Placeholder scan
 Search your plan for any phrase from the banned list above. Also search for: vague verbs without objects ("handle", "process", "manage" without specifying what), conditional language without specifics ("if needed", "as appropriate", "when necessary"). Zero violations required.
