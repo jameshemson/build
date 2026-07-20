@@ -1,9 +1,11 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -89,6 +91,14 @@ test('repository identity changes for tracked, staged, untracked, deleted, symli
   const linkB = await captureRepositoryIdentity({ repoRoot: repo, evidenceDir });
   assert.notEqual(linkA.fingerprint, linkB.fingerprint);
 
+  chmodSync(join(repo, 'plan.yaml'), 0o755);
+  const executable = await captureRepositoryIdentity({ repoRoot: repo, evidenceDir });
+  assert.notEqual(executable.fingerprint, linkB.fingerprint);
+  await assert.rejects(
+    captureRepositoryIdentity({ repoRoot: repo, evidenceDir: repo }),
+    (error) => error.code === 'E_EVIDENCE_PATH',
+  );
+
   writeFileSync(join(repo, 'src/legacy-pose.js'), 'export const pose = 3;\n', 'utf8');
   git(repo, 'add', '.');
   git(repo, 'commit', '-qm', 'identity change');
@@ -118,6 +128,15 @@ test('clean recursive submodule commits affect identity and dirty submodules fai
     (error) => error.code === 'E_DIRTY_SUBMODULE',
   );
 
+  writeFileSync(join(repo, 'vendor/child/value.txt'), 'one\n', 'utf8');
+  writeFileSync(join(repo, 'vendor/child/untracked.txt'), 'untracked\n', 'utf8');
+  await assert.rejects(
+    captureRepositoryIdentity({ repoRoot: repo, evidenceDir }),
+    (error) => error.code === 'E_DIRTY_SUBMODULE',
+  );
+  rmSync(join(repo, 'vendor/child/untracked.txt'));
+  writeFileSync(join(repo, 'vendor/child/value.txt'), 'dirty\n', 'utf8');
+
   git(join(repo, 'vendor/child'), 'add', 'value.txt');
   git(join(repo, 'vendor/child'), 'config', 'user.email', 'buildctl@example.test');
   git(join(repo, 'vendor/child'), 'config', 'user.name', 'Buildctl Test');
@@ -125,6 +144,53 @@ test('clean recursive submodule commits affect identity and dirty submodules fai
   git(repo, 'add', 'vendor/child');
   const changed = await captureRepositoryIdentity({ repoRoot: repo, evidenceDir });
   assert.notEqual(changed.fingerprint, clean.fingerprint);
+});
+
+test('nested clean submodule commits are included recursively', async () => {
+  const grandchild = mkdtempSync(join(tmpdir(), 'buildctl-grandchild-'));
+  sandboxes.push(grandchild);
+  git(grandchild, 'init', '-q');
+  git(grandchild, 'config', 'user.email', 'buildctl@example.test');
+  git(grandchild, 'config', 'user.name', 'Buildctl Test');
+  writeFileSync(join(grandchild, 'nested.txt'), 'one\n', 'utf8');
+  git(grandchild, 'add', '.');
+  git(grandchild, 'commit', '-qm', 'grandchild one');
+
+  const child = mkdtempSync(join(tmpdir(), 'buildctl-recursive-child-'));
+  sandboxes.push(child);
+  git(child, 'init', '-q');
+  git(child, 'config', 'user.email', 'buildctl@example.test');
+  git(child, 'config', 'user.name', 'Buildctl Test');
+  writeFileSync(join(child, 'child.txt'), 'child\n', 'utf8');
+  git(child, 'add', '.');
+  git(child, 'commit', '-qm', 'child base');
+  git(child, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', grandchild, 'nested/grandchild');
+  git(child, 'commit', '-qam', 'add nested submodule');
+
+  const { repo, evidenceDir } = makeRepo();
+  git(repo, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', child, 'vendor/child');
+  git(repo, '-c', 'protocol.file.allow=always', 'submodule', 'update', '--init', '--recursive');
+  git(repo, 'commit', '-qam', 'add recursive submodule');
+  const first = await captureRepositoryIdentity({ repoRoot: repo, evidenceDir });
+  assert.deepEqual(first.submodules.map((item) => item.path), [
+    'vendor/child',
+    'vendor/child/nested/grandchild',
+  ]);
+
+  const nested = join(repo, 'vendor/child/nested/grandchild');
+  writeFileSync(join(nested, 'nested.txt'), 'two\n', 'utf8');
+  git(nested, 'config', 'user.email', 'buildctl@example.test');
+  git(nested, 'config', 'user.name', 'Buildctl Test');
+  git(nested, 'add', 'nested.txt');
+  git(nested, 'commit', '-qm', 'grandchild two');
+  const checkedOutChild = join(repo, 'vendor/child');
+  git(checkedOutChild, 'config', 'user.email', 'buildctl@example.test');
+  git(checkedOutChild, 'config', 'user.name', 'Buildctl Test');
+  git(checkedOutChild, 'add', 'nested/grandchild');
+  git(checkedOutChild, 'commit', '-qm', 'advance nested submodule');
+  git(repo, 'add', 'vendor/child');
+  const second = await captureRepositoryIdentity({ repoRoot: repo, evidenceDir });
+  assert.notEqual(second.fingerprint, first.fingerprint);
 });
 
 test('runEvidence stores bounded tails and hashes full output with repository metadata', async () => {
@@ -168,9 +234,10 @@ test('stable exact command receipts deduplicate only at identical repository ide
   sandboxes.push(counter);
   const exact = nodeCommand(`require('node:fs').appendFileSync(${JSON.stringify(counter)}, 'run\\n')`);
 
-  const first = await runEvidence({ repoRoot: repo, contractPath, evidenceDir, commands: [exact] });
+  const first = await runEvidence({ repoRoot: repo, contractPath, evidenceDir, commands: [exact, exact] });
   const second = await runEvidence({ repoRoot: repo, contractPath, evidenceDir, commands: [exact] });
   assert.equal(readFileSync(counter, 'utf8'), 'run\n');
+  assert.equal(first.ledger.receipts.length, 1);
   assert.equal(first.ledger.receipts[0].reused, false);
   assert.equal(second.ledger.receipts[0].reused, true);
 
@@ -190,7 +257,116 @@ test('one-shot content writers rerun at final identity and evidence output does 
   assert.equal(result.ledger.passes, 2);
   assert.equal(result.ledger.status, 'passed');
   assert.equal(result.ledger.receipts[0].reused, false);
+  assert.equal(readdirSync(join(evidenceDir, 'receipts')).length, 2);
   assert.equal((await checkEvidence({ repoRoot: repo, contractPath, evidenceDir })).ok, true);
+});
+
+test('output bounds support hash-only receipts and reject values above one MiB', async () => {
+  const { repo, contractPath, evidenceDir } = makeRepo();
+  const exact = nodeCommand("process.stdout.write('secret')");
+  const result = await runEvidence({
+    repoRoot: repo,
+    contractPath,
+    evidenceDir,
+    commands: [exact],
+    maxOutputBytes: 0,
+  });
+  const receipt = JSON.parse(readFileSync(result.ledger.receipts[0].path, 'utf8'));
+  assert.equal(receipt.stdout.bytes, 6);
+  assert.equal(receipt.stdout.tail, '');
+  assert.equal(receipt.stdout.truncated, true);
+  const bounded = await runEvidence({
+    repoRoot: repo,
+    contractPath,
+    evidenceDir,
+    commands: [exact],
+    maxOutputBytes: 1,
+  });
+  const boundedReceipt = JSON.parse(readFileSync(bounded.ledger.receipts[0].path, 'utf8'));
+  assert.notEqual(bounded.ledger.receipts[0].path, result.ledger.receipts[0].path);
+  assert.equal(boundedReceipt.stdout.tail, 't');
+  await assert.rejects(
+    runEvidence({
+      repoRoot: repo,
+      contractPath,
+      evidenceDir,
+      commands: [exact],
+      maxOutputBytes: 1024 * 1024 + 1,
+    }),
+    (error) => error.code === 'E_OUTPUT_BOUND',
+  );
+});
+
+test('stale contracts and tampered receipts fail closed', async () => {
+  const first = makeRepo();
+  const exact = nodeCommand("process.stdout.write('ok')");
+  const result = await runEvidence({
+    repoRoot: first.repo,
+    contractPath: first.contractPath,
+    evidenceDir: first.evidenceDir,
+    commands: [exact],
+  });
+  const receiptPath = result.ledger.receipts[0].path;
+  const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+  receipt.stdout.tail = 'tampered';
+  writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`, 'utf8');
+  const tampered = await checkEvidence({
+    repoRoot: first.repo,
+    contractPath: first.contractPath,
+    evidenceDir: first.evidenceDir,
+  });
+  assert.equal(tampered.ok, false);
+  assert.ok(tampered.diagnostics.some((item) => item.code === 'E_RECEIPT_HASH'));
+
+  const second = makeRepo();
+  await runEvidence({
+    repoRoot: second.repo,
+    contractPath: second.contractPath,
+    evidenceDir: second.evidenceDir,
+    commands: [exact],
+  });
+  writeFileSync(join(second.repo, 'plan.yaml'), `${readFileSync(join(second.repo, 'plan.yaml'), 'utf8')}\n`, 'utf8');
+  await assert.rejects(
+    checkEvidence({
+      repoRoot: second.repo,
+      contractPath: second.contractPath,
+      evidenceDir: second.evidenceDir,
+    }),
+    (error) => error.code === 'E_CONTRACT_STALE',
+  );
+});
+
+test('run-evidence CLI writes and check-only validates the same stable ledger', () => {
+  const { repo, contractPath, evidenceDir } = makeRepo();
+  const exact = nodeCommand("process.stdout.write('cli-ok')");
+  const run = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      'run-evidence',
+      '--contract', contractPath,
+      '--evidence-dir', evidenceDir,
+      '--command', exact,
+      '--max-output-bytes', '32',
+    ],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(JSON.parse(run.stdout).status, 'passed');
+
+  const check = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      'run-evidence',
+      '--contract', contractPath,
+      '--evidence-dir', evidenceDir,
+      '--check-only',
+    ],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.equal(check.status, 0, check.stderr);
+  assert.equal(JSON.parse(check.stdout).ok, true);
 });
 
 test('non-idempotent content writers fail closed after three passes', async () => {
