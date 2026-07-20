@@ -192,7 +192,7 @@ function evidenceCommands(tasks, slices) {
 }
 
 function validateBindings(document, approachMarkers, diagnostics) {
-  const markerIds = ids(approachMarkers, /^B-\d{3}$/, 'approach_bindings', diagnostics);
+  const markerIds = ids(approachMarkers, /^B-\d\d\d$/, 'approach_bindings', diagnostics);
   const bindings = Array.isArray(document.bindings) ? document.bindings : [];
   if (!Array.isArray(document.bindings)) {
     diagnostic(diagnostics, 'E_SCHEMA_TYPE', 'bindings', 'must be an array');
@@ -201,7 +201,7 @@ function validateBindings(document, approachMarkers, diagnostics) {
   bindings.forEach((binding, index) => {
     const path = `bindings[${index}]`;
     if (!exactFields(binding, BINDING_FIELDS, path, diagnostics)) return;
-    if (!/^B-\d{3}$/.test(binding.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, binding.id);
+    if (!/^B-\d\d\d$/.test(binding.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, binding.id);
     if (bindingIds.has(binding.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, binding.id);
     bindingIds.add(binding.id);
     if (!BINDING_KINDS.has(binding.kind)) diagnostic(diagnostics, 'E_BINDING_KIND', `${path}.kind`, binding.kind);
@@ -229,7 +229,7 @@ function validateMustHaves(task, path, mustHaveIds, diagnostics) {
   for (const [mustIndex, mustHave] of (task.must_haves || []).entries()) {
     const mustPath = `${path}.must_haves[${mustIndex}]`;
     if (!exactFields(mustHave, MUST_HAVE_FIELDS, mustPath, diagnostics)) continue;
-    if (!/^MH-\d{3}$/.test(mustHave.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${mustPath}.id`, mustHave.id);
+    if (!/^MH-\d\d\d$/.test(mustHave.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${mustPath}.id`, mustHave.id);
     if (mustHaveIds.has(mustHave.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${mustPath}.id`, mustHave.id);
     mustHaveIds.add(mustHave.id);
     nonEmptyString(mustHave.claim, `${mustPath}.claim`, diagnostics);
@@ -262,7 +262,7 @@ function validateMustHaves(task, path, mustHaveIds, diagnostics) {
 function validateTask(task, index, declared, collected, diagnostics) {
   const path = `execution_manifest[${index}]`;
   if (!exactFields(task, TASK_FIELDS, path, diagnostics)) return;
-  if (!/^T-\d{3}$/.test(task.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, task.id);
+  if (!/^T-\d\d\d$/.test(task.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, task.id);
   if (collected.taskIds.has(task.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, task.id);
   collected.taskIds.add(task.id);
   collected.byTask.set(task.id, task);
@@ -274,7 +274,7 @@ function validateTask(task, index, declared, collected, diagnostics) {
   stringArray(task.decisions, `${path}.decisions`, diagnostics, { nonEmpty: true });
   checkRefs(task.requirements, declared.requirementIds, `${path}.requirements`, diagnostics);
   checkRefs(task.decisions, declared.decisionIds, `${path}.decisions`, diagnostics);
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(task.workstream || '')) {
+  if (!/^[a-z\d]+(?:-[a-z\d]+)*$/.test(task.workstream || '')) {
     diagnostic(diagnostics, 'E_WORKSTREAM_NAME', `${path}.workstream`, task.workstream);
   }
   if (stringArray(task.files_modified, `${path}.files_modified`, diagnostics, { nonEmpty: true })) {
@@ -373,7 +373,7 @@ function validateTaskGraph(tasks, byTask, diagnostics) {
 function validateSlice(slice, index, context, diagnostics) {
   const path = `delivery_slices[${index}]`;
   if (!exactFields(slice, SLICE_FIELDS, path, diagnostics)) return;
-  if (!/^S-\d{3}$/.test(slice.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, slice.id);
+  if (!/^S-\d\d\d$/.test(slice.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, slice.id);
   if (context.sliceIds.has(slice.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, slice.id);
   context.sliceIds.add(slice.id);
   context.slicesById.set(slice.id, slice);
@@ -459,10 +459,10 @@ export function validateContract(document, approachMarkers) {
     diagnostic(diagnostics, 'E_EVIDENCE_MODE', 'evidence_mode', 'must equal typed');
   }
   const declared = {
-    requirementIds: ids(document.requirements, /^REQ-\d{3}$/, 'requirements', diagnostics),
-    decisionIds: ids(document.decisions, /^D-\d{3}$/, 'decisions', diagnostics),
+    requirementIds: ids(document.requirements, /^REQ-\d\d\d$/, 'requirements', diagnostics),
+    decisionIds: ids(document.decisions, /^D-\d\d\d$/, 'decisions', diagnostics),
   };
-  ids(document.assumptions, /^A-\d{3}$/, 'assumptions', diagnostics);
+  ids(document.assumptions, /^A-\d\d\d$/, 'assumptions', diagnostics);
   const bindings = validateBindings(document, approachMarkers, diagnostics);
   const taskData = validateTasks(document, declared, diagnostics);
   validateBindingOwnership(bindings, taskData, diagnostics);

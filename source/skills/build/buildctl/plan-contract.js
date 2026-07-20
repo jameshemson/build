@@ -13,6 +13,8 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 
 import { fileURLToPath } from 'node:url';
 import { validateContract } from './validation.js';
 
+const HEX_RADIX = 16;
+
 export class BuildctlError extends Error {
   constructor(code, message, details = {}) {
     super(message);
@@ -87,7 +89,7 @@ function atomicWrite(path, content) {
   mkdirSync(dirname(path), { recursive: true });
   const temp = join(
     dirname(path),
-    `.${basename(path)}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`,
+    `.${basename(path)}.${process.pid}.${Math.random().toString(HEX_RADIX).slice(2)}.tmp`,
   );
   writeFileSync(temp, content, { encoding: 'utf8', flag: 'wx' });
   renameSync(temp, path);
@@ -258,8 +260,8 @@ class FlowParser {
     if (raw === 'null' || raw === '~') return null;
     if (raw === 'true') return true;
     if (raw === 'false') return false;
-    if (/^-?(?:0|[1-9]\d*)$/.test(raw)) return Number(raw);
-    if (/^-?(?:0|[1-9]\d*)\.\d+$/.test(raw)) return Number(raw);
+    if (/^-?(?:0|(?!0)\d+)$/.test(raw)) return Number(raw);
+    if (/^-?(?:0|(?!0)\d+)\.\d+$/.test(raw)) return Number(raw);
     return raw;
   }
 
@@ -493,7 +495,7 @@ function yamlFence(section, name) {
 }
 
 function approachBindings(approach) {
-  return [...approach.matchAll(/\[(B-\d{3})\]/g)].map((match) => match[1]);
+  return [...approach.matchAll(/\[(B-\d\d\d)\]/g)].map((match) => match[1]);
 }
 
 function authoredDocument(source, extension) {
@@ -526,7 +528,7 @@ function authoredDocument(source, extension) {
 
 function slugFromPlan(planPath) {
   const stem = basename(planPath, extname(planPath)).replace(/-plan$/, '');
-  const slug = stem.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = stem.toLowerCase().replace(/[^a-z\d]+/g, '-').replace(/^-|-$/g, '');
   if (!slug) throw new BuildctlError('E_PLAN_SLUG', `Cannot derive a slug from ${planPath}`);
   return slug;
 }
