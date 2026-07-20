@@ -12,7 +12,7 @@ Use the least-expansive reasonable interpretation. Investigate uncertainty only 
 plausible material consequence, and a specific in-scope fix. Gather the smallest sufficient fresh evidence for the claims
 actually made. Stop when the requested outcome exists, required direct verification passes, and nothing unresolved can
 materially change the result. Boundedness never skips required phases; worker, integration, slice, and final authorities;
-Phase 4's exactly one fresh full suite; safety, security, or data rigor; scope changes; or user-only decisions.
+root's exactly one fresh final ledger and Phase 4 receipt judgment; safety, security, or data rigor; scope changes; or user-only decisions.
 
 Read [the state schema](reference/state-schema.md) before starting. The schema owns
 field formats and lifecycle rules.
@@ -139,6 +139,10 @@ drop unknown state fields.
 Workflow artifacts are `.build/plans/{slug}-{context,requirements,plan,review,
 implementation-summary,verify,architect-review}.md` plus `{slug}-state.md`.
 
+## buildctl authority and fallback
+
+Resolve the sibling `buildctl/cli.js` relative to this skill (or the package `buildctl` bin; source checkouts may use `source/skills/build/buildctl/cli.js`) and run it with Node >=20. A runnable `validate-plan` diagnostic or `run-evidence --check-only` failure is authoritative and never selects fallback. Only when the runtime cannot be located or executed, append `buildctl_fallback` with timestamp, phase, reason, and detail, then use the prompt-only Plan/Verify protocol. Markdown/YAML remains authored authority; `contract.json`, ledgers, and receipts are generated. buildctl never writes workflow state or grants transition/`complete-slice` authority.
+
 ## Phase 1: Plan
 
 For a fresh workflow, root runs `git status --porcelain`. If it is non-empty, stop and
@@ -160,7 +164,7 @@ a complete typed `execution_manifest`, `bindings` coverage, and `delivery_slices
 dependency waves -> disjoint workstreams -> `execution_manifest` tasks.
 
 Root determines final complexity, then writes and validates `{slug}-context.md`,
-`{slug}-requirements.md`, and `{slug}-plan.md`. Last, update state with final complexity,
+`{slug}-requirements.md`, and `{slug}-plan.md`. Run `buildctl validate-plan --plan .build/plans/{slug}-plan.md --out .build/contracts/{slug}/contract.json`; on success record `compiled_contract` path, plan/contract hashes, and compiler version. A runnable failure keeps `phase: plan`. Last, update state with final complexity,
 model routes, evidence mode, typed binding summary, inventories, manifest summary, and `phase: review`.
 
 ## Phase 2: Review
@@ -169,7 +173,7 @@ Read state plus context, requirements, and plan. Run `review-plan` in a fresh-co
 with the effective `review` route. Save `{slug}-review.md` before state changes.
 
 For either proceed verdict, after any fixes, validate and persist the accepted slice definitions
-and first declared-order dependency-ready `active_slice` before implementation dispatch.
+and first declared-order dependency-ready `active_slice` before implementation dispatch. Re-run `validate-plan` after every review edit; only a successful generated contract or an already-recorded runtime-unavailable prompt fallback permits acceptance.
 
 - `Proceed to implementation`: transition to `implement`.
 - `Proceed with fixes`: root revises and validates plan/requirements, records
@@ -205,8 +209,7 @@ For each slice the exact order is: persist `active_slice`; dispatch only its tas
 its exact `verify`/`must_haves` evidence; update `{slug}-implementation-summary.md`; root makes
 the checkpoint commit; record the checkpoint and append the slice to `completed_slices`; then
 activate the next dependency-ready slice. Append wave task IDs to `completed_tasks` only after
-integration passes. A failure keeps the same active slice and blocks every successor. Only after
-every slice is completed may root validate the final implementation summary and transition to `verify`.
+integration passes. A failure keeps the same active slice and blocks every successor. Only after every slice is completed may root validate the final implementation summary. Root then runs `buildctl run-evidence` over every compiled exact command plus the repository-required final full-suite command, records the generated `evidence_ledger`, and only then may transition to `verify`; a valid failed-command ledger still proceeds for Verify judgment, while runner errors remain in implementation. In recorded prompt fallback, defer exact-command execution to Verify.
 
 Use read-only mid-review agents with the effective `review` route after major
 standard/complex waves. RETHINK or a valid
@@ -216,7 +219,7 @@ directly.
 ## Phase 4: Verify
 
 Read state, requirements, plan, and implementation summary. Only after every slice is completed,
-run `verify` in a fresh-context agent as the fresh whole-workflow authority. Phase 4 owns one fresh full-suite result, each unique plan-declared command, must-have coverage, and the debt scan.
+run `verify` in a fresh-context agent as the fresh whole-workflow authority. With compiled evidence, Verify runs only `run-evidence --check-only` and judges receipt freshness, exact-command consumers, expected observations, requirement/must-have coverage, and debt without executing evidence commands. Prompt fallback retains the prior exact-command protocol. Root's final evidence ledger owns each compiled exact command and the fresh full-suite result; Phase 4 owns receipt coverage and the debt scan.
 Save `{slug}-verify.md` before changing state.
 
 - `VERIFIED`: record verdict and transition to `architect-review`.

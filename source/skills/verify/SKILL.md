@@ -23,7 +23,13 @@ If an active workflow is present and one of those required artifacts is missing,
 
 If no active workflow state exists, record workflow artifacts as `N/A - standalone verification`. Missing `.build/plans/` artifacts must not make standalone verification `PARTIAL`.
 
-### 2. Build one exact-command ledger
+### 2. Select compiled-receipt or prompt mode
+
+For an active workflow with `compiled_contract` and `evidence_ledger`, resolve buildctl as Build does and run only `run-evidence --check-only`. Read the generated contract, ledger, and referenced receipts; do not execute any plan/repository evidence command. A stale, invalid, or failed receipt check is authoritative and never selects fallback. Judge exact-command consumers, expected observations, requirements, and must-haves using the receipt rules in the reference.
+
+Use prompt mode only for standalone verification or when active state already records `buildctl_fallback` because the runtime could not execute. Missing compiled artifacts without that record are uncovered workflow evidence, not fallback.
+
+### 3. Prompt mode: build one exact-command ledger
 
 Collect every command candidate before executing anything. Detect available checks from:
 - **Tests**: `package.json` scripts (test, jest, vitest), `pytest.ini`, `Cargo.toml`, `go.mod`, test directories
@@ -36,7 +42,7 @@ Union candidates with identical exact command strings into one entry. Key the le
 command string; do not normalize whitespace, aliases, or environment prefixes. For each unioned entry, union its detected categories, task IDs, `requirements`, and `must_haves`. Worker, integration, slice, and final gates prove distinct claims and remain mandatory.
 Preserve commands required by those distinct lifecycle claims and plan- or repository-required categories. Within one authority, select the smallest claim-covering ledger using the narrowest direct command for each claim; exclude an overlapping non-identical candidate when it proves no unique required claim or category. When there is no manifest, use only detected candidates.
 
-### 3. Execute the selected ledger once with a freshness barrier
+### 4. Prompt mode: execute once with a freshness barrier
 
 Run each selected exact command once, read its full output, and attach the result to every unioned
 category and evidence consumer. An entry is valid only in the same invocation when
@@ -49,13 +55,13 @@ makes all earlier entries stale; rerun them after the last change before issuing
 verdict. In an active workflow, newly dirty generated output makes the verdict `FAILED`
 so implementation can integrate it before verification restarts.
 
-### 4. Evaluate results and coverage
+### 5. Evaluate results and coverage
 
 For unavailable detected categories, record `N/A` with a brief reason. For every typed must-have, evaluate only its declared evidence kind and ref using the reference mapping. Structural evidence never proves behavior; changed files prove only structural claims. A `behavioral-test` needs the named test result, a `command-assertion` its asserted output, and a `manual-receipt` the fresh observed result. For `legacy-untyped`, classify the claim: behavioral strings still need direct test, command, or manual evidence, never changed files.
 
 If a command fails, final verdict is `FAILED`. If commands pass but any `REQ-*` has no fresh evidence, any must-have has missing or mismatched evidence, or required workflow artifacts are missing, final verdict is `PARTIAL` with an `uncovered requirements` section. If all available checks and plan-declared evidence pass, final verdict is `VERIFIED`. Stop after selected fresh direct coverage proves every claim actually made.
 
-### 4.5 Debt scan on changed files
+### 5.5 Debt scan on changed files
 
 Scan set: every path in `execution_manifest.*.files_modified`; without a manifest, fall back to files listed by `git status --porcelain` and `git diff --name-only HEAD`. Skip paths that no longer exist. If the scan set is empty, report the Debt scan as `N/A` and continue.
 
@@ -75,7 +81,7 @@ match as `path:line:text` tagged `policy-literal`, `referenced-actionable`, or
 unreferenced, the final verdict is `FAILED` with reason `unreferenced debt markers in
 changed files`, even when every command passes.
 
-### 5. Report what actually happened
+### 6. Report what actually happened
 
 ## Banned phrases
 
@@ -93,42 +99,36 @@ If you catch yourself writing any of these, STOP. Get real evidence instead.
 ```
 ## Verification Report
 Timestamp: [YYYY-MM-DD HH:MM]
-
 ### Tests
 Command: [exact command run]
 Result: PASS / FAIL / N/A
 Output:
 [actual output, truncated to last 50 lines if longer]
-
 ### Build
 Command: [exact command run]
 Result: PASS / FAIL / N/A
 Output:
 [actual output]
-
 ### Type check
 Command: [exact command run]
 Result: PASS / FAIL / N/A
 Output:
 [actual output]
-
 ### Lint
 Command: [exact command run]
 Result: PASS / FAIL / N/A
 Output:
 [actual output]
-
 ### Plan-declared evidence
 Required artifacts: [present / missing list]
+Evidence mode: [compiled receipts + check-only result / prompt fallback]
 Command ledger: [exact command | unioned categories/task IDs/REQs/must_haves | result | fresh/stale]
 Requirement coverage: [REQ-* covered / uncovered requirements]
 must_haves evidence: [covered / missing]
-
 ### Debt scan
 Files scanned: [N]
 Markers: [each path:line:text, tagged policy-literal/referenced-actionable/unreferenced-actionable — or "none"]
 Result: PASS / FAIL / N/A
-
 ### Verdict
 VERIFIED - all available checks pass
 FAILED - [list what failed]
@@ -139,7 +139,7 @@ This report is fresh verification evidence for `architect-review` in the same co
 
 ## Rules
 
-- Run every command yourself. Do not rely on cached or remembered results.
+- In compiled-receipt mode run only metadata `--check-only`; in prompt mode run every selected command yourself. Never rely on cached or remembered results.
 - If a test fails, report the failure. Do not fix it. Fixing is the implementation phase's job.
 - Evidence from before the most recent code change is stale. Re-run.
 - A project with no tests gets `Tests: N/A`. That's an honest report, not a failure.

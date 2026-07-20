@@ -66,8 +66,9 @@ function generatedBuildBoundedEvidenceClauses(providerName) {
       'integration',
       'slice',
       'final authorities',
+      'exactly one fresh final ledger',
       finalVerificationPhase,
-      'exactly one fresh full suite',
+      'receipt judgment',
       'safety',
       'security',
       'data rigor',
@@ -751,6 +752,21 @@ test('real source/skills: each provider emits expected skill set with no Claude-
       if (name.startsWith('codex')) assertGeneratedCodexExecutionProfile(generatedBuild, name);
     }
   }
+
+  const runtimeFiles = ['cli.js', 'evidence.js', 'plan-contract.js', 'repository.js', 'validation.js'];
+  for (const providerName of ['claude', 'codex', 'codex-plugin', 'codex-cross']) {
+    const runtimeDir = join(sandbox, REAL_PROVIDERS[providerName].outputDir, 'build/buildctl');
+    assert.deepEqual(
+      readdirSync(runtimeDir).sort(),
+      runtimeFiles,
+      `${providerName}: buildctl runtime must be self-contained`,
+    );
+  }
+  assert.equal(
+    existsSync(join(sandbox, REAL_PROVIDERS.opencode.outputDir, 'build/buildctl')),
+    false,
+    'OpenCode must remain prompt-only and omit the Build runtime',
+  );
 
   const expectedCodexSkills = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
   for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {

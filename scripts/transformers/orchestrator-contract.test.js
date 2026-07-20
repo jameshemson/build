@@ -29,6 +29,12 @@ const STATE_EVIDENCE = [
   '`terminal_status`',
   '`interrupt_outcome`',
   'orphaned handoff',
+  '`compiled_contract` | generated contract path',
+  '`evidence_ledger` | generated ledger path/hash',
+  '`buildctl_fallback` | append-only entries',
+  'runnable diagnostics never append fallback',
+  'buildctl generates contracts/receipts/ledgers only',
+  'no workflow mutation or `complete-slice` authority',
 ];
 
 const TYPED_STATE_EVIDENCE = [
@@ -42,6 +48,19 @@ const TYPED_ORCHESTRATOR_EVIDENCE = [
   ['reopened-task upgrade', 'reopened tasks must upgrade to typed must-haves and bindings'],
   ['typed dispatch payload', 'each must-have `id`, `claim`, evidence `kind`, and `ref`'],
   ['structural boundary', 'changed files prove only structural claims'],
+];
+
+const BUILDCTL_ORCHESTRATOR_EVIDENCE = [
+  ['bundled runtime resolution', 'Resolve the sibling `buildctl/cli.js` relative to this skill'],
+  ['strict fallback boundary', 'A runnable `validate-plan` diagnostic or `run-evidence --check-only` failure is authoritative and never selects fallback'],
+  ['generated authority separation', 'Markdown/YAML remains authored authority; `contract.json`, ledgers, and receipts are generated'],
+  ['no transition authority', 'buildctl never writes workflow state or grants transition/`complete-slice` authority'],
+  ['plan compilation gate', '`buildctl validate-plan --plan .build/plans/{slug}-plan.md --out .build/contracts/{slug}/contract.json`'],
+  ['review recompilation gate', 'Re-run `validate-plan` after every review edit'],
+  ['root evidence execution', 'Root then runs `buildctl run-evidence` over every compiled exact command'],
+  ['failed ledger judgment', 'a valid failed-command ledger still proceeds for Verify judgment'],
+  ['receipt-only Verify', 'Verify runs only `run-evidence --check-only`'],
+  ['no Verify command execution', 'without executing evidence commands'],
 ];
 
 const ROUTING_KEYS = ['plan', 'review', 'explore', 'implement', 'verify', 'architect-review'];
@@ -201,8 +220,9 @@ const BOUNDED_EVIDENCE_CLAUSES = [
       'integration',
       'slice',
       'final authorities',
+      'exactly one fresh final ledger',
       'phase 4',
-      'exactly one fresh full suite',
+      'receipt judgment',
       'safety',
       'security',
       'data rigor',
@@ -345,7 +365,7 @@ function assertDispatchModelArtifactContract(content) {
   assert.match(content, /every manifest ID in exactly one named workstream[\s\S]*every\s+workstream ID to exist[\s\S]*file set to equal the union/);
   assert.match(content, /one or more IDs[\s\S]*union of owned files/);
   assert.match(content, /Workers run scoped owned-file\/task checks[\s\S]*never the\s+full suite/);
-  assert.match(content, /Phase 4 owns one fresh full-suite result/);
+  assert.match(content, /Root's final evidence ledger owns each compiled exact command and the fresh full-suite result/);
 
   assert.match(content, /Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents/);
   assert.match(content, /Explicit non-null custom routes remain opt-in delegation for any phase/);
@@ -436,6 +456,12 @@ export function assertCodexOrchestrator(content) {
       `orchestrator must retain typed evidence ${behavior}`,
     );
   }
+  for (const [behavior, evidence] of BUILDCTL_ORCHESTRATOR_EVIDENCE) {
+    assert.ok(
+      normalized.includes(normalizeContractWhitespace(evidence)),
+      `orchestrator must retain buildctl ${behavior}`,
+    );
+  }
 
   const phases = [...content.matchAll(/^## Phase \d+: (.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(phases, ['Plan', 'Review', 'Implement', 'Verify', 'Architect review']);
@@ -522,6 +548,13 @@ for (const [behavior, evidence] of BEHAVIORS) {
   test(`negative fixture removing ${behavior} is rejected by orchestrator contract`, () => {
     const fixture = withoutBehavior(readRel(ORCHESTRATOR_PATH), evidence);
     assert.throws(() => assertCodexOrchestrator(fixture), new RegExp(behavior));
+  });
+}
+
+for (const [behavior, evidence] of BUILDCTL_ORCHESTRATOR_EVIDENCE) {
+  test(`negative buildctl fixture removing ${behavior} is rejected`, () => {
+    const fixture = withoutBehavior(readRel(ORCHESTRATOR_PATH), evidence);
+    assert.throws(() => assertCodexOrchestrator(fixture), new RegExp(`buildctl ${behavior}`));
   });
 }
 

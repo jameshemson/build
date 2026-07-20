@@ -10,7 +10,7 @@ A structured build workflow for Claude Code and Codex, plus four portable standa
 | `/build:impl-plan` | Creates a detailed implementation plan by reading the codebase first |
 | `/build:review-plan` | Reviews a plan against its own evidence with severity-tagged findings |
 | `/build:architect-review` | Architecture review of completed work across 10 lenses with structured verdict |
-| `/build:verify` | Runs tests, build, type checks and reports actual evidence |
+| `/build:verify` | Judges fresh compiled receipts in Build workflows, or runs checks in standalone prompt mode |
 | `/build:eval` | Runs test cases against build skills, grades outputs against assertions |
 
 Every skill works standalone. Run `/build:impl-plan add user authentication` without the full pipeline. Or run `/build add user authentication` to get the complete workflow.
@@ -61,23 +61,31 @@ See [HARNESSES.md](HARNESSES.md) for the full capability matrix and install stor
 
 Both `/build <feature>` in Claude Code and `$build:build <feature>` in Codex drive a 5-phase cycle:
 
-1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, and emit delivery slices above an `execution_manifest` whose task IDs map exactly once to named workstreams
+1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, emit literal `B-###` obligation bindings and delivery slices, then compile the authored plan with `buildctl validate-plan`
 2. **Review** - Adversarial senior engineer review: placeholder scan, workstream independence check, requirement/decision coverage, wave graph validation, test coverage mapping
 3. **Implement** - Execute one active delivery slice at a time, batching each workstream's ready task IDs into the fewest safe writer dispatches, with mid-reviews for complex changes. Agents report SCOPE_CHANGE to stop work against broken plans.
-4. **Verify** - Build one fresh ledger keyed by exact command string across detected checks and plan commands. Exact duplicates run once with unioned task, requirement, and `must_haves` evidence.
+4. **Verify** - Validate the final generated receipt ledger and judge exact-command, expected-observation, requirement, and `must_haves` coverage without re-running evidence commands
 5. **Architect Review** - 10-lens review: correctness, trade-offs, anti-patterns, consistency, non-functional, edge cases, overengineering, plan fidelity, weak-test audit, dependency audit
 
 The orchestrator manages state and auto-continues between phases. Claude continues to use subagents, isolated worktrees, and a structured merge protocol. Codex uses a narrower provider profile: Build-default Plan, Implement, and Architect Review run inline in root, while Plan Review and Verify use fresh-context agents. Codex agents share a shared workspace; read-only exploration may fan out, and custom-routed writers may overlap only when their `files_modified` unions are disjoint. The Codex root alone writes `.build/`, mutates git, inspects integrated diffs, and advances phases.
 
-Delivery slices bound large implementations without turning them into separate workflows. The hierarchy is delivery slice → dependency waves → disjoint workstreams → manifest tasks. Ordinary work gets one slice; Build splits only when there are dependency-ordered independently acceptable outcomes, materially different risk/recovery boundaries, or an integration checkpoint too broad to verify and recover coherently—not merely because there are many tasks, workstreams, or a long-running writer. Root dispatches only the active slice, records its exact evidence in the implementation summary, creates a checkpoint commit, then completes it and activates the next slice. Slice evidence is provisional: final Verify runs fresh whole-workflow checks, and Architect Review covers the whole workflow diff.
+Delivery slices bound large implementations without turning them into separate workflows. The hierarchy is delivery slice → dependency waves → disjoint workstreams → manifest tasks. Ordinary work gets one slice; Build splits only when there are dependency-ordered independently acceptable outcomes, materially different risk/recovery boundaries, or an integration checkpoint too broad to verify and recover coherently—not merely because there are many tasks, workstreams, or a long-running writer. Root dispatches only the active slice, records its exact evidence in the implementation summary, creates a checkpoint commit, then completes it and activates the next slice. Slice evidence is provisional: Build root runs final whole-workflow evidence, fresh Verify judges its receipts, and Architect Review covers the whole workflow diff.
 
 Codex exploration is complexity-bounded: simple workflows use no explorer, standard uses at most two, and complex uses at most three. Explorers default to five minutes. Fresh Plan Review and Verify agents have a 20-minute hard deadline; longer budgets require a named slow command and explicit duration.
 
 Codex supervision is terminal-only. Silence is unknown, not failure evidence, so root sends no child status prompts and does not duplicate work after empty observations. It waits for a terminal event and interrupts only at the immutable hard deadline. One fresh retry is allowed; a second independent Plan Review failure blocks implementation instead of silently falling back to inline self-review. These Markdown and state contracts make supervision auditable, but cannot guarantee host-harness wall-clock behavior.
 
-Testing has one owner per layer: Wave 0 uses the fastest targeted evidence, workers use scoped checks, root deduplicates integration commands once per completed wave, and final verification owns the fresh full suite and exact-command ledger. Baseline, worker, and wave output never substitutes for final evidence after the latest change.
+Testing has one owner per layer: Wave 0 uses the fastest targeted evidence, workers use scoped checks, root deduplicates integration commands once per completed wave, and final Build root evidence owns the fresh full suite and exact-command ledger. Baseline, worker, and wave output never substitutes for final evidence after the latest change.
 
 New plans use `evidence_mode: typed`. Every named symbol, behavior, and invariant in the Approach is bound to one manifest task and one must-have ID; each must-have declares one of `behavioral-test`, `command-assertion`, `structural`, or `manual-receipt` plus the exact evidence reference. Tasks must be evidence-atomic: every must-have must be independently observable in one bounded implement-verify cycle. Changed-file lists prove only structural claims, never behavior. A missing mode is treated as `legacy-untyped`; unchanged legacy tasks may continue, but reopened tasks must upgrade to typed must-haves and bindings. Verify reports `PARTIAL` when behavioral evidence is missing or mismatched, unless an evidence command itself fails.
+
+### Deterministic buildctl runtime
+
+Markdown/YAML remains authored authority. In a Build workflow, literal `B-###` markers make Approach obligation coverage deterministic, and `buildctl validate-plan` emits a generated `contract.json` under `.build/contracts/`. The compiler rejects invalid schemas, IDs, DAGs, bindings, file ownership, evidence kinds, and non-atomic tasks before Plan can be accepted. Generated JSON is never hand-authored workflow authority.
+
+After implementation, Build root invokes `buildctl run-evidence` for the compiled exact commands. It emits bounded receipts containing exit state, complete output hashes and tails, plan/contract/compiler identity, HEAD commit/tree, and a complete repository identity covering the index, tracked and non-ignored untracked content, deletions, modes, symlinks, and clean recursive submodules. Receipt reuse requires the same exact command and complete repository identity; stale or tampered receipts are rejected. Fresh Verify consumes those receipts without re-running evidence commands.
+
+The Build skill resolves the bundled sibling `buildctl/cli.js`; package installs may also use the `buildctl` bin. Where that runtime cannot execute, the workflow records a prompt-only fallback and the portable verifier uses its exact-command prompt protocol. A runnable compiler, stale-receipt, or failed-command diagnostic is authoritative and never becomes fallback. v1.13 adds `complete-slice` transition authority; v1.12 does not let buildctl write workflow state or advance transitions.
 
 `/build` is file-backed. Each workflow writes durable artifacts under `.build/plans/` so later phases and fresh agents do not depend on chat history alone:
 
@@ -85,8 +93,10 @@ New plans use `evidence_mode: typed`. Every named symbol, behavior, and invarian
 - `{slug}-context.md` - repo conventions, user constraints, discovered patterns, assumptions, out-of-scope notes
 - `{slug}-requirements.md` - canonical requirements, decisions, assumptions, acceptance criteria, `must_haves`
 - `{slug}-plan.md` - full implementation plan plus execution manifest
+- `.build/contracts/{slug}/contract.json` - generated deterministic projection of the authored plan
 - `{slug}-review.md` - plan review findings and verdict
 - `{slug}-implementation-summary.md` - completed waves, files changed, deviations, blockers
+- `.build/evidence/{slug}/ledger.json` and receipts - generated deterministic command evidence
 - `{slug}-verify.md` - command evidence, requirement coverage, verification verdict
 - `{slug}-architect-review.md` - final architecture review findings and verdict
 

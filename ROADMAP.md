@@ -17,18 +17,24 @@ hand-authored contract.
 - Add deterministic Kemet-derived fixtures for unbound APIs, non-atomic tasks, and passing
   unrelated tests that leave behavioral claims uncovered.
 
-## v1.12 — compiled contracts and evidence receipts
+## v1.12.0 — compiled contracts and evidence receipts (shipped)
 
-- Add `buildctl validate-plan`: compile Markdown YAML into generated `contract.json`, then
-  validate schema, DAGs, binding coverage, ownership overlap, and evidence atomicity.
-- Add `buildctl run-evidence`: execute exact commands and emit receipts containing exit
-  code, bounded output, git tree hash, plan hash, and compiler version.
-- Deduplicate fresh receipts by exact command plus tree identity and reject stale evidence.
+- Add `buildctl validate-plan`: compile authored Markdown/YAML with explicit `B-###`
+  obligations into generated `contract.json`, then validate schema, IDs, DAGs, binding
+  coverage, ownership overlap, evidence kinds, and evidence atomicity.
+- Add `buildctl run-evidence`: execute exact commands and emit bounded receipts containing
+  exit state, complete output hashes, plan/contract/compiler hashes, HEAD commit/tree, and
+  complete repository identity.
+- Deduplicate fresh receipts only by exact command plus complete repository identity and
+  reject stale or tampered evidence.
 - Ship Kemet-lite as validator fixtures. Keep sampled agent trajectories optional.
 - Define portability explicitly: `buildctl` is authoritative where the harness can run it;
-  portable OpenCode and Codex standalone skills retain a documented prompt-protocol fallback.
+  portable OpenCode and standalone skills retain a documented prompt-only fallback.
+- Keep workflow transitions prompt-owned; buildctl does not implement `complete-slice`.
 
 ## v1.13 — transition authority
+
+Before starting this release, dogfood v1.12.0 on a Kemet-sized workflow.
 
 - Make `complete-slice` the first program-owned transition: refuse completion without
   fresh receipts covering every must-have.
