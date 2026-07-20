@@ -13,6 +13,7 @@ const codexCrossSkillsDir = join(ROOT, '.codex/skills');
 const opencodeCommandsDir = join(ROOT, '.opencode/commands');
 const sourceCommandsDir = join(ROOT, 'source/commands');
 const sourceSkillsDir = join(ROOT, 'source/skills');
+const packagePath = join(ROOT, 'package.json');
 const readmePath = join(ROOT, 'README.md');
 const harnessesPath = join(ROOT, 'HARNESSES.md');
 const roadmapPath = join(ROOT, 'ROADMAP.md');
@@ -104,7 +105,17 @@ test('all release-version carriers agree', () => {
     1,
     `Version drift across release files: ${carriers.map((c) => `${c.path}=${c.version}`).join(', ')}. Bump all ${carriers.length} together.`,
   );
-  assert.equal(unique[0], '1.11.1', 'release version must be 1.11.1');
+  assert.equal(unique[0], '1.12.0', 'release version must be 1.12.0');
+});
+
+test('package exposes the canonical self-contained buildctl CLI', () => {
+  const packageJson = readJson(packagePath);
+  assert.equal(packageJson.bin?.buildctl, 'source/skills/build/buildctl/cli.js');
+  const cli = readFileSync(join(ROOT, packageJson.bin.buildctl), 'utf8');
+  assert.ok(cli.startsWith('#!/usr/bin/env node\n'));
+  for (const file of ['evidence.js', 'plan-contract.js', 'repository.js', 'validation.js']) {
+    assert.ok(statSync(join(ROOT, 'source/skills/build/buildctl', file)).isFile());
+  }
 });
 
 test('Codex marketplace.json parses', () => {
@@ -216,6 +227,15 @@ test('Codex documentation describes provider phase authority, custom routing, sh
   assert.match(copy, /missing mode[^\n]*`legacy-untyped`/i);
   assert.match(copy, /reopened(?: legacy)? tasks?[^\n]*upgrade/i);
   assert.match(copy, /missing or mismatched behavioral evidence[^\n]*`PARTIAL`/i);
+  assert.match(copy, /Markdown\/YAML[^\n]*authored authority/i);
+  assert.match(copy, /generated `contract\.json`/i);
+  assert.match(copy, /`buildctl validate-plan`/i);
+  assert.match(copy, /`buildctl run-evidence`/i);
+  assert.match(copy, /bounded[^\n]*receipts/i);
+  assert.match(copy, /complete repository identity/i);
+  assert.match(copy, /Verify[^\n]*receipt[^\n]*without (?:re-)?running/i);
+  assert.match(copy, /prompt-only fallback/i);
+  assert.match(copy, /v1\.13[^\n]*complete-slice/i);
 
   assert.match(copy, /optional literal `## Build agent routing` block/i);
   assert.match(copy, /- plan: [^\n]+[\s\S]*- review: [^\n]+[\s\S]*- explore: [^\n]+[\s\S]*- implement: [^\n]+[\s\S]*- verify: [^\n]+[\s\S]*- architect-review: [^\n]+/);
@@ -258,6 +278,7 @@ test('ROADMAP sequences deterministic Build authority without claiming deferred 
   const roadmap = readFileSync(roadmapPath, 'utf8');
   assert.match(roadmap, /v1\.11\.1[\s\S]*typed evidence[\s\S]*provider-specific Codex execution/i);
   assert.match(roadmap, /v1\.12[\s\S]*validate-plan[\s\S]*compile[\s\S]*contract\.json[\s\S]*run-evidence/i);
+  assert.match(roadmap, /v1\.12\.0[^\n]*(?:shipped|complete)/i);
   assert.match(roadmap, /v1\.13[\s\S]*complete-slice[\s\S]*transition/i);
   assert.match(roadmap, /portable[\s\S]*(?:fallback|OpenCode|Codex)/i);
   assert.match(roadmap, /Deferred[\s\S]*leases[\s\S]*domain[\s\S]*trajectory[\s\S]*routing/i);

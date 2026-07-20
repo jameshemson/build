@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill, TaskCreate, Ta
 
 You are orchestrating a structured build workflow. You act like Claude Code itself - use agents for parallel work, use tasks for tracking, be autonomous but structured. **You drive the entire workflow from start to finish without stopping to ask the user to switch sessions or models.** Use agents with model overrides to run phases that need a different model.
 
-Use the least-expansive reasonable interpretation of the request. Investigate uncertainty only when resolving it could materially change the requested outcome, scope, authority, or significant risk. Report a finding only when supported by evidence, a plausible material consequence, and a specific in-scope fix. Gather the smallest sufficient fresh evidence for the claims actually made. Stop when the requested outcome exists, required direct verification passes, and nothing unresolved can materially change the result. Boundedness never skips required phases; worker, integration, slice, and final authorities; Phase 3c's exactly one fresh full suite; safety, security, or data rigor; scope changes; or user-only decisions.
+Use the least-expansive reasonable interpretation of the request. Investigate uncertainty only when resolving it could materially change the requested outcome, scope, authority, or significant risk. Report a finding only when supported by evidence, a plausible material consequence, and a specific in-scope fix. Gather the smallest sufficient fresh evidence for the claims actually made. Stop when the requested outcome exists, required direct verification passes, and nothing unresolved can materially change the result. Boundedness never skips required phases; worker, integration, slice, and final authorities; root's exactly one fresh final ledger and Phase 3c receipt judgment; safety, security, or data rigor; scope changes; or user-only decisions.
 
 ## First: Read State
 
@@ -60,7 +60,8 @@ Create the `.build/plans/` directory if it doesn't exist.
 5. Save the full plan to `.build/plans/{slug}-plan.md`.
 6. Write `.build/plans/{slug}-context.md` with repo conventions, user constraints, discovered patterns, assumptions, and out-of-scope notes from the plan.
 7. Write `.build/plans/{slug}-requirements.md` with canonical `REQ-*`, `D-*`, `A-*`, acceptance criteria, and `must_haves`.
-8. Update the existing `.build/plans/{slug}-state.md` created during preflight; never reconstruct it. Preserve route, fallback, progress, audit-trail, and unknown fields. Update the planning inventories below; fresh workflows retain empty slice/task completion fields through review, while re-plans preserve completed slice definitions, `completed_slices`, and non-reopened `completed_tasks` until Phase 2 accepts revised incomplete definitions:
+8. Resolve the sibling `buildctl/cli.js` relative to this skill (or package `buildctl` bin; source checkouts use `source/skills/build/buildctl/cli.js`) with Node >=20. Run `validate-plan --plan .build/plans/{slug}-plan.md --out .build/contracts/{slug}/contract.json`. Record its path, plan/contract hashes, and compiler version as `compiled_contract`; a runnable diagnostic blocks and keeps `phase: plan`. Only runtime-not-found/execution-unavailable selects prompt validation and appends `buildctl_fallback`. Markdown/YAML remains authored authority and generated JSON is never edited.
+9. Update the existing `.build/plans/{slug}-state.md` created during preflight; never reconstruct it. Preserve route, fallback, progress, audit-trail, and unknown fields. Update the planning inventories below; fresh workflows retain empty slice/task completion fields through review, while re-plans preserve completed slice definitions, `completed_slices`, and non-reopened `completed_tasks` until Phase 2 accepts revised incomplete definitions:
 
 ```
 slug: {slug}
@@ -90,7 +91,7 @@ Set complexity to `complex` if the plan touches 5+ files or has multiple indepen
 
 Validate the proposed slice graph before saving it. On re-plan, preserve completed definitions and reconcile named reopenings per the schema rather than resetting slice progress.
 
-9. **Auto-continue**: Proceed directly to Phase 2 in this session. `/build:review-plan` pins its own model and context (`model: sonnet`, `context: fork`), so no agent wrapper is needed.
+10. **Auto-continue**: Proceed directly to Phase 2 in this session. `/build:review-plan` pins its own model and context (`model: sonnet`, `context: fork`), so no agent wrapper is needed.
 
 ---
 
@@ -106,7 +107,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
    - **"Proceed with fixes"**: revise `{slug}-plan.md` now, addressing every Important finding, and record each change under `review_fixes_applied:`. Do not re-run the full review — the mid-review gate covers the revisions.
    - **"Do not proceed"**: update state to `phase: plan` with `rework_notes:` listing each Critical finding, and re-enter Phase 1.
    - **No verdict line found**: treat as a phase-agent failure (see Circuit breakers).
-5. For either accepted implementation path, validate and persist `delivery_slices`, preserve `completed_slices`, set `active_slice` to the first declared-order dependency-ready incomplete slice, then set `phase: implement` and append history. Continue to the phase the state now names.
+5. For either accepted implementation path, re-run `validate-plan` after every review edit; a runnable failure is authoritative, while only an already-recorded runtime-unavailable fallback uses prompt checks. Then persist `delivery_slices`, preserve `completed_slices`, set `active_slice` to the first declared-order dependency-ready incomplete slice, set `phase: implement`, and append history.
 
 ---
 
@@ -146,7 +147,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
    - After a wave's worktrees are merged and integrated verification passes in the main worktree, append that wave's task IDs to `completed_tasks` and update `.build/plans/{slug}-implementation-summary.md` with final integrated status. Store task IDs only, such as `T-001`; do not store checksums or commit IDs.
 7. **Mid-review gate**: After all workstreams for the active slice complete and merge (before its checkpoint), spawn a **Sonnet agent** for mid-review (Phase 3b). Pass it the plan, review, state, requirements, context, and implementation-summary paths plus a summary of what was built. For complex changes (state says `complexity: complex`), also run mid-reviews after each major workstream completes. When the agent returns, address any fixes needed. If it returns RETHINK, treat as a scope change — return to Phase 1 with rework notes.
 8. **Checkpoint the active slice in strict order**: after its waves/workstreams integrate, run the slice's exact `verify` and observable `must_haves`; update the implementation summary with that provisional evidence; make the root checkpoint commit; record its commit ID in the summary; then append the slice to `completed_slices` and activate the next declared-order dependency-ready incomplete slice. Any evidence, integration, summary-write, or commit failure leaves the same `active_slice` in place and blocks every later slice. Repeat Phase 3 for the next slice.
-9. Only when every slice is complete and `active_slice: null`, validate the final implementation summary, update state to `phase: verify`, append history, and auto-continue to Phase 3c. Slice evidence is provisional and never substitutes for fresh whole-workflow verification.
+9. Only when every slice is complete and `active_slice: null`, validate the final implementation summary. Root runs `buildctl run-evidence` for every compiled exact command plus the repository-required final full-suite command and records `evidence_ledger`; a valid failed-command ledger proceeds to Verify judgment, but runner/stability errors stay in implementation. In recorded prompt fallback, Verify executes the ledger itself. buildctl never writes state or grants transition/`complete-slice` authority. Then update state to `phase: verify`, append history, and auto-continue to Phase 3c. Slice evidence is provisional and never substitutes for fresh whole-workflow verification.
 
 ---
 
@@ -173,7 +174,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 **Trigger**: State says `phase: verify`
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-plan.md`, and `{slug}-implementation-summary.md`
-2. Invoke `/build:verify` via the Skill tool for fresh whole-workflow evidence; no slice, worker, wave, or checkpoint result substitutes for this final authority.
+2. Invoke `/build:verify` via the Skill tool for fresh whole-workflow evidence; with compiled evidence it runs only `run-evidence --check-only` and judges receipt/consumer coverage without executing evidence commands. Recorded runtime fallback preserves the prompt exact-command protocol; no slice, worker, wave, or checkpoint result substitutes for this final authority.
 3. Save the verification report to `.build/plans/{slug}-verify.md` before changing phase.
 4. If **VERIFIED**: Update state to `phase: architect-review`. Record `verify_verdict: VERIFIED`. Auto-continue to Phase 4.
 5. If **FAILED**: Update state back to `phase: implement` with `verification_failures:` field listing what failed. Address failures and re-verify.

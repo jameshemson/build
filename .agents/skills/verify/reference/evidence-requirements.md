@@ -46,6 +46,28 @@ behavioral strings require fresh behavioral-test, command-assertion, or manual-r
 evidence, while changed files may support only structural strings. Reopened legacy tasks
 upgrade during re-plan; unchanged completed tasks do not require bulk rewriting.
 
+## Deterministic receipt mode
+
+An active Build workflow with `compiled_contract` and `evidence_ledger` uses the bundled
+buildctl runtime. Verify runs `buildctl run-evidence --contract <contract.json>` and appends
+`--evidence-dir <dir> --check-only`; this validates plan/compiler/contract hashes, receipt
+hashes, complete repository identity, stable pre/post identity, and exit state without executing an evidence command.
+
+After check-only succeeds, judge semantic coverage:
+
+1. Every compiled exact command required by a task/slice consumer has one ledger receipt.
+2. `behavioral-test` and `command-assertion` refs split at ` :: `: the exact command must
+   match a fresh exit-zero receipt, and its expected observation must appear in the stored
+   stdout/stderr tail. A truncated tail that omits the observation is uncovered, not inferred.
+3. `structural` evidence is inspected directly in the repository at the ledger identity.
+4. `manual-receipt` still requires the named fresh action and observed result.
+
+A failed receipt or check-only failure makes the verdict `FAILED`. Valid receipts with a
+missing command consumer, expected observation, requirement, or must-have make it `PARTIAL`.
+Never execute plan evidence commands in receipt mode, and never replace stale/invalid receipts
+with prompt execution. Prompt mode is allowed only for standalone use or an active state that
+already records buildctl runtime unavailability.
+
 ## Common Verification Commands by Stack
 
 ### Node.js / TypeScript

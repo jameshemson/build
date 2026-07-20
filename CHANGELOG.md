@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.12.0 - 2026-07-20
+
+### Added
+
+- Added `buildctl validate-plan`, which compiles authored Markdown/YAML with explicit
+  `B-###` obligations into generated `contract.json` and rejects invalid schema, IDs,
+  DAGs, bindings, ownership, evidence kinds, and atomicity.
+- Added `buildctl run-evidence`, which executes exact commands and emits bounded,
+  deterministic receipts tied to complete repository identity, output hashes, plan and
+  contract hashes, compiler version, and HEAD commit/tree.
+- Added Kemet-lite fixtures for unbound obligations, non-atomic tasks, and unrelated
+  evidence.
+
+### Changed
+
+- Build now refuses Plan acceptance after a runnable validator failure. Build root runs
+  final evidence commands, while fresh Verify validates receipt freshness and coverage
+  without re-running them.
+- Runtime-unavailable workflows retain a recorded prompt-only fallback. Runnable
+  validation, command, and stale-receipt failures remain authoritative.
+
+### Scope
+
+- Workflow transitions remain prompt-owned. `complete-slice` authority is deferred to
+  v1.13 after dogfooding v1.12.0 on a Kemet-sized workflow.
+
 ## 1.11.1 - 2026-07-19
 
 ### Changed

@@ -201,6 +201,12 @@ const TYPED_EVIDENCE_CONTRACT_TERMS = {
     'evidence kind',
     'Structural evidence never proves behavior',
     'changed files prove only structural claims',
+    '`compiled_contract`',
+    '`evidence_ledger`',
+    '`run-evidence --check-only`',
+    'do not execute any plan/repository evidence command',
+    'never selects fallback',
+    '`buildctl_fallback`',
   ],
   'source/skills/verify/reference/evidence-requirements.md': [
     'Typed evidence kinds',
@@ -210,6 +216,11 @@ const TYPED_EVIDENCE_CONTRACT_TERMS = {
     '`manual-receipt`',
     'Missing or mismatched behavioral evidence is `PARTIAL` unless a command fails',
     '`legacy-untyped`',
+    'Deterministic receipt mode',
+    '`buildctl run-evidence --contract <contract.json>`',
+    'without executing an evidence command',
+    'expected observation must appear in the stored',
+    'Never execute plan evidence commands in receipt mode',
   ],
   'source/skills/build/SKILL.md': [
     '`evidence_mode`',
@@ -222,6 +233,35 @@ const TYPED_EVIDENCE_CONTRACT_TERMS = {
     '`bindings`',
     '`legacy-untyped`',
     'reopened tasks',
+  ],
+};
+
+const BUILDCTL_ORCHESTRATION_CONTRACTS = {
+  'source/skills/build/SKILL.md': [
+    'sibling `buildctl/cli.js`',
+    '`validate-plan --plan .build/plans/{slug}-plan.md --out .build/contracts/{slug}/contract.json`',
+    'a runnable diagnostic blocks and keeps `phase: plan`',
+    're-run `validate-plan` after every review edit',
+    '`buildctl run-evidence`',
+    '`evidence_ledger`',
+    '`run-evidence --check-only`',
+    'without executing evidence commands',
+    '`buildctl_fallback`',
+    'Markdown/YAML remains authored authority',
+    'grants transition/`complete-slice` authority',
+  ],
+  'source/skills/build/SKILL.codex.md': [
+    'sibling `buildctl/cli.js`',
+    '`buildctl validate-plan --plan .build/plans/{slug}-plan.md --out .build/contracts/{slug}/contract.json`',
+    'A runnable failure keeps `phase: plan`',
+    'Re-run `validate-plan` after every review edit',
+    '`buildctl run-evidence`',
+    '`evidence_ledger`',
+    '`run-evidence --check-only`',
+    'without executing evidence commands',
+    '`buildctl_fallback`',
+    'Markdown/YAML remains authored authority',
+    'grants transition/`complete-slice` authority',
   ],
 };
 
@@ -337,7 +377,7 @@ const DELIVERY_ORCHESTRATION_CONTRACTS = {
       'delivery slice -> dependency waves -> disjoint workstreams -> `execution_manifest` tasks',
       'A failure keeps the same active slice and blocks every successor',
       'Slice evidence is provisional and never substitutes for final verification',
-      'Phase 4 owns one fresh full-suite result',
+      "Root's final evidence ledger owns each compiled exact command and the fresh full-suite result",
       'root computes the review target from `base_ref` and owns the git diff; slice evidence never substitutes',
     ],
   },
@@ -395,8 +435,9 @@ function buildBoundedEvidenceClauses(finalVerificationPhase) {
         'integration',
         'slice',
         'final authorities',
+        'exactly one fresh final ledger',
         finalVerificationPhase,
-        'exactly one fresh full suite',
+        'receipt judgment',
         'safety',
         'security',
         'data rigor',
@@ -548,6 +589,14 @@ function assertTypedEvidenceContracts() {
   assertTypedEvidenceContractsContents(Object.fromEntries(
     Object.keys(TYPED_EVIDENCE_CONTRACT_TERMS).map((path) => [path, readRel(path)]),
   ));
+}
+
+function assertBuildctlOrchestrationContracts(contents = Object.fromEntries(
+  Object.keys(BUILDCTL_ORCHESTRATION_CONTRACTS).map((path) => [path, readRel(path)]),
+)) {
+  for (const [path, terms] of Object.entries(BUILDCTL_ORCHESTRATION_CONTRACTS)) {
+    assertRequiredTerms(contents[path], terms, path);
+  }
 }
 
 function fencedYaml(content, root) {
@@ -793,7 +842,7 @@ function assertVerifyCommandLedger(content) {
   const collect = content.indexOf('Collect every command candidate before executing anything');
   const union = content.indexOf('Union candidates with identical exact command strings');
   const select = content.indexOf('select the smallest claim-covering ledger');
-  const executeSection = content.indexOf('### 3. Execute the selected ledger once');
+  const executeSection = content.indexOf('### 4. Prompt mode: execute once with a freshness barrier');
   const execute = content.indexOf('Run each selected exact command once');
   assert.ok(collect >= 0, 'ledger candidates must be collected');
   assert.ok(union > collect, 'identical exact commands must be unioned after collection');
@@ -871,6 +920,10 @@ test('both Build orchestrators and all portable skills retain bounded evidence c
 
 test('planner, reviewer, verifier, and both orchestrators retain typed evidence contracts', () => {
   assertTypedEvidenceContracts();
+});
+
+test('both Build orchestrators retain compiled-plan and deterministic-receipt authority', () => {
+  assertBuildctlOrchestrationContracts();
 });
 
 test('Kemet-derived evidence eval metadata and fixtures stay deterministic', () => {
@@ -1045,6 +1098,22 @@ for (const [path, contract] of Object.entries(DELIVERY_ORCHESTRATION_CONTRACTS))
       const fixture = [...originals];
       fixture[index] = fixture[index].replaceAll(phrase, '');
       assert.throws(() => assertDeliveryOrchestrationContents(...fixture));
+    });
+  }
+}
+
+for (const [path, terms] of Object.entries(BUILDCTL_ORCHESTRATION_CONTRACTS)) {
+  for (const phrase of terms) {
+    test(`buildctl orchestration rejects ${path} removal of ${phrase}`, () => {
+      const contents = Object.fromEntries(
+        Object.keys(BUILDCTL_ORCHESTRATION_CONTRACTS).map((candidate) => [
+          candidate,
+          readRel(candidate),
+        ]),
+      );
+      assert.ok(contents[path].includes(phrase), `buildctl fixture missing ${phrase}`);
+      contents[path] = contents[path].replaceAll(phrase, '');
+      assert.throws(() => assertBuildctlOrchestrationContracts(contents));
     });
   }
 }
