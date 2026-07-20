@@ -177,7 +177,7 @@ function unsupportedYaml(text) {
     if (char === '"' || char === "'") quote = char;
     else outside += char;
   }
-  return /(^|[\s:[{,])(?:&[A-Za-z0-9_-]+|\*[A-Za-z0-9_-]+|![A-Za-z0-9_-]+)|(^|\s)<<\s*:/.test(outside);
+  return /(^|[\s:[\x7b,])(?:&[A-Za-z0-9_-]+|\*[A-Za-z0-9_-]+|![A-Za-z0-9_-]+)|(^|\s)<<\s*:/.test(outside);
 }
 
 class FlowParser {

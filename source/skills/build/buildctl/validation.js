@@ -191,19 +191,8 @@ function evidenceCommands(tasks, slices) {
   return [...commands.entries()].map(([command, consumers]) => ({ command, consumers }));
 }
 
-export function validateContract(document, approachMarkers) {
-  const diagnostics = [];
-  if (!exactFields(document, TOP_LEVEL, 'contract', diagnostics)) {
-    return { diagnostics, evidenceCommands: [], workstreams: [] };
-  }
-  if (document.evidence_mode !== 'typed') {
-    diagnostic(diagnostics, 'E_EVIDENCE_MODE', 'evidence_mode', 'must equal typed');
-  }
-  const requirementIds = ids(document.requirements, /^REQ-\d{3}$/, 'requirements', diagnostics);
-  const decisionIds = ids(document.decisions, /^D-\d{3}$/, 'decisions', diagnostics);
-  ids(document.assumptions, /^A-\d{3}$/, 'assumptions', diagnostics);
+function validateBindings(document, approachMarkers, diagnostics) {
   const markerIds = ids(approachMarkers, /^B-\d{3}$/, 'approach_bindings', diagnostics);
-
   const bindings = Array.isArray(document.bindings) ? document.bindings : [];
   if (!Array.isArray(document.bindings)) {
     diagnostic(diagnostics, 'E_SCHEMA_TYPE', 'bindings', 'must be an array');
@@ -230,98 +219,109 @@ export function validateContract(document, approachMarkers) {
       `markers=${[...markerIds].sort().join(',')} bindings=${[...bindingIds].sort().join(',')}`,
     );
   }
+  return bindings;
+}
 
+function validateMustHaves(task, path, mustHaveIds, diagnostics) {
+  if (!Array.isArray(task.must_haves) || task.must_haves.length !== 1) {
+    diagnostic(diagnostics, 'E_TASK_ATOMICITY', `${path}.must_haves`, 'compiled tasks require exactly one must-have');
+  }
+  for (const [mustIndex, mustHave] of (task.must_haves || []).entries()) {
+    const mustPath = `${path}.must_haves[${mustIndex}]`;
+    if (!exactFields(mustHave, MUST_HAVE_FIELDS, mustPath, diagnostics)) continue;
+    if (!/^MH-\d{3}$/.test(mustHave.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${mustPath}.id`, mustHave.id);
+    if (mustHaveIds.has(mustHave.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${mustPath}.id`, mustHave.id);
+    mustHaveIds.add(mustHave.id);
+    nonEmptyString(mustHave.claim, `${mustPath}.claim`, diagnostics);
+    if (!exactFields(mustHave.evidence, EVIDENCE_FIELDS, `${mustPath}.evidence`, diagnostics)) continue;
+    const evidence = mustHave.evidence;
+    if (!EVIDENCE_KINDS.has(evidence.kind)) {
+      diagnostic(diagnostics, 'E_EVIDENCE_KIND', `${mustPath}.evidence.kind`, evidence.kind);
+    }
+    if (!nonEmptyString(evidence.ref, `${mustPath}.evidence.ref`, diagnostics)) continue;
+    if (evidence.kind !== 'behavioral-test' && evidence.kind !== 'command-assertion') continue;
+    const parsed = commandRef(evidence.ref);
+    if (!parsed) {
+      diagnostic(
+        diagnostics,
+        'E_EVIDENCE_REF',
+        `${mustPath}.evidence.ref`,
+        'requires <exact command> :: <expected observation>',
+      );
+    } else if (parsed.command !== task.verify) {
+      diagnostic(
+        diagnostics,
+        'E_EVIDENCE_COMMAND_MISMATCH',
+        `${mustPath}.evidence.ref`,
+        `evidence command ${parsed.command} differs from task verify ${task.verify}`,
+      );
+    }
+  }
+}
+
+function validateTask(task, index, declared, collected, diagnostics) {
+  const path = `execution_manifest[${index}]`;
+  if (!exactFields(task, TASK_FIELDS, path, diagnostics)) return;
+  if (!/^T-\d{3}$/.test(task.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, task.id);
+  if (collected.taskIds.has(task.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, task.id);
+  collected.taskIds.add(task.id);
+  collected.byTask.set(task.id, task);
+  if (!Number.isInteger(task.wave) || task.wave < 0) {
+    diagnostic(diagnostics, 'E_SCHEMA_TYPE', `${path}.wave`, 'must be a non-negative integer');
+  }
+  stringArray(task.depends_on, `${path}.depends_on`, diagnostics);
+  stringArray(task.requirements, `${path}.requirements`, diagnostics, { nonEmpty: true });
+  stringArray(task.decisions, `${path}.decisions`, diagnostics, { nonEmpty: true });
+  checkRefs(task.requirements, declared.requirementIds, `${path}.requirements`, diagnostics);
+  checkRefs(task.decisions, declared.decisionIds, `${path}.decisions`, diagnostics);
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(task.workstream || '')) {
+    diagnostic(diagnostics, 'E_WORKSTREAM_NAME', `${path}.workstream`, task.workstream);
+  }
+  if (stringArray(task.files_modified, `${path}.files_modified`, diagnostics, { nonEmpty: true })) {
+    const files = new Set();
+    task.files_modified.forEach((file, fileIndex) => {
+      if (!pathIsSafe(file)) diagnostic(diagnostics, 'E_FILE_PATH', `${path}.files_modified[${fileIndex}]`, file);
+      if (files.has(file)) diagnostic(diagnostics, 'E_FILE_DUPLICATE', `${path}.files_modified[${fileIndex}]`, file);
+      files.add(file);
+    });
+  }
+  nonEmptyString(task.verify, `${path}.verify`, diagnostics);
+  nonEmptyString(task.done, `${path}.done`, diagnostics);
+  validateMustHaves(task, path, collected.mustHaveIds, diagnostics);
+}
+
+function validateTasks(document, declared, diagnostics) {
   const tasks = Array.isArray(document.execution_manifest) ? document.execution_manifest : [];
   if (!Array.isArray(document.execution_manifest)) {
     diagnostic(diagnostics, 'E_SCHEMA_TYPE', 'execution_manifest', 'must be an array');
   }
-  const taskIds = new Set();
-  const mustHaveIds = new Set();
-  const byTask = new Map();
-  tasks.forEach((task, index) => {
-    const path = `execution_manifest[${index}]`;
-    if (!exactFields(task, TASK_FIELDS, path, diagnostics)) return;
-    if (!/^T-\d{3}$/.test(task.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, task.id);
-    if (taskIds.has(task.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, task.id);
-    taskIds.add(task.id);
-    byTask.set(task.id, task);
-    if (!Number.isInteger(task.wave) || task.wave < 0) {
-      diagnostic(diagnostics, 'E_SCHEMA_TYPE', `${path}.wave`, 'must be a non-negative integer');
+  const collected = { taskIds: new Set(), mustHaveIds: new Set(), byTask: new Map() };
+  tasks.forEach((task, index) => validateTask(task, index, declared, collected, diagnostics));
+  for (const [values, idsDeclared, path] of [
+    [tasks.flatMap((task) => task.requirements || []), declared.requirementIds, 'requirements'],
+    [tasks.flatMap((task) => task.decisions || []), declared.decisionIds, 'decisions'],
+  ]) {
+    const used = new Set(values);
+    for (const id of idsDeclared) {
+      if (!used.has(id)) diagnostic(diagnostics, 'E_ID_COVERAGE', path, id);
     }
-    stringArray(task.depends_on, `${path}.depends_on`, diagnostics);
-    stringArray(task.requirements, `${path}.requirements`, diagnostics, { nonEmpty: true });
-    stringArray(task.decisions, `${path}.decisions`, diagnostics, { nonEmpty: true });
-    checkRefs(task.requirements, requirementIds, `${path}.requirements`, diagnostics);
-    checkRefs(task.decisions, decisionIds, `${path}.decisions`, diagnostics);
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(task.workstream || '')) {
-      diagnostic(diagnostics, 'E_WORKSTREAM_NAME', `${path}.workstream`, task.workstream);
-    }
-    if (stringArray(task.files_modified, `${path}.files_modified`, diagnostics, { nonEmpty: true })) {
-      const files = new Set();
-      task.files_modified.forEach((file, fileIndex) => {
-        if (!pathIsSafe(file)) diagnostic(diagnostics, 'E_FILE_PATH', `${path}.files_modified[${fileIndex}]`, file);
-        if (files.has(file)) diagnostic(diagnostics, 'E_FILE_DUPLICATE', `${path}.files_modified[${fileIndex}]`, file);
-        files.add(file);
-      });
-    }
-    nonEmptyString(task.verify, `${path}.verify`, diagnostics);
-    nonEmptyString(task.done, `${path}.done`, diagnostics);
-    if (!Array.isArray(task.must_haves) || task.must_haves.length !== 1) {
-      diagnostic(diagnostics, 'E_TASK_ATOMICITY', `${path}.must_haves`, 'compiled tasks require exactly one must-have');
-    }
-    for (const [mustIndex, mustHave] of (task.must_haves || []).entries()) {
-      const mustPath = `${path}.must_haves[${mustIndex}]`;
-      if (!exactFields(mustHave, MUST_HAVE_FIELDS, mustPath, diagnostics)) continue;
-      if (!/^MH-\d{3}$/.test(mustHave.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${mustPath}.id`, mustHave.id);
-      if (mustHaveIds.has(mustHave.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${mustPath}.id`, mustHave.id);
-      mustHaveIds.add(mustHave.id);
-      nonEmptyString(mustHave.claim, `${mustPath}.claim`, diagnostics);
-      if (!exactFields(mustHave.evidence, EVIDENCE_FIELDS, `${mustPath}.evidence`, diagnostics)) continue;
-      const evidence = mustHave.evidence;
-      if (!EVIDENCE_KINDS.has(evidence.kind)) {
-        diagnostic(diagnostics, 'E_EVIDENCE_KIND', `${mustPath}.evidence.kind`, evidence.kind);
-      }
-      if (!nonEmptyString(evidence.ref, `${mustPath}.evidence.ref`, diagnostics)) continue;
-      if (evidence.kind === 'behavioral-test' || evidence.kind === 'command-assertion') {
-        const parsed = commandRef(evidence.ref);
-        if (!parsed) {
-          diagnostic(
-            diagnostics,
-            'E_EVIDENCE_REF',
-            `${mustPath}.evidence.ref`,
-            'requires <exact command> :: <expected observation>',
-          );
-        } else if (parsed.command !== task.verify) {
-          diagnostic(
-            diagnostics,
-            'E_EVIDENCE_COMMAND_MISMATCH',
-            `${mustPath}.evidence.ref`,
-            `evidence command ${parsed.command} differs from task verify ${task.verify}`,
-          );
-        }
-      }
-    }
-  });
-
-  const usedRequirements = new Set(tasks.flatMap((task) => task.requirements || []));
-  const usedDecisions = new Set(tasks.flatMap((task) => task.decisions || []));
-  for (const requirement of requirementIds) {
-    if (!usedRequirements.has(requirement)) diagnostic(diagnostics, 'E_ID_COVERAGE', 'requirements', requirement);
   }
-  for (const decision of decisionIds) {
-    if (!usedDecisions.has(decision)) diagnostic(diagnostics, 'E_ID_COVERAGE', 'decisions', decision);
-  }
+  return { tasks, ...collected };
+}
 
+function validateBindingOwnership(bindings, taskData, diagnostics) {
   const bindingByTask = new Map();
   bindings.forEach((binding, index) => {
     const path = `bindings[${index}]`;
-    if (!taskIds.has(binding.task_id)) diagnostic(diagnostics, 'E_ID_REFERENCE', `${path}.task_id`, binding.task_id);
-    if (!mustHaveIds.has(binding.must_have_id)) {
+    if (!taskData.taskIds.has(binding.task_id)) {
+      diagnostic(diagnostics, 'E_ID_REFERENCE', `${path}.task_id`, binding.task_id);
+    }
+    if (!taskData.mustHaveIds.has(binding.must_have_id)) {
       diagnostic(diagnostics, 'E_ID_REFERENCE', `${path}.must_have_id`, binding.must_have_id);
     }
     if (!bindingByTask.has(binding.task_id)) bindingByTask.set(binding.task_id, []);
     bindingByTask.get(binding.task_id).push(binding);
-    const task = byTask.get(binding.task_id);
+    const task = taskData.byTask.get(binding.task_id);
     if (task && !(task.must_haves || []).some((item) => item.id === binding.must_have_id)) {
       diagnostic(diagnostics, 'E_BINDING_OWNERSHIP', path, `${binding.must_have_id} is not owned by ${binding.task_id}`);
     }
@@ -330,12 +330,14 @@ export function validateContract(document, approachMarkers) {
       diagnostic(diagnostics, 'E_EVIDENCE_KIND_MISMATCH', path, 'behavior cannot use structural evidence');
     }
   });
-  for (const task of tasks) {
+  for (const task of taskData.tasks) {
     if ((bindingByTask.get(task.id) || []).length !== 1) {
       diagnostic(diagnostics, 'E_TASK_ATOMICITY', `execution_manifest.${task.id}`, 'requires exactly one binding');
     }
   }
+}
 
+function validateTaskGraph(tasks, byTask, diagnostics) {
   for (const task of tasks) {
     for (const dependency of task.depends_on || []) {
       if (!byTask.has(dependency)) {
@@ -366,52 +368,59 @@ export function validateContract(document, approachMarkers) {
       }
     }
   }
+}
 
+function validateSlice(slice, index, context, diagnostics) {
+  const path = `delivery_slices[${index}]`;
+  if (!exactFields(slice, SLICE_FIELDS, path, diagnostics)) return;
+  if (!/^S-\d{3}$/.test(slice.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, slice.id);
+  if (context.sliceIds.has(slice.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, slice.id);
+  context.sliceIds.add(slice.id);
+  context.slicesById.set(slice.id, slice);
+  nonEmptyString(slice.goal, `${path}.goal`, diagnostics);
+  nonEmptyString(slice.done, `${path}.done`, diagnostics);
+  stringArray(slice.depends_on, `${path}.depends_on`, diagnostics);
+  stringArray(slice.task_ids, `${path}.task_ids`, diagnostics, { nonEmpty: true });
+  stringArray(slice.requirements, `${path}.requirements`, diagnostics, { nonEmpty: true });
+  stringArray(slice.must_haves, `${path}.must_haves`, diagnostics, { nonEmpty: true });
+  stringArray(slice.verify, `${path}.verify`, diagnostics, { nonEmpty: true });
+  checkRefs(slice.requirements, context.requirementIds, `${path}.requirements`, diagnostics);
+  for (const dependency of slice.depends_on || []) {
+    const dependencyIndex = context.slices.findIndex((candidate) => candidate.id === dependency);
+    if (dependencyIndex < 0 || dependencyIndex >= index) {
+      diagnostic(diagnostics, 'E_SLICE_DAG', `${path}.depends_on`, dependency);
+    }
+  }
+  for (const taskId of slice.task_ids || []) {
+    const task = context.byTask.get(taskId);
+    if (!task) diagnostic(diagnostics, 'E_SLICE_TASK_REFERENCE', `${path}.task_ids`, taskId);
+    else if (task.wave === 0) diagnostic(diagnostics, 'E_SLICE_WAVE_ZERO', `${path}.task_ids`, taskId);
+    if (!context.taskMembership.has(taskId)) context.taskMembership.set(taskId, []);
+    context.taskMembership.get(taskId).push(slice.id);
+    for (const requirement of task?.requirements || []) {
+      if (!(slice.requirements || []).includes(requirement)) {
+        diagnostic(diagnostics, 'E_SLICE_REQUIREMENT_COVERAGE', path, `${taskId}:${requirement}`);
+      }
+    }
+  }
+}
+
+function validateSlices(document, taskData, requirementIds, diagnostics) {
   const slices = Array.isArray(document.delivery_slices) ? document.delivery_slices : [];
   if (!Array.isArray(document.delivery_slices) || slices.length === 0) {
     diagnostic(diagnostics, 'E_SCHEMA_TYPE', 'delivery_slices', 'must be a non-empty array');
   }
-  const sliceIds = new Set();
-  const slicesById = new Map();
-  const taskMembership = new Map();
-  slices.forEach((slice, index) => {
-    const path = `delivery_slices[${index}]`;
-    if (!exactFields(slice, SLICE_FIELDS, path, diagnostics)) return;
-    if (!/^S-\d{3}$/.test(slice.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, slice.id);
-    if (sliceIds.has(slice.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, slice.id);
-    sliceIds.add(slice.id);
-    slicesById.set(slice.id, slice);
-    nonEmptyString(slice.goal, `${path}.goal`, diagnostics);
-    nonEmptyString(slice.done, `${path}.done`, diagnostics);
-    stringArray(slice.depends_on, `${path}.depends_on`, diagnostics);
-    stringArray(slice.task_ids, `${path}.task_ids`, diagnostics, { nonEmpty: true });
-    stringArray(slice.requirements, `${path}.requirements`, diagnostics, { nonEmpty: true });
-    stringArray(slice.must_haves, `${path}.must_haves`, diagnostics, { nonEmpty: true });
-    stringArray(slice.verify, `${path}.verify`, diagnostics, { nonEmpty: true });
-    checkRefs(slice.requirements, requirementIds, `${path}.requirements`, diagnostics);
-    for (const dependency of slice.depends_on || []) {
-      const dependencyIndex = slices.findIndex((candidate) => candidate.id === dependency);
-      if (dependencyIndex < 0 || dependencyIndex >= index) {
-        diagnostic(diagnostics, 'E_SLICE_DAG', `${path}.depends_on`, dependency);
-      }
-    }
-    for (const taskId of slice.task_ids || []) {
-      const task = byTask.get(taskId);
-      if (!task) diagnostic(diagnostics, 'E_SLICE_TASK_REFERENCE', `${path}.task_ids`, taskId);
-      else if (task.wave === 0) diagnostic(diagnostics, 'E_SLICE_WAVE_ZERO', `${path}.task_ids`, taskId);
-      if (!taskMembership.has(taskId)) taskMembership.set(taskId, []);
-      taskMembership.get(taskId).push(slice.id);
-      if (task) {
-        for (const requirement of task.requirements || []) {
-          if (!(slice.requirements || []).includes(requirement)) {
-            diagnostic(diagnostics, 'E_SLICE_REQUIREMENT_COVERAGE', path, `${taskId}:${requirement}`);
-          }
-        }
-      }
-    }
-  });
-  for (const task of tasks) {
-    const count = (taskMembership.get(task.id) || []).length;
+  const context = {
+    byTask: taskData.byTask,
+    requirementIds,
+    sliceIds: new Set(),
+    slices,
+    slicesById: new Map(),
+    taskMembership: new Map(),
+  };
+  slices.forEach((slice, index) => validateSlice(slice, index, context, diagnostics));
+  for (const task of taskData.tasks) {
+    const count = (context.taskMembership.get(task.id) || []).length;
     if (task.wave === 0 && count !== 0) {
       diagnostic(diagnostics, 'E_SLICE_MEMBERSHIP', `execution_manifest.${task.id}`, `Wave 0 count ${count}`);
     }
@@ -420,13 +429,13 @@ export function validateContract(document, approachMarkers) {
     }
   }
   for (const slice of slices) {
-    const closure = sliceClosure(slice.id, slicesById);
+    const closure = sliceClosure(slice.id, context.slicesById);
     for (const taskId of slice.task_ids || []) {
-      const task = byTask.get(taskId);
+      const task = taskData.byTask.get(taskId);
       for (const dependency of task?.depends_on || []) {
-        const dependencyTask = byTask.get(dependency);
+        const dependencyTask = taskData.byTask.get(dependency);
         if (!dependencyTask || dependencyTask.wave === 0 || (slice.task_ids || []).includes(dependency)) continue;
-        const owner = (taskMembership.get(dependency) || [])[0];
+        const owner = (context.taskMembership.get(dependency) || [])[0];
         if (!closure.has(owner)) {
           diagnostic(
             diagnostics,
@@ -438,12 +447,32 @@ export function validateContract(document, approachMarkers) {
       }
     }
   }
+  return slices;
+}
 
+export function validateContract(document, approachMarkers) {
+  const diagnostics = [];
+  if (!exactFields(document, TOP_LEVEL, 'contract', diagnostics)) {
+    return { diagnostics, evidenceCommands: [], workstreams: [] };
+  }
+  if (document.evidence_mode !== 'typed') {
+    diagnostic(diagnostics, 'E_EVIDENCE_MODE', 'evidence_mode', 'must equal typed');
+  }
+  const declared = {
+    requirementIds: ids(document.requirements, /^REQ-\d{3}$/, 'requirements', diagnostics),
+    decisionIds: ids(document.decisions, /^D-\d{3}$/, 'decisions', diagnostics),
+  };
+  ids(document.assumptions, /^A-\d{3}$/, 'assumptions', diagnostics);
+  const bindings = validateBindings(document, approachMarkers, diagnostics);
+  const taskData = validateTasks(document, declared, diagnostics);
+  validateBindingOwnership(bindings, taskData, diagnostics);
+  validateTaskGraph(taskData.tasks, taskData.byTask, diagnostics);
+  const slices = validateSlices(document, taskData, declared.requirementIds, diagnostics);
   diagnostics.sort((a, b) =>
     a.code.localeCompare(b.code) || a.path.localeCompare(b.path) || a.message.localeCompare(b.message));
   return {
     diagnostics,
-    evidenceCommands: evidenceCommands(tasks, slices),
-    workstreams: derivedWorkstreams(tasks),
+    evidenceCommands: evidenceCommands(taskData.tasks, slices),
+    workstreams: derivedWorkstreams(taskData.tasks),
   };
 }

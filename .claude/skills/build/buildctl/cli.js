@@ -2,12 +2,15 @@
 
 import { compilePlan, BuildctlError, resolveCompilerVersion } from './plan-contract.js';
 
+const MINIMUM_NODE_MAJOR = 2 * 10;
+const MAX_OUTPUT_BYTES = 2 ** (2 * 10);
+
 function usage() {
   return [
     'Usage:',
     '  buildctl validate-plan --plan <plan.md|plan.yaml> [--out <contract.json>]',
     '  buildctl run-evidence --contract <contract.json> [--command <exact>]...',
-    '      [--evidence-dir <dir>] [--max-output-bytes <0..1048576>] [--force]',
+    `      [--evidence-dir <dir>] [--max-output-bytes <0..${MAX_OUTPUT_BYTES}>] [--force]`,
     '  buildctl run-evidence --contract <contract.json> [--evidence-dir <dir>] --check-only',
     '  buildctl --version',
   ].join('\n');
@@ -52,8 +55,8 @@ function printError(error) {
 }
 
 async function main() {
-  if (Number(process.versions.node.split('.')[0]) < 20) {
-    throw new BuildctlError('E_NODE_VERSION', 'buildctl requires Node.js 20 or newer.');
+  if (Number(process.versions.node.split('.')[0]) < MINIMUM_NODE_MAJOR) {
+    throw new BuildctlError('E_NODE_VERSION', `buildctl requires Node.js ${MINIMUM_NODE_MAJOR} or newer.`);
   }
   const args = process.argv.slice(2);
   if (args.length === 1 && (args[0] === '--version' || args[0] === '-v')) {
