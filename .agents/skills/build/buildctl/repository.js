@@ -16,7 +16,8 @@ import {
   sha256,
 } from './plan-contract.js';
 
-const GIT_BUFFER_LIMIT = 64 * 1024 * 1024;
+const KIBIBYTE = 2 ** 10;
+const GIT_BUFFER_LIMIT = 64 * KIBIBYTE * KIBIBYTE;
 
 function git(repoRoot, args, { allowFailure = false, encoding = 'utf8' } = {}) {
   const result = spawnSync('git', args, {

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import {
   existsSync,
@@ -18,9 +18,8 @@ import {
 } from './plan-contract.js';
 import { captureRepositoryIdentity } from './repository.js';
 
-const KIBIBYTE = 1024;
-const HEX_RADIX = 16;
-const DEFAULT_MAX_OUTPUT_BYTES = HEX_RADIX * KIBIBYTE;
+const KIBIBYTE = 2 ** 10;
+const DEFAULT_MAX_OUTPUT_BYTES = 16 * KIBIBYTE;
 const MAX_OUTPUT_BYTES = KIBIBYTE * KIBIBYTE;
 const MAX_PASSES = 3;
 
@@ -28,7 +27,7 @@ function atomicWrite(path, content) {
   mkdirSync(dirname(path), { recursive: true });
   const temporary = join(
     dirname(path),
-    `.${basename(path)}.${process.pid}.${Math.random().toString(HEX_RADIX).slice(2)}.tmp`,
+    `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
   );
   writeFileSync(temporary, content, { encoding: 'utf8', flag: 'wx' });
   renameSync(temporary, path);

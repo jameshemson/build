@@ -7,13 +7,11 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateContract } from './validation.js';
-
-const HEX_RADIX = 16;
 
 export class BuildctlError extends Error {
   constructor(code, message, details = {}) {
@@ -89,7 +87,7 @@ function atomicWrite(path, content) {
   mkdirSync(dirname(path), { recursive: true });
   const temp = join(
     dirname(path),
-    `.${basename(path)}.${process.pid}.${Math.random().toString(HEX_RADIX).slice(2)}.tmp`,
+    `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
   );
   writeFileSync(temp, content, { encoding: 'utf8', flag: 'wx' });
   renameSync(temp, path);
