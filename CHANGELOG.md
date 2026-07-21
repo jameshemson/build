@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.12.1 - 2026-07-21
+
+### Added
+
+- Added standalone artifact continuity: `impl-plan`, `review-plan`, `verify`, and
+  `architect-review` now save their natural Markdown reports under `.build/plans/`
+  while preserving the same response shown to the user.
+- Added deterministic supplied-path/request slug derivation with collision-safe numeric
+  suffixes, plus direct consumption of supplied plan, contract, ledger, requirements,
+  context, implementation-summary, and Verify artifacts.
+- Standalone Plan now compiles its authored plan into generated JSON when buildctl is
+  runnable and discloses prompt-only fallback only for genuine runtime unavailability.
+
+### Scope
+
+- Standalone skills remain stateless and never own workflow transitions or git mutation.
+  Build remains the only workflow-state owner; v1.13 transition authority and v1.14 phase
+  receipts remain deferred.
+
 ## 1.12.0 - 2026-07-20
 
 ### Added

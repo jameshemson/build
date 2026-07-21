@@ -12,9 +12,11 @@ Review the work just completed. Implementation summaries are claims, not evidenc
 
 Report a finding only when supported by evidence, a plausible material consequence, and a specific in-scope fix. Stop after required coverage when there is no unresolved material issue.
 
+Read the [standalone artifact rules](../impl-plan/reference/standalone-artifacts.md) before resolving inputs or writing output.
+
 ## Before reviewing
 
-First identify both the review target and verification evidence. The current conversation is valid input: do not ignore a user-named target, pasted diff, implementation summary, or earlier `## Verification Report` just because no `.build/plans/` artifact exists.
+First identify both the review target and verification evidence. Consume a supplied plan, implementation-summary, or Verify result directly. The current conversation is valid input: do not ignore a user-named target, pasted diff, or earlier `## Verification Report` just because no `.build/plans/` artifact exists; do not invent missing siblings.
 
 If an active `.build/plans/*-state.md` exists, read it before reviewing. Treat a state file as active only when the current request is part of that workflow or the state task matches the current work. If the state appears stale or unrelated, report it as ignored and continue in standalone mode. Also read the required workflow artifacts for that slug: `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. If any required artifact is missing, stop and report the missing artifact list.
 
@@ -34,7 +36,7 @@ If, after resolving workflow or standalone mode, no fresh verification evidence 
 
 Do not review code that has not been verified. Reviewing unverified code wastes time on issues that tests would have caught.
 
-When invoked by `/build`, the orchestrator saves this review to `.build/plans/{slug}-architect-review.md`; include enough context in the output for that artifact to stand alone.
+In an orchestrated run, Build root saves this review. In standalone mode, save the exact review, including a blocked report, to `.build/plans/{slug}-architect-review.md` under the shared collision rules and still show that same report body to the user. Include enough context for the artifact to stand alone.
 
 For diffs, use `base_ref` from state when available: run `git diff {base_ref}...HEAD`. If `base_ref` is missing, use `git diff HEAD` and report `base_ref unavailable`.
 
