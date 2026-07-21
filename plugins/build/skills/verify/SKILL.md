@@ -5,7 +5,7 @@ description: Evidence-before-claims gate. Runs tests, build, type checks. Report
 
 Use the smallest sufficient fresh evidence for the claims actually made; no completion claims without fresh verification evidence.
 
-Read the [evidence requirements](reference/evidence-requirements.md) for the full claims-to-evidence mapping and per-stack command reference.
+Read the [evidence requirements](reference/evidence-requirements.md) and [standalone artifact rules](../impl-plan/reference/standalone-artifacts.md); both are required.
 
 ## Protocol
 
@@ -16,15 +16,15 @@ If `.build/plans/*-state.md` exists, read the active state file first. Treat a s
 - `.build/plans/{slug}-plan.md`
 - `.build/plans/{slug}-implementation-summary.md`
 
-If an active workflow is present and one of those required artifacts is missing, record it as missing context and make the final verdict `PARTIAL` unless a command fails. From the plan, extract its evidence mode, `bindings`, and `execution_manifest` tasks. Use each task's `requirements`, typed `must_haves` evidence kind/ref, and `verify` as plan-declared requirements. Missing mode means `legacy-untyped`. If the request names a plan file, read it the same way.
+If an active workflow is present and one of those required artifacts is missing, record it as missing context and make the final verdict `PARTIAL` unless a command fails. From the plan, extract its evidence mode, `bindings`, and `execution_manifest` tasks. Use each task's `requirements`, typed `must_haves` evidence kind/ref, and `verify` as plan-declared requirements. Missing mode means `legacy-untyped`.
 
-If no active workflow state exists, record workflow artifacts as `N/A - standalone verification`. Missing `.build/plans/` artifacts must not make standalone verification `PARTIAL`.
+In standalone mode, consume every supplied plan, contract, ledger, requirements, context, or implementation-summary directly. Record unsupplied workflow artifacts as `N/A - standalone verification`; their absence alone must not make the verdict `PARTIAL`, and no missing sibling may be synthesized.
 
 ### 2. Select compiled-receipt or prompt mode
 
-For an active workflow with `compiled_contract` and `evidence_ledger`, resolve buildctl as Build does and run only `run-evidence --check-only`. Read the generated contract, ledger, and referenced receipts; do not execute any plan/repository evidence command. A stale, invalid, or failed receipt check is authoritative and never selects fallback. Judge exact-command consumers, expected observations, requirements, and must-haves using the receipt rules in the reference.
+For an active workflow with `compiled_contract` and `evidence_ledger`, or a standalone request that supplies both artifacts, resolve buildctl under the shared rules and run only `run-evidence --check-only` (use the supplied ledger's directory as `--evidence-dir`). Read the contract, ledger, and referenced receipts directly; do not execute any plan/repository evidence command. A stale, invalid, or failed receipt check is authoritative and never selects fallback. Judge exact-command consumers, expected observations, requirements, and must-haves using the receipt rules in the reference.
 
-Use prompt mode only for standalone verification or when active state already records `buildctl_fallback` because the runtime could not execute. Missing compiled artifacts without that record are uncovered workflow evidence, not fallback.
+Use prompt mode for standalone verification without a complete supplied contract/ledger pair, or when the shared runtime rules select fallback; disclose why supplied compiled evidence could not be checked. In an active workflow, prompt mode still requires a recorded `buildctl_fallback`; missing compiled artifacts without it are uncovered evidence, not fallback.
 
 ### 3. Prompt mode: build one exact-command ledger
 
@@ -132,7 +132,7 @@ FAILED - [list what failed]
 PARTIAL - [list what passed], [list what's unavailable]
 ```
 
-This report is fresh verification evidence for `architect-review` in the same conversation. When invoked by `/build`, the orchestrator saves the report to `.build/plans/{slug}-verify.md`; standalone runs do not need to write a disk artifact.
+This report is fresh verification evidence for `architect-review` in the same conversation. In an orchestrated run, Build root saves it. In standalone mode, save the exact report to `.build/plans/{slug}-verify.md` under the shared collision rules and still show that same report body to the user; save FAILED and PARTIAL reports too.
 
 ## Rules
 

@@ -48,8 +48,9 @@ upgrade during re-plan; unchanged completed tasks do not require bulk rewriting.
 
 ## Deterministic receipt mode
 
-An active Build workflow with `compiled_contract` and `evidence_ledger` uses the bundled
-buildctl runtime. Verify runs `buildctl run-evidence --contract <contract.json>` and appends
+An active Build workflow with `compiled_contract` and `evidence_ledger`, or a standalone
+request supplying both artifacts, uses a runnable buildctl runtime. Verify runs
+`buildctl run-evidence --contract <contract.json>` and appends
 `--evidence-dir <dir> --check-only`; this validates plan/compiler/contract hashes, receipt
 hashes, complete repository identity, stable pre/post identity, and exit state without executing an evidence command.
 
@@ -65,8 +66,8 @@ After check-only succeeds, judge semantic coverage:
 A failed receipt or check-only failure makes the verdict `FAILED`. Valid receipts with a
 missing command consumer, expected observation, requirement, or must-have make it `PARTIAL`.
 Never execute plan evidence commands in receipt mode, and never replace stale/invalid receipts
-with prompt execution. Prompt mode is allowed only for standalone use or an active state that
-already records buildctl runtime unavailability.
+with prompt execution. Standalone prompt mode applies without a complete supplied pair or when
+runtime execution is genuinely unavailable; an active state must already record that fallback.
 
 ## Common Verification Commands by Stack
 

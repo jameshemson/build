@@ -7,7 +7,7 @@ model: opus
 effort: high
 ---
 
-You are creating an implementation plan. Read the [plan quality rules](reference/plan-quality.md) first - they contain banned patterns and the self-review checklist you must run before delivering.
+You are creating an implementation plan. Read the [plan quality rules](reference/plan-quality.md) and [standalone artifact rules](reference/standalone-artifacts.md) first; both are required.
 
 Read the codebase before writing anything. Trace the code paths this feature touches.
 
@@ -215,16 +215,14 @@ Each step should be a single action - one file created, one function modified, o
 ### Verification
 How do we know this works? Automated tests, manual checks, and what specifically to look for.
 
----
-
 ## Self-review
 
 After writing the complete plan, run every check in the Self-Review Checklist in [plan quality rules](reference/plan-quality.md). Do NOT deliver until all pass. If you find issues, fix them inline, then re-run the failed check.
 
----
-
 ## Saving the plan
 
-Standalone runs (no `[orchestrated]` marker): write the finished plan to `.build/plans/{slug}-plan.md` — derive a short slug from the feature description, create the directory if needed — and tell the user the path. Orchestrated runs: return the plan in your response; the orchestrator saves all artifacts.
+Orchestrated runs return the same plan body for root to save. Standalone runs apply the shared slug and collision rules, consume supplied context or requirements directly, and save the finished authored Markdown/YAML to `.build/plans/{slug}-plan.md` while still showing that same plan body to the user.
+
+Before the standalone save, resolve buildctl under the shared availability rules and include either its generated target or the genuine fallback reason in the authored plan. When runnable, save then run `validate-plan --plan .build/plans/{slug}-plan.md --out .build/contracts/{slug}/contract.json`; report the generated contract path and compiler result without modifying the compiled plan. A runnable diagnostic is authoritative: revise, re-save, and revalidate the authored plan or report the diagnostic; never select fallback or hand-edit JSON.
 
 Every section required by the tier must be present. If a section doesn't apply, say so and briefly explain why - don't skip it silently. The goal is that a reviewer reading this plan can verify what's stated rather than discover what's missing.

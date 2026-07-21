@@ -109,6 +109,7 @@ For `/build` workflows, phase artifacts under `.build/plans/` are durable memory
 - `{slug}-architect-review.md`: final architecture review findings and verdict
 
 Every phase must write the artifact the next phase needs before updating state to that next phase.
+Standalone skills instead follow `standalone-artifacts.md`: they save only their natural artifact, and Plan may compile generated JSON, without creating workflow state.
 
 ## Self-Review Checklist
 

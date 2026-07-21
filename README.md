@@ -7,13 +7,13 @@ A structured build workflow for Claude Code and Codex, plus four portable standa
 | Skill | What it does |
 |-------|-------------|
 | `/build` | Orchestrates the full workflow: plan, review, implement, verify, architect review |
-| `/build:impl-plan` | Creates a detailed implementation plan by reading the codebase first |
-| `/build:review-plan` | Reviews a plan against its own evidence with severity-tagged findings |
-| `/build:architect-review` | Architecture review of completed work across 10 lenses with structured verdict |
-| `/build:verify` | Judges fresh compiled receipts in Build workflows, or runs checks in standalone prompt mode |
+| `/build:impl-plan` | Creates and saves a detailed implementation plan, compiling its contract where buildctl runs |
+| `/build:review-plan` | Reviews a plan against its own evidence and saves the severity-tagged report |
+| `/build:architect-review` | Runs a 10-lens architecture review and saves the structured verdict |
+| `/build:verify` | Judges compiled receipts or runs prompt checks, then saves the verification report |
 | `/build:eval` | Runs test cases against build skills, grades outputs against assertions |
 
-Every skill works standalone. Run `/build:impl-plan add user authentication` without the full pipeline. Or run `/build add user authentication` to get the complete workflow.
+Every skill works standalone. Run `/build:impl-plan add user authentication` without the full pipeline; the four portable skills preserve their normal response and save `.build/plans/{slug}-{plan,review,verify,architect-review}.md`. Or run `/build add user authentication` to get the complete workflow.
 
 ## Install
 
@@ -85,7 +85,7 @@ Markdown/YAML remains authored authority. In a Build workflow, literal `B-###` m
 
 After implementation, Build root invokes `buildctl run-evidence` for the compiled exact commands. It emits bounded receipts containing exit state, complete output hashes and tails, plan/contract/compiler identity, HEAD commit/tree, and a complete repository identity covering the index, tracked and non-ignored untracked content, deletions, modes, symlinks, and clean recursive submodules. Receipt reuse requires the same exact command and complete repository identity; stale or tampered receipts are rejected. Fresh Verify consumes those receipts without re-running evidence commands.
 
-The Build skill resolves the bundled sibling `buildctl/cli.js`; package installs may also use the `buildctl` bin. Where that runtime cannot execute, the workflow records a prompt-only fallback and the portable verifier uses its exact-command prompt protocol. A runnable compiler, stale-receipt, or failed-command diagnostic is authoritative and never becomes fallback. v1.13 adds `complete-slice` transition authority; v1.12 does not let buildctl write workflow state or advance transitions.
+The Build skill and standalone Plan resolve the bundled sibling `buildctl/cli.js`; source checkouts and package installs may use the source runtime or `buildctl` bin. A runnable standalone Plan compiles its authored Markdown to `.build/contracts/{slug}/contract.json`. OpenCode's portable bundle omits the Build runtime, so it preserves a disclosed prompt-only fallback unless another package bin is available. A runnable compiler, stale-receipt, or failed-command diagnostic is authoritative and never becomes fallback. v1.13 adds `complete-slice` transition authority; v1.12.x does not let buildctl write workflow state or advance transitions.
 
 `/build` is file-backed. Each workflow writes durable artifacts under `.build/plans/` so later phases and fresh agents do not depend on chat history alone:
 
@@ -138,10 +138,12 @@ See [ROADMAP.md](ROADMAP.md) for the deterministic evidence and transition-autho
 
 Each skill is useful on its own:
 
-- `/build:impl-plan refactor the payment flow` - Get a thorough plan without building anything
-- `/build:review-plan` - Review any plan, not just ones from this plugin
-- `/build:verify` - Check if your code works before claiming it does
-- `/build:architect-review` - Get an architect's perspective on any completed work
+- `/build:impl-plan refactor the payment flow` - Save `.build/plans/{slug}-plan.md` and compile its generated contract when buildctl runs
+- `/build:review-plan <plan path>` - Consume the supplied plan/contract/context directly and save `.build/plans/{slug}-review.md`
+- `/build:verify <artifacts or scope>` - Consume supplied plan/contract/ledger inputs or run prompt checks, then save `.build/plans/{slug}-verify.md`
+- `/build:architect-review <work and Verify result>` - Consume the supplied target/evidence and save `.build/plans/{slug}-architect-review.md`
+
+Standalone slug resolution is deterministic and collision-safe: known artifact paths preserve their family slug, request text is normalized to bounded lowercase ASCII, and existing outputs receive the lowest unused numeric suffix. Missing workflow inputs remain missing or `N/A`; standalone skills never synthesize state/context/evidence, mutate workflow state or git, or auto-continue. The Build orchestrator remains the only workflow-state owner.
 
 ## Claude Code standalone model enforcement
 

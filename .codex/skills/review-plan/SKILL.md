@@ -7,11 +7,13 @@ Review the implementation plan. Assume every section is weak until the plan's ow
 
 Report a finding only when supported by evidence, a plausible material consequence, and a specific in-scope fix. Stop after required coverage when there is no unresolved material issue.
 
+Read the [standalone artifact rules](../impl-plan/reference/standalone-artifacts.md) before resolving inputs or writing output.
+
 *(Treat the user's message that invoked this skill as the task input.)*
 
-If the argument names a file path, read that file — it is the plan under review. If sibling artifacts exist beside it (`{slug}-requirements.md`, `{slug}-context.md`), read those too before reviewing.
+Read a supplied plan, contract, requirements, or context artifact directly. A plan path is the review target; read only explicitly supplied siblings and do not fabricate missing workflow context.
 
-When Build supplies a generated `contract.json`, run `buildctl validate-plan` first: any runnable compiler failure is **Critical** and blocks acceptance. Use the prompt checks below only when buildctl cannot run; record that prompt fallback explicitly.
+When a generated `contract.json` is supplied, consume it directly and run `buildctl validate-plan` against its source plan first under the shared runtime rules. Any runnable compiler failure is **Critical** and blocks acceptance. Use the prompt checks below only when buildctl cannot run; record that prompt fallback explicitly.
 
 ## Part 0 - Placeholder scan
 
@@ -79,5 +81,7 @@ Tag each finding by severity:
 Order findings by impact, highest first. Include the placeholder violation count from Part 0.
 
 End with an explicit verdict: "Proceed to implementation" (no critical findings), "Proceed with fixes" (no critical, but important findings to address), or "Do not proceed" (critical findings that block implementation). One line, no ambiguity.
+
+In an orchestrated run, return the report for Build root to save. In standalone mode, save the exact report to `.build/plans/{slug}-review.md` under the shared collision rules and still show that same report body to the user. A blocked review is also a report and must be saved.
 
 Do not start coding. Just critique the plan.
