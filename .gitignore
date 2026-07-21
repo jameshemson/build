@@ -1,5 +1,6 @@
 .DS_Store
 .build/
+.pmcontext.md
 # Local working plans (impl-plans, review notes) — not part of the published plugin
 /plans/
 node_modules/

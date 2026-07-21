@@ -5,6 +5,10 @@ authority needed to reject incomplete plans, stale evidence, and premature trans
 Markdown YAML remains the authored source; generated artifacts must never become a second
 hand-authored contract.
 
+Deterministic code owns facts, freshness, coverage, counters, and transition eligibility.
+Models and humans continue to own semantic judgment. Each new code-owned gate must replace
+prompt bookkeeping or prevent rework rather than duplicate an unchanged model check.
+
 ## v1.11.1 — provider execution and typed evidence
 
 - Use provider-specific Codex execution: Plan, Implement, and Architect Review inline;
@@ -32,19 +36,68 @@ hand-authored contract.
   portable OpenCode and standalone skills retain a documented prompt-only fallback.
 - Keep workflow transitions prompt-owned; buildctl does not implement `complete-slice`.
 
-## v1.13 — transition authority
+## v1.12.1 — standalone artifact continuity
 
-Before starting this release, dogfood v1.12.0 on a Kemet-sized workflow.
+- Make each portable skill save its natural durable artifact when invoked standalone:
+  `impl-plan` saves a plan and compiles its contract where buildctl is available;
+  `review-plan`, `verify`, and `architect-review` save sibling reports.
+- Let standalone Review and Verify consume supplied plan, contract, and ledger artifacts
+  without inventing missing workflow context.
+- Keep standalone use composable but stateless: no workflow state, transitions, branches,
+  commits, archives, auto-continuation, or synthetic artifacts. The Build orchestrator remains
+  the only workflow-state owner.
 
-- Make `complete-slice` the first program-owned transition: refuse completion without
-  fresh receipts covering every must-have.
-- Move retry and loop counters into deterministic state transition checks.
-- Expand code-owned transition authority only after the slice gate proves stable; do not
-  make generated JSON the authored workflow source.
+## Dogfood gate for v1.13
+
+Run v1.12.x on one ordinary workflow and one Kemet-sized workflow. Record wall-clock time by
+phase, retries, repeated evidence commands, uncovered obligations, and stop/resume behavior.
+Proceed when stale or tampered evidence is rejected, no slice can appear complete with an
+uncovered must-have, repeated commands are explained by repository identity changes, and the
+workflow resumes from durable artifacts without relying on chat history.
+
+## v1.13.0 — complete-slice transition authority
+
+- Make `complete-slice` the first program-owned transition decision. Validate the active slice
+  against current state, contract, repository identity, implementation summary, checkpoint,
+  and fresh ledger before allowing completion.
+- Require deterministic coverage of every slice requirement and must-have, including exact
+  command consumers and mechanically checkable expected observations. Preserve explicit
+  judgment requirements for structural and manual evidence.
+- Emit a generated, hash-bound transition receipt or exact state patch. Build root remains the
+  sole writer of authored Markdown state and applies only an allowed transition.
+- Move retry and loop counters into deterministic checks, and make completion idempotent across
+  interruption and resume.
+- Keep general phase authority, result schemas, model routing, production-readiness profiles,
+  and Clodex integration out of this release.
+
+## Dogfood gate for v1.14
+
+Dogfood v1.13.0 before expanding transition authority. Continue only if complete-slice is stable
+and observed failures or wasted time come from stale, incomplete, or ambiguous phase judgments
+rather than from semantic review quality.
+
+## v1.14.0 — deterministic phase receipts
+
+- Keep Plan Review, Verify, and Architect Review as authored Markdown/YAML judgments, then
+  compile them into generated, schema-validated result receipts.
+- Bind each receipt to the relevant plan, contract, repository identity, prior artifact, and
+  allowed verdict. Require stable finding IDs, severity, evidence, and an in-scope fix where a
+  finding exists.
+- Move remaining mechanical phase checks out of prose judgment: artifact completeness and
+  freshness, whole-workflow obligation/consumer coverage, planned-versus-changed file scope,
+  and allowed next-transition checks.
+- Let models judge whether evidence is meaningful and architecture is sound; let buildctl decide
+  whether that judgment is complete, current, internally consistent, and transition-eligible.
+- Expand one phase boundary at a time and require each code-owned gate to remove equivalent
+  prompt work. Preserve the recorded prompt-only fallback where buildctl cannot run.
 
 ## Deferred
 
 - Full leases beyond rejecting expired handoffs.
-- Baseline domain metadata and invariant catalogs.
+- Repository-authored domain metadata and triggered invariant catalogs for concerns such as
+  secrets, authorization boundaries, payments, backups, telemetry, and smoke paths. Do not add
+  a universal production-readiness checklist.
 - End-to-end trajectory benchmarks and scored model routing.
 - Broad write-agent parallelism or provider routing changes without measured evidence.
+- Direct Clodex integration. Treat it only as an optional compatibility and dogfood environment
+  after the core cross-harness contract is stable.
