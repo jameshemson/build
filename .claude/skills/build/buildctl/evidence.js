@@ -1,14 +1,12 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
-  renameSync,
-  writeFileSync,
 } from 'node:fs';
-import { basename, dirname, join, relative } from 'node:path';
+import { join, relative } from 'node:path';
 import {
   BuildctlError,
   canonicalJson,
@@ -17,21 +15,12 @@ import {
   sha256,
 } from './plan-contract.js';
 import { captureRepositoryIdentity } from './repository.js';
+import { atomicWrite, writeImmutableJson } from './immutable-json.js';
 
 const KIBIBYTE = 2 ** 10;
 const DEFAULT_MAX_OUTPUT_BYTES = 16 * KIBIBYTE;
 const MAX_OUTPUT_BYTES = KIBIBYTE * KIBIBYTE;
 const MAX_PASSES = 3;
-
-function atomicWrite(path, content) {
-  mkdirSync(dirname(path), { recursive: true });
-  const temporary = join(
-    dirname(path),
-    `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
-  );
-  writeFileSync(temporary, content, { encoding: 'utf8', flag: 'wx' });
-  renameSync(temporary, path);
-}
 
 function outputLimit(value) {
   const limit = value === undefined ? DEFAULT_MAX_OUTPUT_BYTES : value;
@@ -162,15 +151,10 @@ function receiptId(receipt) {
 function writeImmutableReceipt(receiptsDir, receipt) {
   receipt.receipt_hash = sha256(canonicalJson(receipt));
   const path = join(receiptsDir, `${receiptId(receipt)}.json`);
-  const content = canonicalJson(receipt);
-  if (existsSync(path)) {
-    if (readFileSync(path, 'utf8') !== content) {
-      throw new BuildctlError('E_RECEIPT_COLLISION', `Immutable receipt collision at ${path}.`);
-    }
-  } else {
-    atomicWrite(path, content);
-  }
-  return path;
+  return writeImmutableJson(path, receipt, {
+    collisionCode: 'E_RECEIPT_COLLISION',
+    collisionMessage: `Immutable receipt collision at ${path}.`,
+  });
 }
 
 function readReceipt(path) {
