@@ -32,9 +32,13 @@ const STATE_EVIDENCE = [
   '`compiled_contract` | generated contract path',
   '`evidence_ledger` | generated ledger path/hash',
   '`buildctl_fallback` | append-only entries',
-  'runnable diagnostics never append fallback',
-  'buildctl generates contracts/receipts/ledgers only',
-  'no workflow mutation or `complete-slice` authority',
+  'runnable compiler, counter, evidence, and completion diagnostics never append fallback',
+  '`checkpoint_commits` | one-line JSON array',
+  '`transition_references` | one-line JSON array',
+  '`transition_history` | one-line JSON array',
+  '`counter_events` | append-only one-line JSON array',
+  '`complete-slice` is the first program-owned transition decision',
+  'Root is the only state and git writer',
 ];
 
 const TYPED_STATE_EVIDENCE = [
@@ -54,7 +58,10 @@ const BUILDCTL_ORCHESTRATOR_EVIDENCE = [
   ['bundled runtime resolution', 'Resolve the sibling `buildctl/cli.js` relative to this skill'],
   ['strict fallback boundary', 'A runnable `validate-plan` diagnostic or `run-evidence --check-only` failure is authoritative and never selects fallback'],
   ['generated authority separation', 'Markdown/YAML remains authored authority; `contract.json`, ledgers, and receipts are generated'],
-  ['no transition authority', 'buildctl never writes workflow state or grants transition/`complete-slice` authority'],
+  ['no mutation authority', 'buildctl never writes workflow state or mutates git'],
+  ['bounded completion authority', '`complete-slice` may authorize exactly four state patch operations in an immutable receipt'],
+  ['root applies completion', 'root alone validates and applies that allowed patch and owns every general phase transition'],
+  ['state-fed counters', '`check-counters` evaluates root-recorded typed events'],
   ['plan compilation gate', '`buildctl validate-plan --plan .build/plans/{slug}-plan.md --out .build/contracts/{slug}/contract.json`'],
   ['review recompilation gate', 'Re-run `validate-plan` after every review edit'],
   ['root evidence execution', 'Root then runs `buildctl run-evidence` over every compiled exact command'],
@@ -151,11 +158,11 @@ const SLICE_ORCHESTRATOR_EVIDENCE = [
 ];
 
 const SLICE_STATE_EVIDENCE = [
-  ['fresh slice initialization', 'Every fresh plan-phase state starts with `delivery_slices: []`, `active_slice: null`, and `completed_slices: []`'],
+  ['fresh slice initialization', 'Every fresh plan-phase state starts with one-line JSON `delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `checkpoint_commits: []`, `transition_references: []`, `transition_history: []`, and `counter_events: []`'],
   ['accepted active slice before dispatch', 'After plan acceptance, persist the first declared-order incomplete slice whose `depends_on` IDs are all completed as `active_slice` before dispatch'],
   ['active task dispatch boundary', "only tasks in that slice's `task_ids` may dispatch"],
-  ['checkpoint evidence and commit record', 'only after its exact `verify`/`must_haves` evidence passes, the implementation summary records that evidence, the checkpoint commit succeeds, and its commit ID is recorded in the summary'],
-  ['idempotent crash reconciliation', 'match the summary checkpoint to the git commit and append/select once without duplicating either completion or commit'],
+  ['checkpoint evidence and commit record', 'only after exact provisional evidence and summary, the root checkpoint commit, its full SHA in `checkpoint_commits` and exact summary marker, post-checkpoint fresh evidence receipts, and current accepted judgments'],
+  ['idempotent crash reconciliation', 'immutable receipt and transition reference identity make an identical replay a no-op; a collision or drift blocks rather than duplicating completion or history'],
   ['task failure slice mapping', 'Map every named `T-###` failure or rework item through slice `task_ids`'],
   ['transitive reopen and clearing', 'Reopening a completed owning slice also reopens every transitive dependent: remove their IDs from `completed_slices`, remove all of their task IDs from `completed_tasks`, and activate the earliest reopened slice'],
   ['completed slice immutability', 'During ordinary re-plan, completed slice definitions and task membership are immutable; changes to either require reopening first'],
@@ -169,6 +176,10 @@ const SLICE_CHECKPOINT_COMPONENTS = [
   ['root ownership', 'root makes'],
   ['checkpoint commit', 'the checkpoint commit'],
   ['checkpoint record', 'record the checkpoint'],
+  ['post-checkpoint evidence', 'post-checkpoint `run-evidence`'],
+  ['judgment artifact', 'judgment YAML'],
+  ['completion decision', 'Run `complete-slice`'],
+  ['root allowed patch', 'root validates the receipt and applies only'],
   ['slice completion', 'append the slice to `completed_slices`'],
   ['next activation', 'activate the next dependency-ready slice'],
 ];
@@ -530,6 +541,21 @@ test('production state schema carries Codex routing lifecycles', () => {
 
 test('production state schema carries typed evidence mode and bindings', () => {
   assertTypedStateSchema(readRel(SCHEMA_PATH));
+});
+
+test('v1.13 orchestrators retain completion authorization and state-fed counters', () => {
+  const source = readRel(ORCHESTRATOR_PATH);
+  const schema = readRel(SCHEMA_PATH);
+  for (const term of [
+    '`buildctl check-counters --state .build/plans/{slug}-state.md`',
+    '`complete-slice`',
+    '`already_applied`',
+    '`append_completed_slice`',
+    '`append_transition_reference`',
+  ]) assert.ok(source.includes(term), `Codex orchestrator missing ${term}`);
+  for (const term of ['checkpoint_commits', 'transition_references', 'counter_events']) {
+    assert.ok(schema.includes(term), `state schema missing ${term}`);
+  }
 });
 
 test('Codex orchestrator source stays within its 300-line compression budget', () => {

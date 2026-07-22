@@ -141,7 +141,7 @@ implementation-summary,verify,architect-review}.md` plus `{slug}-state.md`.
 
 ## buildctl authority and fallback
 
-Resolve the sibling `buildctl/cli.js` relative to this skill (or the package `buildctl` bin; source checkouts may use `source/skills/build/buildctl/cli.js`) and run it with Node >=20. A runnable `validate-plan` diagnostic or `run-evidence --check-only` failure is authoritative and never selects fallback. Only when the runtime cannot be located or executed, append `buildctl_fallback` with timestamp, phase, reason, and detail, then use the prompt-only Plan/Verify protocol. Markdown/YAML remains authored authority; `contract.json`, ledgers, and receipts are generated. buildctl never writes workflow state or grants transition/`complete-slice` authority.
+Resolve the sibling `buildctl/cli.js` relative to this skill (or the package `buildctl` bin; source checkouts may use `source/skills/build/buildctl/cli.js`) and run it with Node >=20. A runnable `validate-plan` diagnostic or `run-evidence --check-only` failure is authoritative and never selects fallback; runnable `check-counters` and `complete-slice` diagnostics are equally authoritative. Only when the runtime cannot be located or executed, append `buildctl_fallback` with timestamp, phase, reason, and detail, then use the prompt-only Plan/Verify/counter/slice protocol. Markdown/YAML remains authored authority; `contract.json`, ledgers, and receipts are generated. buildctl never writes workflow state or mutates git. `complete-slice` may authorize exactly four state patch operations in an immutable receipt; root alone validates and applies that allowed patch and owns every general phase transition. `check-counters` evaluates root-recorded typed events.
 
 ## Phase 1: Plan
 
@@ -152,7 +152,8 @@ root captures `base_ref` with `git rev-parse HEAD`, records the current branch, 
 
 Immediately create an initial `phase: plan` state with identity, git refs, provisional
 complexity, all six agent routes, model routes, empty inventories, `completed_tasks: []`,
-`delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `agent_progress: {}`,
+`delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `checkpoint_commits: []`,
+`transition_references: []`, `transition_history: []`, `counter_events: []`, `agent_progress: {}`,
 and initial history. Fresh workflows set `evidence_mode` to `typed` and start with `bindings: []`. It must exist before the first dispatch so progress, fallback, failure,
 and resume evidence can be recorded from the start.
 
@@ -207,9 +208,22 @@ once, deduplicated across batches. Slice evidence is provisional and never subst
 
 For each slice the exact order is: persist `active_slice`; dispatch only its tasks; integrate
 its exact `verify`/`must_haves` evidence; update `{slug}-implementation-summary.md`; root makes
-the checkpoint commit; record the checkpoint and append the slice to `completed_slices`; then
-activate the next dependency-ready slice. Append wave task IDs to `completed_tasks` only after
-integration passes. A failure keeps the same active slice and blocks every successor. Only after every slice is completed may root validate the final implementation summary. Root then runs `buildctl run-evidence` over every compiled exact command plus the repository-required final full-suite command, records the generated `evidence_ledger`, and only then may transition to `verify`; a valid failed-command ledger still proceeds for Verify judgment, while runner errors remain in implementation. In recorded prompt fallback, defer exact-command execution to Verify.
+the checkpoint commit; record the checkpoint's full SHA in `checkpoint_commits` and the exact
+`Completion checkpoint: {"slice_id":"S-###","commit":"<40-lowercase-hex>"}` summary marker;
+then run post-checkpoint `run-evidence` for every slice command and author current structural,
+manual, and slice judgment YAML without auto-stamping acceptance. Run `complete-slice`; a blocked
+result keeps the same active slice. For `proposed`, root validates the receipt and applies only
+`append_completed_slice`, `set_active_slice`, `append_transition_reference`, and
+`append_history_template`, then reruns the same command and requires `already_applied`. Only then
+append the slice to `completed_slices` and activate the next dependency-ready slice. Append wave
+task IDs to `completed_tasks` only after integration passes. In a recorded genuinely-unexecutable
+buildctl fallback, use the prior prompt-owned checkpoint path and disclose it; runnable compiler,
+counter, evidence, or completion diagnostics remain authoritative. A failure keeps the same active
+slice and blocks every successor. Only after every slice is completed may root validate the final implementation summary. Root then runs `buildctl run-evidence` over every compiled exact command
+plus the repository-required final full-suite command, records the generated `evidence_ledger`,
+and only then may transition to `verify`; a valid failed-command ledger still proceeds for Verify
+judgment, while runner errors remain in implementation. In recorded prompt fallback, defer
+exact-command execution to Verify.
 
 Use read-only mid-review agents with the effective `review` route after major
 standard/complex waves. RETHINK or a valid
@@ -254,7 +268,10 @@ tasks, branch, and commits. Then set `phase: aborted`, `halted: true`, and
 
 ## Circuit breakers
 
-Before every dispatch or transition, count prior history and failures:
+Before every dispatch or transition, append the underlying typed occurrence to `counter_events`
+and run `buildctl check-counters --state .build/plans/{slug}-state.md`. Root owns whether an event
+occurred; buildctl owns deterministic counting. `halt` is authoritative. Only recorded genuine
+runtime unavailability uses the prompt counts below:
 
 - Same workstream: at most two redispatches; then halt with `agent-retry-limit`.
 - Fresh judgment: retry once for an error, timeout, or missing verdict; a second failure

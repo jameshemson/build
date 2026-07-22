@@ -12,6 +12,10 @@ function usage() {
     '  buildctl run-evidence --contract <contract.json> [--command <exact>]...',
     `      [--evidence-dir <dir>] [--max-output-bytes <0..${MAX_OUTPUT_BYTES}>] [--force]`,
     '  buildctl run-evidence --contract <contract.json> [--evidence-dir <dir>] --check-only',
+    '  buildctl check-counters --state <state.md>',
+    '  buildctl complete-slice --state <state.md> --contract <contract.json>',
+    '      --summary <implementation-summary.md> --judgments <judgments.yaml>',
+    '      [--evidence-dir <dir>] [--receipts-dir <dir>]',
     '  buildctl --version',
   ].join('\n');
 }
@@ -107,6 +111,34 @@ async function main() {
       status: result.ledger.status,
     })}\n`);
     if (result.ledger.status !== 'passed') process.exitCode = 1;
+    return;
+  }
+  if (command === 'check-counters') {
+    const [{ evaluateCircuitEvents }, { loadWorkflowState }] = await Promise.all([
+      import('./counters.js'),
+      import('./workflow-state.js'),
+    ]);
+    const state = loadWorkflowState({
+      statePath: required(flags, 'state'),
+      required: ['counter_events'],
+    });
+    const result = evaluateCircuitEvents(state.values.counter_events);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    if (result.status !== 'allow') process.exitCode = 1;
+    return;
+  }
+  if (command === 'complete-slice') {
+    const { completeSlice } = await import('./completion.js');
+    const result = await completeSlice({
+      contractPath: required(flags, 'contract'),
+      evidenceDir: flags['evidence-dir'],
+      judgmentsPath: required(flags, 'judgments'),
+      receiptsDir: flags['receipts-dir'],
+      statePath: required(flags, 'state'),
+      summaryPath: required(flags, 'summary'),
+    });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    if (result.status === 'blocked') process.exitCode = 1;
     return;
   }
   throw new BuildctlError('E_ARGUMENT', `Unknown subcommand: ${command}\n${usage()}`);

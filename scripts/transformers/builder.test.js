@@ -266,7 +266,10 @@ function readSandboxSkill(config, skillName, relPath = 'SKILL.md') {
 }
 
 function assertGeneratedBuildDeliverySlices(content, providerName) {
-  for (const field of ['delivery_slices: []', 'active_slice: null', 'completed_slices: []']) {
+  for (const field of [
+    'delivery_slices: []', 'active_slice: null', 'completed_slices: []',
+    'checkpoint_commits: []', 'transition_references: []', 'counter_events: []',
+  ]) {
     assert.ok(content.includes(field), `${providerName}: generated build output missing ${field}`);
   }
   assert.match(
@@ -274,10 +277,14 @@ function assertGeneratedBuildDeliverySlices(content, providerName) {
     /(?:route only task IDs in `active_slice\.task_ids`|Only the `active_slice` task IDs and their workstream batches may dispatch)/,
     `${providerName}: generated build output must dispatch only the active slice`,
   );
-  assert.match(
-    content,
-    /checkpoint commit;[\s\S]{0,400}(?:then\s+)?activate the next/,
-    `${providerName}: generated build output must checkpoint before activating the next slice`,
+  const normalized = content.replace(/\s+/g, ' ');
+  const checkpoint = normalized.indexOf('checkpoint commit');
+  const evidence = normalized.indexOf('post-checkpoint `run-evidence`', checkpoint);
+  const completion = normalized.indexOf('`complete-slice`', evidence);
+  const activation = normalized.indexOf('activate the next', completion);
+  assert.ok(
+    checkpoint >= 0 && evidence > checkpoint && completion > evidence && activation > completion,
+    `${providerName}: generated build output must authorize completion before activating the next slice`,
   );
   assert.match(
     content,
@@ -755,6 +762,7 @@ test('real source/skills: each provider emits expected skill set with no Claude-
 
   const runtimeFiles = [
     'cli.js',
+    'completion.js',
     'counters.js',
     'evidence.js',
     'immutable-json.js',
@@ -762,6 +770,7 @@ test('real source/skills: each provider emits expected skill set with no Claude-
     'repository.js',
     'transition.js',
     'validation.js',
+    'workflow-state.js',
   ];
   for (const providerName of ['claude', 'codex', 'codex-plugin', 'codex-cross']) {
     const runtimeDir = join(sandbox, REAL_PROVIDERS[providerName].outputDir, 'build/buildctl');

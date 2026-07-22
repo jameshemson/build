@@ -47,15 +47,17 @@ prompt bookkeeping or prevent rework rather than duplicate an unchanged model ch
   commits, archives, auto-continuation, or synthetic artifacts. The Build orchestrator remains
   the only workflow-state owner.
 
-## Dogfood gate for v1.13
+## v1.13 calibration decision (accepted)
 
-Run v1.12.x on one ordinary workflow and one Kemet-sized workflow. Record wall-clock time by
-phase, retries, repeated evidence commands, uncovered obligations, and stop/resume behavior.
-Proceed when stale or tampered evidence is rejected, no slice can appear complete with an
-uncovered must-have, repeated commands are explained by repository identity changes, and the
-workflow resumes from durable artifacts without relying on chat history.
+On 2026-07-22, the existing Kemet-sized v1.12.1 workflow was accepted as sufficient calibration
+for the predicate boundary: it compiled a reviewed contract, resumed durable state, used named
+red-first failures, and finished a five-probe automated gate. Its unfinished application-specific
+human acceptance remains a Kemet workflow concern, not a Build release prerequisite. A separate
+ordinary-workflow record was waived because the mechanisms reuse the shipped evidence, immutable
+receipt, fingerprint, and bounded-counter primitives. The v1.13 repository and completion-fixture
+gates remain mandatory; this decision does not claim the waived runs occurred.
 
-## v1.13.0 — complete-slice transition authority
+## v1.13.0 — complete-slice transition authority (shipped)
 
 - Make `complete-slice` the first program-owned transition decision. Validate the active slice
   against current state, contract, repository identity, implementation summary, checkpoint,
@@ -63,8 +65,8 @@ workflow resumes from durable artifacts without relying on chat history.
 - Require deterministic coverage of every slice requirement and must-have, including exact
   command consumers and mechanically checkable expected observations. Preserve explicit
   judgment requirements for structural and manual evidence.
-- Emit a generated, hash-bound transition receipt or exact state patch. Build root remains the
-  sole writer of authored Markdown state and applies only an allowed transition.
+- Emit a generated, hash-bound transition receipt containing exactly four allowed state operations.
+  Build root remains the sole writer of authored Markdown state and applies only that patch.
 - Move retry and loop counters into deterministic checks, and make completion idempotent across
   interruption and resume.
 - Keep general phase authority, result schemas, model routing, production-readiness profiles,

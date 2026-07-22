@@ -29,15 +29,34 @@ function command(cmd, cwd) {
   return result.stdout.trim();
 }
 
-function makeRepo() {
+function makeRepo({ planSource = readFileSync(VALID_PLAN, 'utf8') } = {}) {
   const repo = mkdtempSync(join(tmpdir(), 'buildctl-transition-'));
   sandboxes.push(repo);
   command(['git', 'init', '-q'], repo);
   command(['git', 'config', 'user.email', 'buildctl@example.test'], repo);
   command(['git', 'config', 'user.name', 'Buildctl Test'], repo);
-  writeFileSync(join(repo, 'plan.yaml'), readFileSync(VALID_PLAN, 'utf8'), 'utf8');
+  writeFileSync(join(repo, '.gitignore'), '.build/\n', 'utf8');
+  writeFileSync(join(repo, 'package.json'), '{"type":"module"}\n', 'utf8');
+  writeFileSync(
+    join(repo, 'plan.yaml'),
+    planSource
+      .replaceAll(
+        'node --test test/legacy-pose.test.js',
+        'node -e \\"process.stdout.write(\'observed\')\\"',
+      )
+      .replace(' :: adopts a legacy building pose', ' :: observed'),
+    'utf8',
+  );
   mkdirSync(join(repo, 'src'), { recursive: true });
-  writeFileSync(join(repo, 'src/value.js'), 'export const value = 1;\n', 'utf8');
+  writeFileSync(join(repo, 'src/legacy-pose.js'), 'export const adopted = true;\n', 'utf8');
+  mkdirSync(join(repo, 'test'), { recursive: true });
+  writeFileSync(join(repo, 'test/legacy-pose.test.js'), [
+    "import test from 'node:test';",
+    "import assert from 'node:assert/strict';",
+    "import { adopted } from '../src/legacy-pose.js';",
+    "test('adopts a legacy building pose', () => assert.equal(adopted, true));",
+    '',
+  ].join('\n'), 'utf8');
   command(['git', 'add', '.'], repo);
   command(['git', 'commit', '-qm', 'fixture'], repo);
   const contractPath = join(repo, '.build/contracts/transition/contract.json');
@@ -51,6 +70,143 @@ function nodeCommand(script) {
 
 function fixture(name) {
   return JSON.parse(readFileSync(join(FIXTURES, name), 'utf8'));
+}
+
+function workflowState(events) {
+  return [
+    'slug: "counter-fixture"',
+    'phase: "implement"',
+    'active_slice: "S-001"',
+    'completed_slices: []',
+    'completed_tasks: []',
+    'checkpoint_commits: []',
+    'transition_references: []',
+    'transition_history: []',
+    `counter_events: ${JSON.stringify(events)}`,
+    '',
+  ].join('\n');
+}
+
+function completionState({ checkpoint, completedTasks = ['T-001'], transition = {} }) {
+  const activeSlice = Object.hasOwn(transition, 'activeSlice')
+    ? transition.activeSlice
+    : 'S-001';
+  return [
+    'slug: "plan"',
+    'phase: "implement"',
+    `active_slice: ${JSON.stringify(activeSlice)}`,
+    `completed_slices: ${JSON.stringify(transition.completedSlices || [])}`,
+    `completed_tasks: ${JSON.stringify(completedTasks)}`,
+    `checkpoint_commits: ${JSON.stringify([{ slice_id: 'S-001', commit: checkpoint }])}`,
+    `transition_references: ${JSON.stringify(transition.references || [])}`,
+    `transition_history: ${JSON.stringify(transition.history || [])}`,
+    'counter_events: []',
+    'history:',
+    '  - [fixture] preserved prose',
+    '',
+  ].join('\n');
+}
+
+function judgmentYaml({ sliceId, fingerprint, requirements, manualEvidence }) {
+  const lines = [
+    'schema_version: 1',
+    `slice_id: ${JSON.stringify(sliceId)}`,
+    `repository_fingerprint: ${JSON.stringify(fingerprint)}`,
+    'judgments:',
+  ];
+  for (const requirement of requirements) {
+    lines.push(`  - id: ${JSON.stringify(requirement.id)}`);
+    lines.push(`    obligation_sha256: ${JSON.stringify(requirement.obligation_sha256)}`);
+    lines.push(`    evidence_kind: ${JSON.stringify(requirement.evidence_kind)}`);
+    lines.push('    verdict: "accepted"');
+    lines.push('    judged_by: "fixture-reviewer"');
+    lines.push('    rationale: "Fixture judgment is present and current."');
+    if (requirement.evidence_kind === 'manual-receipt') {
+      lines.push(`    evidence_path: ${JSON.stringify(manualEvidence.path)}`);
+      lines.push(`    evidence_sha256: ${JSON.stringify(manualEvidence.sha256)}`);
+    }
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+async function prepareCompletion({ planSource = readFileSync(VALID_PLAN, 'utf8') } = {}) {
+  const setup = makeRepo({ planSource });
+  const [{ runEvidence }, { loadContract, sha256 }, completion] = await Promise.all([
+    import('../../source/skills/build/buildctl/evidence.js'),
+    import('../../source/skills/build/buildctl/plan-contract.js'),
+    import('../../source/skills/build/buildctl/completion.js'),
+  ]);
+  const evidence = await runEvidence({
+    repoRoot: setup.repo,
+    contractPath: setup.contractPath,
+    evidenceDir: setup.evidenceDir,
+  });
+  const checkpoint = command(['git', 'rev-parse', 'HEAD'], setup.repo);
+  const statePath = join(setup.repo, '.build/plans/valid-state.md');
+  const summaryPath = join(setup.repo, '.build/plans/valid-implementation-summary.md');
+  const judgmentsPath = join(setup.repo, '.build/judgments/valid/S-001.yaml');
+  mkdirSync(join(setup.repo, '.build/plans'), { recursive: true });
+  mkdirSync(join(setup.repo, '.build/judgments/valid'), { recursive: true });
+  writeFileSync(statePath, completionState({ checkpoint }), 'utf8');
+  writeFileSync(
+    summaryPath,
+    `# Summary\n\nCompletion checkpoint: ${JSON.stringify({ slice_id: 'S-001', commit: checkpoint })}\n`,
+    'utf8',
+  );
+  const contract = loadContract({ contractPath: setup.contractPath, cwd: setup.repo }).contract;
+  const requirements = completion.completionJudgmentRequirements(contract, 'S-001');
+  const manualPath = join(setup.repo, '.build/receipts/manual.md');
+  mkdirSync(join(setup.repo, '.build/receipts'), { recursive: true });
+  writeFileSync(manualPath, '# Accepted manual observation\n', 'utf8');
+  const manualEvidence = {
+    path: '.build/receipts/manual.md',
+    sha256: sha256(readFileSync(manualPath)),
+  };
+  writeFileSync(judgmentsPath, judgmentYaml({
+    fingerprint: evidence.ledger.repository.fingerprint,
+    manualEvidence,
+    requirements,
+    sliceId: 'S-001',
+  }), 'utf8');
+  return {
+    ...setup,
+    checkpoint,
+    contract,
+    evidence,
+    judgmentsPath,
+    manualEvidence,
+    requirements,
+    statePath,
+    summaryPath,
+  };
+}
+
+function applyCompletionPatch(statePath, patch, checkpoint) {
+  const values = {
+    active_slice: 'S-001',
+    completed_slices: [],
+    transition_references: [],
+    transition_history: [],
+  };
+  for (const operation of patch) {
+    if (operation.op === 'append_completed_slice') values.completed_slices.push(operation.value);
+    else if (operation.op === 'set_active_slice') values.active_slice = operation.value;
+    else if (operation.op === 'append_transition_reference') {
+      values.transition_references.push(operation.value);
+    } else if (operation.op === 'append_history_template') {
+      values.transition_history.push(operation.value);
+    }
+  }
+  writeFileSync(statePath, completionState({
+    checkpoint,
+    transition: {
+      activeSlice: values.active_slice,
+      completedSlices: values.completed_slices,
+      history: values.transition_history,
+      references: values.transition_references,
+    },
+  }), 'utf8');
 }
 
 function applyProposal(state, patch) {
@@ -249,7 +405,7 @@ test('proposal: authorized state produces only the exact narrow completion patch
   const transitionReference = { receipt_id: 'c'.repeat(64) };
   const result = proposeCompletion({ state, authorizedDecision, transitionReference });
 
-  assert.equal(result.status, 'proposed');
+  assert.equal(result.status, 'proposed', JSON.stringify(result.diagnostics));
   assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(result.patch.map((operation) => operation.op), [
     'append_completed_slice',
@@ -440,6 +596,291 @@ test('counters: exact boundaries halt and malformed replay, kinds, or limits fai
   );
 });
 
+test('counter-cli: state events return allow and halt with exact exit status', () => {
+  const { repo } = makeRepo();
+  const statePath = join(repo, '.build/plans/counter-state.md');
+  mkdirSync(join(repo, '.build/plans'), { recursive: true });
+  const { events, triggers } = fixture('counter-events.json');
+  writeFileSync(statePath, workflowState(events), 'utf8');
+
+  const allowed = spawnSync(process.execPath, [CLI, 'check-counters', '--state', statePath], {
+    cwd: repo,
+    encoding: 'utf8',
+  });
+  assert.equal(allowed.status, 0, allowed.stderr);
+  assert.equal(JSON.parse(allowed.stdout).status, 'allow');
+
+  writeFileSync(statePath, workflowState([...events, ...triggers]), 'utf8');
+  const halted = spawnSync(process.execPath, [CLI, 'check-counters', '--state', statePath], {
+    cwd: repo,
+    encoding: 'utf8',
+  });
+  assert.equal(halted.status, 1, halted.stderr);
+  assert.equal(JSON.parse(halted.stdout).status, 'halt');
+  assert.deepEqual(
+    JSON.parse(halted.stdout).diagnostics.map((item) => item.halt_reason),
+    [
+      'agent-retry-limit',
+      'phase-agent-failure',
+      'phase-loop-limit',
+      'plan-review-limit',
+      'scope-change-limit',
+      'no-progress-limit',
+    ],
+  );
+});
+
+test('counter-cli: malformed state and conflicting replay fail without state or git mutation', () => {
+  const { repo } = makeRepo();
+  const statePath = join(repo, '.build/plans/counter-state.md');
+  mkdirSync(join(repo, '.build/plans'), { recursive: true });
+  const conflicting = [
+    { action: 'increment', id: 'same', kind: 'agent_retry', scope: 'workstream:a' },
+    { action: 'increment', id: 'same', kind: 'scope_change', scope: 'workflow:a' },
+  ];
+  writeFileSync(statePath, workflowState(conflicting), 'utf8');
+  const beforeState = readFileSync(statePath, 'utf8');
+  const beforeGit = command(['git', 'status', '--porcelain=v1'], repo);
+  const conflict = spawnSync(process.execPath, [CLI, 'check-counters', '--state', statePath], {
+    cwd: repo,
+    encoding: 'utf8',
+  });
+  assert.equal(conflict.status, 1);
+  assert.match(conflict.stderr, /E_COUNTER_EVENT_CONFLICT/);
+  assert.equal(readFileSync(statePath, 'utf8'), beforeState);
+  assert.equal(command(['git', 'status', '--porcelain=v1'], repo), beforeGit);
+
+  writeFileSync(statePath, `${beforeState}counter_events: []\n`, 'utf8');
+  const duplicate = spawnSync(process.execPath, [CLI, 'check-counters', '--state', statePath], {
+    cwd: repo,
+    encoding: 'utf8',
+  });
+  assert.equal(duplicate.status, 1);
+  assert.match(duplicate.stderr, /E_STATE_DUPLICATE_FIELD/);
+});
+
+test('complete-slice: covered clean checkpoint emits only an immutable narrow proposal', async () => {
+  const setup = await prepareCompletion();
+  const { completeSlice } = await import('../../source/skills/build/buildctl/completion.js');
+  const evidenceReceipt = JSON.parse(readFileSync(setup.evidence.ledger.receipts[0].path, 'utf8'));
+  assert.match(`${evidenceReceipt.stdout.tail}\n${evidenceReceipt.stderr.tail}`, /observed/);
+  const stateBefore = readFileSync(setup.statePath, 'utf8');
+  const gitBefore = command(['git', 'status', '--porcelain=v1'], setup.repo);
+  const result = await completeSlice({
+    repoRoot: setup.repo,
+    contractPath: setup.contractPath,
+    evidenceDir: setup.evidenceDir,
+    judgmentsPath: setup.judgmentsPath,
+    statePath: setup.statePath,
+    summaryPath: setup.summaryPath,
+  });
+
+  assert.equal(result.status, 'proposed', JSON.stringify(result.diagnostics));
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(result.patch.map((operation) => operation.op), [
+    'append_completed_slice',
+    'set_active_slice',
+    'append_transition_reference',
+    'append_history_template',
+  ]);
+  assert.ok(existsSync(join(setup.repo, result.receipt_path)));
+  assert.equal(readFileSync(setup.statePath, 'utf8'), stateBefore);
+  assert.equal(command(['git', 'status', '--porcelain=v1'], setup.repo), gitBefore);
+});
+
+test('complete-slice: missing expected output and incomplete task block by name', async () => {
+  const source = readFileSync(VALID_PLAN, 'utf8').replace(
+    ' :: adopts a legacy building pose" }',
+    ' :: observation that never appears" }',
+  );
+  const setup = await prepareCompletion({ planSource: source });
+  const { completeSlice } = await import('../../source/skills/build/buildctl/completion.js');
+  let result = await completeSlice({
+    repoRoot: setup.repo,
+    contractPath: setup.contractPath,
+    evidenceDir: setup.evidenceDir,
+    judgmentsPath: setup.judgmentsPath,
+    statePath: setup.statePath,
+    summaryPath: setup.summaryPath,
+  });
+  assert.equal(result.status, 'blocked');
+  assert.ok(result.diagnostics.some((item) => item.code === 'E_EXPECTED_OBSERVATION'));
+
+  writeFileSync(setup.statePath, completionState({
+    checkpoint: setup.checkpoint,
+    completedTasks: [],
+  }), 'utf8');
+  result = await completeSlice({
+    repoRoot: setup.repo,
+    contractPath: setup.contractPath,
+    evidenceDir: setup.evidenceDir,
+    judgmentsPath: setup.judgmentsPath,
+    statePath: setup.statePath,
+    summaryPath: setup.summaryPath,
+  });
+  assert.ok(result.diagnostics.some((item) => item.code === 'E_COMPLETION_TASK'));
+});
+
+test('complete-slice: structural and manual lanes require current subject-bound judgments', async () => {
+  const base = readFileSync(VALID_PLAN, 'utf8');
+  const structural = await prepareCompletion({
+    planSource: base
+      .replace('kind: behavior, name:', 'kind: invariant, name:')
+      .replace('kind: behavioral-test', 'kind: structural'),
+  });
+  const { completeSlice } = await import('../../source/skills/build/buildctl/completion.js');
+  writeFileSync(structural.judgmentsPath, judgmentYaml({
+    fingerprint: structural.evidence.ledger.repository.fingerprint,
+    manualEvidence: structural.manualEvidence,
+    requirements: structural.requirements.filter((entry) => entry.evidence_kind === 'slice'),
+    sliceId: 'S-001',
+  }), 'utf8');
+  let result = await completeSlice({
+    repoRoot: structural.repo,
+    contractPath: structural.contractPath,
+    evidenceDir: structural.evidenceDir,
+    judgmentsPath: structural.judgmentsPath,
+    statePath: structural.statePath,
+    summaryPath: structural.summaryPath,
+  });
+  assert.equal(result.status, 'blocked');
+  const missing = result.diagnostics.find((item) => item.code === 'E_JUDGMENT_MISSING');
+  assert.match(missing.message, /binding:B-001/);
+  assert.match(missing.message, /obligation_sha256 [a-f0-9]{64}/);
+
+  const staleYaml = judgmentYaml({
+    fingerprint: '0'.repeat(64),
+    manualEvidence: structural.manualEvidence,
+    requirements: structural.requirements,
+    sliceId: 'S-001',
+  });
+  writeFileSync(structural.judgmentsPath, staleYaml, 'utf8');
+  result = await completeSlice({
+    repoRoot: structural.repo,
+    contractPath: structural.contractPath,
+    evidenceDir: structural.evidenceDir,
+    judgmentsPath: structural.judgmentsPath,
+    statePath: structural.statePath,
+    summaryPath: structural.summaryPath,
+  });
+  assert.ok(result.diagnostics.some((item) => item.code === 'E_JUDGMENT_STALE'));
+
+  const manual = await prepareCompletion({
+    planSource: base
+      .replace('kind: behavior, name:', 'kind: invariant, name:')
+      .replace('kind: behavioral-test', 'kind: manual-receipt'),
+  });
+  result = await completeSlice({
+    repoRoot: manual.repo,
+    contractPath: manual.contractPath,
+    evidenceDir: manual.evidenceDir,
+    judgmentsPath: manual.judgmentsPath,
+    statePath: manual.statePath,
+    summaryPath: manual.summaryPath,
+  });
+  assert.equal(result.status, 'proposed', JSON.stringify(result.diagnostics));
+  const receipt = JSON.parse(readFileSync(join(manual.repo, result.receipt_path), 'utf8'));
+  assert.ok(receipt.subjects.some((item) => item.name === 'manual:binding:B-001'));
+});
+
+test('complete-slice: stale summary checkpoint ledger and dirty repository block stably', async () => {
+  const { completeSlice } = await import('../../source/skills/build/buildctl/completion.js');
+
+  const summary = await prepareCompletion();
+  writeFileSync(summary.summaryPath, '# Summary without marker\n', 'utf8');
+  let result = await completeSlice({
+    repoRoot: summary.repo,
+    contractPath: summary.contractPath,
+    evidenceDir: summary.evidenceDir,
+    judgmentsPath: summary.judgmentsPath,
+    statePath: summary.statePath,
+    summaryPath: summary.summaryPath,
+  });
+  assert.ok(result.diagnostics.some((item) => item.code === 'E_SUMMARY_CHECKPOINT'));
+
+  const checkpoint = await prepareCompletion();
+  writeFileSync(checkpoint.statePath, completionState({ checkpoint: '0'.repeat(40) }), 'utf8');
+  result = await completeSlice({
+    repoRoot: checkpoint.repo,
+    contractPath: checkpoint.contractPath,
+    evidenceDir: checkpoint.evidenceDir,
+    judgmentsPath: checkpoint.judgmentsPath,
+    statePath: checkpoint.statePath,
+    summaryPath: checkpoint.summaryPath,
+  });
+  assert.ok(result.diagnostics.some((item) => item.code === 'E_COMPLETION_CHECKPOINT'));
+
+  const dirty = await prepareCompletion();
+  writeFileSync(join(dirty.repo, 'src/legacy-pose.js'), 'export const adopted = false;\n', 'utf8');
+  result = await completeSlice({
+    repoRoot: dirty.repo,
+    contractPath: dirty.contractPath,
+    evidenceDir: dirty.evidenceDir,
+    judgmentsPath: dirty.judgmentsPath,
+    statePath: dirty.statePath,
+    summaryPath: dirty.summaryPath,
+  });
+  assert.ok(result.diagnostics.some((item) => item.code === 'E_COMPLETION_DIRTY'));
+  assert.ok(result.diagnostics.some((item) => item.code === 'E_RECEIPT_STALE'));
+});
+
+test('complete-slice: receipt interruption replays and applied state is an exact no-op', async () => {
+  const setup = await prepareCompletion();
+  const { completeSlice } = await import('../../source/skills/build/buildctl/completion.js');
+  const options = {
+    repoRoot: setup.repo,
+    contractPath: setup.contractPath,
+    evidenceDir: setup.evidenceDir,
+    judgmentsPath: setup.judgmentsPath,
+    statePath: setup.statePath,
+    summaryPath: setup.summaryPath,
+  };
+  const first = await completeSlice(options);
+  const interruptedReplay = await completeSlice(options);
+  assert.equal(first.status, 'proposed');
+  assert.deepEqual(interruptedReplay, first);
+
+  applyCompletionPatch(setup.statePath, first.patch, setup.checkpoint);
+  const applied = await completeSlice(options);
+  assert.equal(applied.status, 'already_applied');
+  assert.deepEqual(applied.patch, []);
+  assert.equal(applied.receipt_id, first.receipt_id);
+  assert.equal(applied.receipt_path, first.receipt_path);
+});
+
+test('complete-slice: CLI returns proposed or blocked JSON without applying state or git', async () => {
+  const setup = await prepareCompletion();
+  const args = [
+    CLI,
+    'complete-slice',
+    '--state', setup.statePath,
+    '--contract', setup.contractPath,
+    '--summary', setup.summaryPath,
+    '--judgments', setup.judgmentsPath,
+    '--evidence-dir', setup.evidenceDir,
+  ];
+  const stateBefore = readFileSync(setup.statePath, 'utf8');
+  const gitBefore = command(['git', 'status', '--porcelain=v1'], setup.repo);
+  const proposed = spawnSync(process.execPath, args, { cwd: setup.repo, encoding: 'utf8' });
+  assert.equal(proposed.status, 0, proposed.stderr);
+  assert.equal(JSON.parse(proposed.stdout).status, 'proposed');
+  assert.equal(readFileSync(setup.statePath, 'utf8'), stateBefore);
+  assert.equal(command(['git', 'status', '--porcelain=v1'], setup.repo), gitBefore);
+
+  writeFileSync(setup.judgmentsPath, [
+    'schema_version: 1',
+    'slice_id: "S-001"',
+    `repository_fingerprint: ${JSON.stringify(setup.evidence.ledger.repository.fingerprint)}`,
+    'judgments: []',
+    '',
+  ].join('\n'), 'utf8');
+  const blockedResult = spawnSync(process.execPath, args, { cwd: setup.repo, encoding: 'utf8' });
+  assert.equal(blockedResult.status, 1, blockedResult.stderr);
+  assert.equal(JSON.parse(blockedResult.stdout).status, 'blocked');
+  assert.equal(readFileSync(setup.statePath, 'utf8'), stateBefore);
+  assert.equal(command(['git', 'status', '--porcelain=v1'], setup.repo), gitBefore);
+});
+
 test('isolation: foundation modules contain no locked predicate or mutation dependencies', async () => {
   const paths = [
     join(ROOT, 'source/skills/build/buildctl/transition.js'),
@@ -474,10 +915,11 @@ test('isolation: foundation modules contain no locked predicate or mutation depe
   );
 });
 
-test('isolation: generated runtimes stay synchronized without public or OpenCode authority', async () => {
+test('isolation: generated runtimes stay synchronized with public completion but no OpenCode authority', async () => {
   const sourceDir = join(ROOT, 'source/skills/build/buildctl');
   const runtimeFiles = [
     'cli.js',
+    'completion.js',
     'counters.js',
     'evidence.js',
     'immutable-json.js',
@@ -485,6 +927,7 @@ test('isolation: generated runtimes stay synchronized without public or OpenCode
     'repository.js',
     'transition.js',
     'validation.js',
+    'workflow-state.js',
   ];
   const providerDirs = [
     '.claude/skills/build/buildctl',
@@ -495,7 +938,7 @@ test('isolation: generated runtimes stay synchronized without public or OpenCode
   for (const relativeDir of providerDirs) {
     const directory = join(ROOT, relativeDir);
     assert.deepEqual(readdirSync(directory).sort(), runtimeFiles);
-    for (const name of ['counters.js', 'transition.js']) {
+    for (const name of runtimeFiles) {
       assert.equal(
         readFileSync(join(directory, name), 'utf8'),
         readFileSync(join(sourceDir, name), 'utf8'),
@@ -505,12 +948,14 @@ test('isolation: generated runtimes stay synchronized without public or OpenCode
   }
   assert.equal(existsSync(join(ROOT, '.opencode/skills/build/buildctl')), false);
   const cliSource = readFileSync(join(sourceDir, 'cli.js'), 'utf8');
-  assert.equal(cliSource.includes('complete-slice'), false);
+  assert.equal(cliSource.includes('complete-slice'), true);
+  assert.equal(cliSource.includes('check-counters'), true);
   const { VERSION_CARRIERS } = await import('./version-carriers.js');
-  assert.deepEqual(VERSION_CARRIERS.map((carrier) => {
+  const versions = VERSION_CARRIERS.map((carrier) => {
     const value = JSON.parse(readFileSync(join(ROOT, carrier.path), 'utf8'));
     return carrier.get(value);
-  }), ['1.12.1', '1.12.1', '1.12.1', '1.12.1']);
+  });
+  assert.equal(new Set(versions).size, 1, 'all version carriers must agree');
 });
 
 test('isolation: dogfood example names the gate but is explicitly non-authoritative', () => {

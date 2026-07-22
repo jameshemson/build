@@ -157,7 +157,7 @@ function writeImmutableReceipt(receiptsDir, receipt) {
   });
 }
 
-function readReceipt(path) {
+export function readEvidenceReceipt(path) {
   let receipt;
   try {
     receipt = JSON.parse(readFileSync(path, 'utf8'));
@@ -168,7 +168,13 @@ function readReceipt(path) {
   return receipt;
 }
 
-function stableFor(receipt, command, identity, contract, maxOutputBytes = receipt.max_output_bytes) {
+export function evidenceReceiptStableFor(
+  receipt,
+  command,
+  identity,
+  contract,
+  maxOutputBytes = receipt.max_output_bytes,
+) {
   return receipt.command === command
     && receipt.contract_hash === contract.contract_hash
     && receipt.plan_hash === contract.source.sha256
@@ -185,11 +191,13 @@ function reusableReceipt(receiptsDir, command, identity, contract, maxOutputByte
     const path = join(receiptsDir, name);
     let receipt;
     try {
-      receipt = readReceipt(path);
+      receipt = readEvidenceReceipt(path);
     } catch {
       continue;
     }
-    if (stableFor(receipt, command, identity, contract, maxOutputBytes)) return { path, receipt };
+    if (evidenceReceiptStableFor(receipt, command, identity, contract, maxOutputBytes)) {
+      return { path, receipt };
+    }
   }
   return null;
 }
@@ -271,8 +279,8 @@ export async function runEvidence({
     let stable = true;
     for (const command of exactCommands) {
       const currentReference = passReferences.get(command);
-      const currentReceipt = readReceipt(currentReference.path);
-      if (stableFor(currentReceipt, command, finalIdentity, contract, limit)) {
+      const currentReceipt = readEvidenceReceipt(currentReference.path);
+      if (evidenceReceiptStableFor(currentReceipt, command, finalIdentity, contract, limit)) {
         finalReferences.push(currentReference);
         continue;
       }
@@ -293,7 +301,7 @@ export async function runEvidence({
       continue;
     }
 
-    const receiptValues = finalReferences.map((item) => readReceipt(item.path));
+    const receiptValues = finalReferences.map((item) => readEvidenceReceipt(item.path));
     const status = receiptValues.every((receipt) => receipt.exit_code === 0 && !receipt.signal)
       ? 'passed'
       : 'failed';
@@ -377,7 +385,7 @@ export async function checkEvidence({
     let receipt;
     try {
       const receiptPath = resolveInsideRepo(item.path, root, `${path}.path`, { mustExist: true });
-      receipt = readReceipt(receiptPath);
+      receipt = readEvidenceReceipt(receiptPath);
     } catch (error) {
       diagnostic(diagnostics, error.code || 'E_RECEIPT_INVALID', path, error.message);
       continue;
@@ -385,7 +393,13 @@ export async function checkEvidence({
     if (item.receipt_hash !== receipt.receipt_hash || item.command !== receipt.command) {
       diagnostic(diagnostics, 'E_RECEIPT_REFERENCE', path, 'ledger reference does not match receipt');
     }
-    if (!stableFor(receipt, item.command, current, contract, ledger.max_output_bytes)) {
+    if (!evidenceReceiptStableFor(
+      receipt,
+      item.command,
+      current,
+      contract,
+      ledger.max_output_bytes,
+    )) {
       diagnostic(diagnostics, 'E_RECEIPT_STALE', path, 'receipt is not stable at current identity');
     }
     if (receipt.exit_code !== 0 || receipt.signal) {
