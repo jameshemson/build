@@ -753,7 +753,14 @@ test('real source/skills: each provider emits expected skill set with no Claude-
     }
   }
 
-  const runtimeFiles = ['cli.js', 'evidence.js', 'plan-contract.js', 'repository.js', 'validation.js'];
+  const runtimeFiles = [
+    'cli.js',
+    'evidence.js',
+    'immutable-json.js',
+    'plan-contract.js',
+    'repository.js',
+    'validation.js',
+  ];
   for (const providerName of ['claude', 'codex', 'codex-plugin', 'codex-cross']) {
     const runtimeDir = join(sandbox, REAL_PROVIDERS[providerName].outputDir, 'build/buildctl');
     assert.deepEqual(
