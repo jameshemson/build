@@ -1,0 +1,25 @@
+{
+  "events": [
+    { "action": "increment", "id": "agent-1", "kind": "agent_retry", "scope": "workstream:a" },
+    { "action": "increment", "id": "agent-2", "kind": "agent_retry", "scope": "workstream:a" },
+    { "action": "increment", "id": "agent-2", "kind": "agent_retry", "scope": "workstream:a" },
+    { "action": "increment", "id": "judgment-1", "kind": "fresh_judgment_retry", "scope": "judgment:verify" },
+    { "action": "increment", "id": "phase-1", "kind": "phase_reentry", "scope": "phase:implement" },
+    { "action": "increment", "id": "phase-2", "kind": "phase_reentry", "scope": "phase:implement" },
+    { "action": "increment", "id": "phase-3", "kind": "phase_reentry", "scope": "phase:implement" },
+    { "action": "increment", "id": "plan-1", "kind": "plan_review", "scope": "workflow:plan" },
+    { "action": "increment", "id": "plan-2", "kind": "plan_review", "scope": "workflow:plan" },
+    { "action": "increment", "id": "plan-3", "kind": "plan_review", "scope": "workflow:plan" },
+    { "action": "increment", "id": "scope-1", "kind": "scope_change", "scope": "workflow:scope" },
+    { "action": "increment", "id": "scope-2", "kind": "scope_change", "scope": "workflow:scope" },
+    { "action": "increment", "id": "progress-1", "kind": "no_progress", "scope": "workflow:progress" }
+  ],
+  "triggers": [
+    { "action": "increment", "id": "agent-3", "kind": "agent_retry", "scope": "workstream:a" },
+    { "action": "increment", "id": "judgment-2", "kind": "fresh_judgment_retry", "scope": "judgment:verify" },
+    { "action": "increment", "id": "phase-4", "kind": "phase_reentry", "scope": "phase:implement" },
+    { "action": "increment", "id": "plan-4", "kind": "plan_review", "scope": "workflow:plan" },
+    { "action": "increment", "id": "scope-3", "kind": "scope_change", "scope": "workflow:scope" },
+    { "action": "increment", "id": "progress-2", "kind": "no_progress", "scope": "workflow:progress" }
+  ]
+}

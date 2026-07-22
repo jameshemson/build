@@ -755,10 +755,12 @@ test('real source/skills: each provider emits expected skill set with no Claude-
 
   const runtimeFiles = [
     'cli.js',
+    'counters.js',
     'evidence.js',
     'immutable-json.js',
     'plan-contract.js',
     'repository.js',
+    'transition.js',
     'validation.js',
   ];
   for (const providerName of ['claude', 'codex', 'codex-plugin', 'codex-cross']) {
