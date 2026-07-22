@@ -132,7 +132,7 @@ test('envelope: canonical subjects and opaque decisions produce deterministic re
   const repository = { fingerprint: 'd'.repeat(64), head_commit: '1'.repeat(40) };
   const input = {
     authorizedDecision,
-    compilerVersion: '1.12.1',
+    compilerVersion: '1.12.1+codex.local-20260722-061608',
     expectedStateHash: 'a'.repeat(64),
     repositoryAfter: repository,
     repositoryBefore: repository,

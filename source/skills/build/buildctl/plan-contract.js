@@ -40,6 +40,12 @@ export function canonicalJson(value) {
   return `${JSON.stringify(sortValue(value), null, 2)}\n`;
 }
 
+const SEMANTIC_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
+export function isSemanticVersion(value) {
+  return typeof value === 'string' && SEMANTIC_VERSION.test(value);
+}
+
 export function findGitRoot(cwd = process.cwd()) {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
     cwd,
@@ -98,8 +104,7 @@ function manifestVersion(path, expectedName) {
     const parsed = JSON.parse(readFileSync(path, 'utf8'));
     if (
       parsed.name === expectedName
-      && typeof parsed.version === 'string'
-      && /^\d+\.\d+\.\d+$/.test(parsed.version)
+      && isSemanticVersion(parsed.version)
     ) {
       return parsed.version;
     }

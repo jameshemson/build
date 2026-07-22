@@ -143,6 +143,23 @@ test('compiler version discovery ignores unrelated nearer package manifests', ()
   assert.equal(resolveCompilerVersion(nested), resolveCompilerVersion(ROOT));
 });
 
+test('compiler version discovery accepts Codex cachebuster build metadata', () => {
+  const plugin = join(outputDir, 'cachebusted-plugin');
+  const nested = join(plugin, 'skills', 'build', 'buildctl');
+  mkdirSync(join(plugin, '.codex-plugin'), { recursive: true });
+  mkdirSync(nested, { recursive: true });
+  writeFileSync(
+    join(plugin, '.codex-plugin', 'plugin.json'),
+    '{"name":"build","version":"1.12.1+codex.local-20260722-061608"}\n',
+    'utf8',
+  );
+
+  assert.equal(
+    resolveCompilerVersion(nested),
+    '1.12.1+codex.local-20260722-061608',
+  );
+});
+
 test('generated contract paths must stay inside the repository', () => {
   const result = run(
     'validate-plan',

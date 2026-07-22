@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
   BuildctlError,
   canonicalJson,
+  isSemanticVersion,
   resolveInsideRepo,
   sha256,
 } from './plan-contract.js';
@@ -49,7 +50,7 @@ function kind(value) {
 }
 
 function version(value, label) {
-  if (typeof value !== 'string' || !/^\d+\.\d+\.\d+$/.test(value)) {
+  if (!isSemanticVersion(value)) {
     fail('E_TRANSITION_VERSION', `${label} must be a semantic version.`);
   }
   return value;
