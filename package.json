@@ -1,6 +1,6 @@
 {
   "name": "build-plugin",
-  "version": "1.12.1",
+  "version": "1.13.0",
   "type": "module",
   "bin": {
     "buildctl": "source/skills/build/buildctl/cli.js"

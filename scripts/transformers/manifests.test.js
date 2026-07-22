@@ -17,6 +17,7 @@ const packagePath = join(ROOT, 'package.json');
 const readmePath = join(ROOT, 'README.md');
 const harnessesPath = join(ROOT, 'HARNESSES.md');
 const roadmapPath = join(ROOT, 'ROADMAP.md');
+const changelogPath = join(ROOT, 'CHANGELOG.md');
 
 const OPENCODE_SKILLS = ['architect-review', 'impl-plan', 'review-plan', 'verify'];
 const CODEX_SKILLS = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
@@ -105,7 +106,7 @@ test('all release-version carriers agree', () => {
     1,
     `Version drift across release files: ${carriers.map((c) => `${c.path}=${c.version}`).join(', ')}. Bump all ${carriers.length} together.`,
   );
-  assert.equal(unique[0], '1.12.1', 'release version must be 1.12.1');
+  assert.equal(unique[0], '1.13.0', 'release version must be 1.13.0');
 });
 
 test('package exposes the canonical self-contained buildctl CLI', () => {
@@ -113,7 +114,10 @@ test('package exposes the canonical self-contained buildctl CLI', () => {
   assert.equal(packageJson.bin?.buildctl, 'source/skills/build/buildctl/cli.js');
   const cli = readFileSync(join(ROOT, packageJson.bin.buildctl), 'utf8');
   assert.ok(cli.startsWith('#!/usr/bin/env node\n'));
-  for (const file of ['evidence.js', 'plan-contract.js', 'repository.js', 'validation.js']) {
+  for (const file of [
+    'completion.js', 'counters.js', 'evidence.js', 'immutable-json.js', 'plan-contract.js',
+    'repository.js', 'transition.js', 'validation.js', 'workflow-state.js',
+  ]) {
     assert.ok(statSync(join(ROOT, 'source/skills/build/buildctl', file)).isFile());
   }
 });
@@ -235,7 +239,7 @@ test('Codex documentation describes provider phase authority, custom routing, sh
   assert.match(copy, /complete repository identity/i);
   assert.match(copy, /Verify[^\n]*receipt[^\n]*without (?:re-)?running/i);
   assert.match(copy, /prompt-only fallback/i);
-  assert.match(copy, /v1\.13[^\n]*complete-slice/i);
+  assert.match(copy, /complete-slice[^\n]*(?:authoriz|transition)/i);
 
   assert.match(copy, /optional literal `## Build agent routing` block/i);
   assert.match(copy, /- plan: [^\n]+[\s\S]*- review: [^\n]+[\s\S]*- explore: [^\n]+[\s\S]*- implement: [^\n]+[\s\S]*- verify: [^\n]+[\s\S]*- architect-review: [^\n]+/);
@@ -282,6 +286,21 @@ test('ROADMAP sequences deterministic Build authority without claiming deferred 
   assert.match(roadmap, /v1\.13[\s\S]*complete-slice[\s\S]*transition/i);
   assert.match(roadmap, /portable[\s\S]*(?:fallback|OpenCode|Codex)/i);
   assert.match(roadmap, /Deferred[\s\S]*leases[\s\S]*domain[\s\S]*trajectory[\s\S]*routing/i);
+});
+
+test('v1.13 release docs and versions describe bounded completion authority', () => {
+  const roadmap = readFileSync(roadmapPath, 'utf8');
+  const changelog = readFileSync(changelogPath, 'utf8');
+  const docs = `${readFileSync(readmePath, 'utf8')}\n${readFileSync(harnessesPath, 'utf8')}`;
+  assert.match(roadmap, /v1\.13\.0[^\n]*shipped/i);
+  assert.match(roadmap, /does not claim the waived runs occurred/i);
+  assert.match(changelog, /1\.13\.0[\s\S]*complete-slice[\s\S]*check-counters/i);
+  assert.match(docs, /complete-slice[\s\S]*already_applied/i);
+  assert.match(docs, /buildctl never (?:writes workflow state|mutates git)/i);
+  assert.deepEqual(
+    VERSION_CARRIERS.map((carrier) => carrier.get(readJson(join(ROOT, carrier.path)))),
+    ['1.13.0', '1.13.0', '1.13.0', '1.13.0'],
+  );
 });
 
 test('negative fixture rejects four-skill Codex set', () => {

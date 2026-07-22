@@ -214,3 +214,15 @@ export async function captureRepositoryIdentity({ repoRoot = process.cwd(), evid
   identity.fingerprint = sha256(canonicalJson(repositoryCore(identity)));
   return identity;
 }
+
+export function repositoryCleanStatus({ repoRoot = process.cwd() } = {}) {
+  const root = findGitRoot(repoRoot);
+  const status = git(root, [
+    'status',
+    '--porcelain=v1',
+    '-z',
+    '--untracked-files=all',
+    '--ignore-submodules=none',
+  ], { encoding: 'buffer' }).stdout;
+  return { clean: status.length === 0, status_sha256: sha256(status) };
+}

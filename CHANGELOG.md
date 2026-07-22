@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.13.0 - 2026-07-22
+
+### Added
+
+- Added `buildctl complete-slice`, the first program-owned workflow transition decision. It checks
+  the active slice against current state, compiled contract, clean repository identity, full-SHA
+  checkpoint and summary marker, fresh exact-command receipts, requirements, must-haves, and
+  subject-bound structural/manual/slice judgments.
+- Added immutable completion receipts with exactly four allowed state operations and idempotent
+  `proposed` / `already_applied` replay across interruption and resume.
+- Added `buildctl check-counters` over root-recorded typed events for deterministic retry, loop,
+  scope-change, and no-progress limits.
+
+### Changed
+
+- Build root now applies the allowed completion patch after a checkpoint and remains the sole
+  workflow-state and git writer. buildctl never mutates authored state or git.
+- Claude Code and Codex bundles include the same self-contained completion runtime; OpenCode
+  remains portable and prompt-only because it does not ship the Build orchestrator.
+- Runnable compiler, counter, evidence, completion, and receipt diagnostics are authoritative;
+  only genuine runtime unavailability selects the disclosed prompt fallback.
+
+### Calibration
+
+- The existing Kemet-sized v1.12.1 run was accepted as sufficient predicate calibration. Its
+  pending application-specific human acceptance and a separate ordinary-workflow record were
+  explicitly not required for this release; repository and completion-fixture gates still apply.
+
 ## 1.12.1 - 2026-07-21
 
 ### Added

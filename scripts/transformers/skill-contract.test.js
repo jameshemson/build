@@ -248,7 +248,10 @@ const BUILDCTL_ORCHESTRATION_CONTRACTS = {
     'without executing evidence commands',
     '`buildctl_fallback`',
     'Markdown/YAML remains authored authority',
-    'grants transition/`complete-slice` authority',
+    'buildctl never writes workflow state or mutates git',
+    '`complete-slice`',
+    '`check-counters`',
+    '`already_applied`',
   ],
   'source/skills/build/SKILL.codex.md': [
     'sibling `buildctl/cli.js`',
@@ -261,7 +264,10 @@ const BUILDCTL_ORCHESTRATION_CONTRACTS = {
     'without executing evidence commands',
     '`buildctl_fallback`',
     'Markdown/YAML remains authored authority',
-    'grants transition/`complete-slice` authority',
+    'buildctl never writes workflow state or mutates git',
+    '`complete-slice`',
+    '`check-counters`',
+    '`already_applied`',
   ],
 };
 
@@ -342,7 +348,10 @@ const DELIVERY_ORCHESTRATION_CONTRACTS = {
       'run the slice\'s exact `verify` and observable `must_haves`',
       'update the implementation summary with that provisional evidence',
       'make the root checkpoint commit',
-      'record its commit ID in the summary',
+      'Record its commit ID in the summary',
+      'Run post-checkpoint `run-evidence`',
+      'Run `complete-slice`',
+      'root validates the receipt',
       'append the slice to `completed_slices`',
       'activate the next declared-order dependency-ready incomplete slice',
       'Only when every slice is complete and `active_slice: null`',
@@ -366,6 +375,9 @@ const DELIVERY_ORCHESTRATION_CONTRACTS = {
       'update `{slug}-implementation-summary.md`',
       'root makes the checkpoint commit',
       'record the checkpoint',
+      'post-checkpoint `run-evidence`',
+      'Run `complete-slice`',
+      'root validates the receipt and applies only',
       'append the slice to `completed_slices`',
       'activate the next dependency-ready slice',
       'Only after every slice is completed',
@@ -924,6 +936,17 @@ test('planner, reviewer, verifier, and both orchestrators retain typed evidence 
 
 test('both Build orchestrators retain compiled-plan and deterministic-receipt authority', () => {
   assertBuildctlOrchestrationContracts();
+});
+
+test('v1.13 orchestrators retain root-applied completion and deterministic counters', () => {
+  const claude = readRel('source/skills/build/SKILL.md');
+  const codex = readRel('source/skills/build/SKILL.codex.md');
+  for (const source of [claude, codex]) {
+    assert.ok(source.includes('`complete-slice`'));
+    assert.ok(source.includes('`check-counters`'));
+    assert.ok(source.includes('`already_applied`'));
+    assert.ok(source.includes('buildctl never writes workflow state or mutates git'));
+  }
 });
 
 test('Kemet-derived evidence eval metadata and fixtures stay deterministic', () => {
