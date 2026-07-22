@@ -1,0 +1,13 @@
+{
+  "active_slice": "S-002",
+  "completed_slices": [
+    "S-001"
+  ],
+  "history_templates": [],
+  "passthrough": {
+    "unknown_future_field": true
+  },
+  "repository_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "transition_references": []
+}

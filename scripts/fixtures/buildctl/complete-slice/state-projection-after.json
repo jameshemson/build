@@ -1,0 +1,24 @@
+{
+  "active_slice": null,
+  "completed_slices": [
+    "S-001",
+    "S-002"
+  ],
+  "history_templates": [
+    {
+      "event": "slice_completed",
+      "receipt_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "slice_id": "S-002"
+    }
+  ],
+  "passthrough": {
+    "unknown_future_field": true
+  },
+  "repository_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "transition_references": [
+    {
+      "receipt_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ]
+}

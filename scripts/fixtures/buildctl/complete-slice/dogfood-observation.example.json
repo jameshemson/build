@@ -1,0 +1,34 @@
+{
+  "authoritative": false,
+  "example_only": true,
+  "required_observations": [
+    "release_version",
+    "main_commit",
+    "clean_status_before",
+    "clean_status_after",
+    "started_at",
+    "ended_at",
+    "phase_sequence",
+    "retry_events",
+    "slice_checkpoints",
+    "repository_identities",
+    "contract_identity",
+    "ledger_identity",
+    "receipt_identities",
+    "evidence_consumers",
+    "manual_judgments",
+    "structural_judgments",
+    "resume_source",
+    "prospective_predicate_results",
+    "final_verify",
+    "architect_review",
+    "artifact_paths",
+    "artifact_hashes",
+    "final_verdict"
+  ],
+  "run_order": [
+    "ordinary",
+    "kemet"
+  ],
+  "schema_version": 1
+}
