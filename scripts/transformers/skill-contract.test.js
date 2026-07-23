@@ -938,6 +938,46 @@ test('both Build orchestrators retain compiled-plan and deterministic-receipt au
   assertBuildctlOrchestrationContracts();
 });
 
+test('v1.14 Plan Review source contracts require authored result compilation before transition', () => {
+  const review = readRel('source/skills/review-plan/SKILL.md');
+  const schema = readRel('source/skills/build/reference/state-schema.md');
+  const orchestrators = [
+    readRel('source/skills/build/SKILL.md'),
+    readRel('source/skills/build/SKILL.codex.md'),
+  ];
+  for (const term of [
+    '## Machine result',
+    'phase: plan-review',
+    'verdict: proceed',
+    'PR-###',
+    'Machine result: N/A — missing subjects: <sorted comma-separated names>',
+    'prose verdict',
+  ]) assert.ok(review.includes(term), `Plan Review source missing ${term}`);
+  for (const source of orchestrators) {
+    for (const term of [
+      '`compile-result`',
+      '`phase_result_references`',
+      'allowed next phase',
+      'every review-to-plan return',
+      'without repeating exploration',
+      'runnable diagnostic',
+    ]) assert.ok(source.includes(term), `Build source missing ${term}`);
+    assert.ok(
+      !source.includes('Proceed with fixes`: root revises and validates plan/requirements')
+        && !source.includes('Do not re-run the full review'),
+      'Proceed with fixes must return through Plan and fresh review',
+    );
+  }
+  for (const term of [
+    '`base_ref` | one-line JSON full Git SHA',
+    '`workflow_artifact_prefix`',
+    '`phase_result_references`',
+    '`phase_result_bootstrap`',
+    'bare 40-character lowercase hexadecimal',
+    'normalize it before the first post-integration buildctl state read',
+  ]) assert.ok(schema.includes(term), `state schema missing ${term}`);
+});
+
 test('v1.13 orchestrators retain root-applied completion and deterministic counters', () => {
   const claude = readRel('source/skills/build/SKILL.md');
   const codex = readRel('source/skills/build/SKILL.codex.md');

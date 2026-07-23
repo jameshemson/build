@@ -13,6 +13,8 @@ function usage() {
     `      [--evidence-dir <dir>] [--max-output-bytes <0..${MAX_OUTPUT_BYTES}>] [--force]`,
     '  buildctl run-evidence --contract <contract.json> [--evidence-dir <dir>] --check-only',
     '  buildctl check-counters --state <state.md>',
+    '  buildctl compile-result --state <state.md> --contract <contract.json>',
+    '      --artifact <phase-report.md> [--evidence-dir <dir>] [--receipts-dir <dir>]',
     '  buildctl complete-slice --state <state.md> --contract <contract.json>',
     '      --summary <implementation-summary.md> --judgments <judgments.yaml>',
     '      [--evidence-dir <dir>] [--receipts-dir <dir>]',
@@ -125,6 +127,18 @@ async function main() {
     const result = evaluateCircuitEvents(state.values.counter_events);
     process.stdout.write(`${JSON.stringify(result)}\n`);
     if (result.status !== 'allow') process.exitCode = 1;
+    return;
+  }
+  if (command === 'compile-result') {
+    const { compilePhaseResult } = await import('./phase-results.js');
+    const result = await compilePhaseResult({
+      artifactPath: required(flags, 'artifact'),
+      contractPath: required(flags, 'contract'),
+      evidenceDir: flags['evidence-dir'],
+      receiptsDir: flags['receipts-dir'],
+      statePath: required(flags, 'state'),
+    });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
     return;
   }
   if (command === 'complete-slice') {

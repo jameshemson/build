@@ -9,14 +9,18 @@ import {
 
 const MACHINE_FIELDS = new Set([
   'active_slice',
+  'base_ref',
   'checkpoint_commits',
   'completed_slices',
   'completed_tasks',
   'counter_events',
   'phase',
+  'phase_result_bootstrap',
+  'phase_result_references',
   'slug',
   'transition_history',
   'transition_references',
+  'workflow_artifact_prefix',
 ]);
 
 function fail(code, message) {
@@ -34,6 +38,10 @@ export function parseWorkflowState(source, { required = [] } = {}) {
       fail('E_STATE_DUPLICATE_FIELD', `Duplicate workflow state field ${field}.`);
     }
     if (!encoded) fail('E_STATE_JSON', `${field} must be a one-line JSON value.`);
+    if (field === 'base_ref' && /^[a-f0-9]{40}$/.test(encoded)) {
+      values[field] = encoded;
+      continue;
+    }
     try {
       values[field] = JSON.parse(encoded);
     } catch (error) {
