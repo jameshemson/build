@@ -281,10 +281,16 @@ function assertGeneratedBuildDeliverySlices(content, providerName) {
   const checkpoint = normalized.indexOf('checkpoint commit');
   const evidence = normalized.indexOf('post-checkpoint `run-evidence`', checkpoint);
   const completion = normalized.indexOf('`complete-slice`', evidence);
-  const activation = normalized.indexOf('activate the next', completion);
+  const activation = normalized.indexOf('next-slice activation', completion);
   assert.ok(
     checkpoint >= 0 && evidence > checkpoint && completion > evidence && activation > completion,
     `${providerName}: generated build output must authorize completion before activating the next slice`,
+  );
+  assert.ok(
+    normalized.includes(
+      'never append to `completed_slices` or set `active_slice` again for that receipt',
+    ),
+    `${providerName}: generated build output must prohibit duplicate completion mutation`,
   );
   assert.match(
     content,

@@ -180,8 +180,9 @@ const SLICE_CHECKPOINT_COMPONENTS = [
   ['judgment artifact', 'judgment YAML'],
   ['completion decision', 'Run `complete-slice`'],
   ['root allowed patch', 'root validates the receipt and applies only'],
-  ['slice completion', 'append the slice to `completed_slices`'],
-  ['next activation', 'activate the next dependency-ready slice'],
+  ['single-application completion', 'authorized patch already performed slice completion'],
+  ['next activation', 'next-slice activation'],
+  ['no duplicate completion mutation', 'never append to `completed_slices` or set `active_slice` again for that receipt'],
 ];
 
 const BOUNDED_EVIDENCE_CLAUSES = [
@@ -552,7 +553,9 @@ test('v1.13 orchestrators retain completion authorization and state-fed counters
     '`already_applied`',
     '`append_completed_slice`',
     '`append_transition_reference`',
+    'never append to `completed_slices` or set `active_slice` again for that receipt',
   ]) assert.ok(source.includes(term), `Codex orchestrator missing ${term}`);
+  assert.doesNotMatch(source, /Only then\s+append the slice to `completed_slices`/);
   for (const term of ['checkpoint_commits', 'transition_references', 'counter_events']) {
     assert.ok(schema.includes(term), `state schema missing ${term}`);
   }

@@ -352,8 +352,8 @@ const DELIVERY_ORCHESTRATION_CONTRACTS = {
       'Run post-checkpoint `run-evidence`',
       'Run `complete-slice`',
       'root validates the receipt',
-      'append the slice to `completed_slices`',
-      'activate the next declared-order dependency-ready incomplete slice',
+      'authorized patch already performed slice completion',
+      'never append to `completed_slices` or set `active_slice` again for that receipt',
       'Only when every slice is complete and `active_slice: null`',
       'update state to `phase: verify`',
       'fresh whole-workflow evidence',
@@ -378,8 +378,8 @@ const DELIVERY_ORCHESTRATION_CONTRACTS = {
       'post-checkpoint `run-evidence`',
       'Run `complete-slice`',
       'root validates the receipt and applies only',
-      'append the slice to `completed_slices`',
-      'activate the next dependency-ready slice',
+      'authorized patch already performed slice completion',
+      'never append to `completed_slices` or set `active_slice` again for that receipt',
       'Only after every slice is completed',
       'transition to `verify`',
       'fresh whole-workflow authority',
@@ -946,6 +946,10 @@ test('v1.13 orchestrators retain root-applied completion and deterministic count
     assert.ok(source.includes('`check-counters`'));
     assert.ok(source.includes('`already_applied`'));
     assert.ok(source.includes('buildctl never writes workflow state or mutates git'));
+    assert.ok(source.includes(
+      'never append to `completed_slices` or set `active_slice` again for that receipt',
+    ));
+    assert.doesNotMatch(source, /Only then\s+append the slice to `completed_slices`/);
   }
 });
 
