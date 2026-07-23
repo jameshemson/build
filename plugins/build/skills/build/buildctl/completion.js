@@ -418,41 +418,7 @@ function appliedReplay({ state, identity, receiptsDir, repoRoot }) {
   };
 }
 
-export async function completeSlice({
-  repoRoot = process.cwd(),
-  statePath,
-  contractPath,
-  summaryPath,
-  judgmentsPath,
-  evidenceDir,
-  receiptsDir = '.build/transition-receipts',
-} = {}) {
-  const loaded = loadContract({ contractPath, cwd: repoRoot });
-  const root = loaded.repoRoot;
-  const contract = loaded.contract;
-  const state = loadWorkflowState({
-    cwd: root,
-    statePath,
-    required: [
-      'slug', 'phase', 'active_slice', 'completed_slices', 'completed_tasks',
-      'checkpoint_commits', 'transition_references', 'transition_history', 'counter_events',
-    ],
-  });
-  const directory = resolveInsideRepo(
-    evidenceDir || join('.build', 'evidence', contract.slug),
-    root,
-    'evidence directory',
-  );
-  const receiptDirectory = resolveInsideRepo(receiptsDir, root, 'transition receipts directory');
-  const identity = await captureRepositoryIdentity({ repoRoot: root, evidenceDir: directory });
-  const replay = appliedReplay({
-    state,
-    identity,
-    receiptsDir: receiptDirectory,
-    repoRoot: root,
-  });
-  if (replay) return replay;
-
+function validateCompletionState({ contract, identity, root, state }) {
   const diagnostics = [];
   const activeSlice = string(state.values.active_slice, 'state.active_slice', diagnostics);
   const completedSlices = array(state.values.completed_slices, 'state.completed_slices', diagnostics);
@@ -507,7 +473,22 @@ export async function completeSlice({
     'repository.status',
     `Repository is not clean (status ${clean.status_sha256}).`,
   ));
+  return { activeSlice, checkpoint, completedSlices, diagnostics, slice };
+}
 
+async function validateCompletionEvidence({
+  activeSlice,
+  checkpoint,
+  contract,
+  diagnostics,
+  directory,
+  identity,
+  judgmentsPath,
+  loaded,
+  root,
+  slice,
+  summaryPath,
+}) {
   const summary = file(root, summaryPath, 'implementation summary');
   if (slice && checkpoint) completionMarker(summary.source, slice.id, checkpoint, diagnostics);
   const evidence = await checkEvidence({
@@ -539,8 +520,25 @@ export async function completeSlice({
     receipts,
     slice,
   }) : { requiredCommands: [], resolvedRequirements: new Set() };
-  if (diagnostics.length > 0) return blocked(diagnostics);
+  return { coverage, evidence, judgments, summary };
+}
 
+function emitCompletionProposal({
+  checkpoint,
+  completedSlices,
+  contract,
+  coverage,
+  directory,
+  evidence,
+  identity,
+  judgments,
+  loaded,
+  receiptDirectory,
+  root,
+  slice,
+  state,
+  summary,
+}) {
   const ledger = file(root, join(directory, 'ledger.json'), 'evidence ledger');
   const contractArtifact = file(root, loaded.contractPath, 'contract');
   const plan = file(root, loaded.planPath, 'source plan');
@@ -604,4 +602,64 @@ export async function completeSlice({
     receipt_path: relative(root, receiptPath).split('\\').join('/'),
     status: 'proposed',
   };
+}
+
+export async function completeSlice({
+  repoRoot = process.cwd(),
+  statePath,
+  contractPath,
+  summaryPath,
+  judgmentsPath,
+  evidenceDir,
+  receiptsDir = '.build/transition-receipts',
+} = {}) {
+  const loaded = loadContract({ contractPath, cwd: repoRoot });
+  const root = loaded.repoRoot;
+  const contract = loaded.contract;
+  const state = loadWorkflowState({
+    cwd: root,
+    statePath,
+    required: [
+      'slug', 'phase', 'active_slice', 'completed_slices', 'completed_tasks',
+      'checkpoint_commits', 'transition_references', 'transition_history', 'counter_events',
+    ],
+  });
+  const directory = resolveInsideRepo(
+    evidenceDir || join('.build', 'evidence', contract.slug),
+    root,
+    'evidence directory',
+  );
+  const receiptDirectory = resolveInsideRepo(receiptsDir, root, 'transition receipts directory');
+  const identity = await captureRepositoryIdentity({ repoRoot: root, evidenceDir: directory });
+  const replay = appliedReplay({
+    state,
+    identity,
+    receiptsDir: receiptDirectory,
+    repoRoot: root,
+  });
+  if (replay) return replay;
+
+  const stateResult = validateCompletionState({ contract, identity, root, state });
+  const evidenceResult = await validateCompletionEvidence({
+    ...stateResult,
+    contract,
+    directory,
+    identity,
+    judgmentsPath,
+    loaded,
+    root,
+    summaryPath,
+  });
+  if (stateResult.diagnostics.length > 0) return blocked(stateResult.diagnostics);
+  return emitCompletionProposal({
+    ...stateResult,
+    ...evidenceResult,
+    contract,
+    directory,
+    identity,
+    loaded,
+    receiptDirectory,
+    root,
+    state,
+  });
 }
