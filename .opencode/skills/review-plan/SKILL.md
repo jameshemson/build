@@ -82,6 +82,33 @@ Order findings by impact, highest first. Include the placeholder violation count
 
 End with an explicit verdict: "Proceed to implementation" (no critical findings), "Proceed with fixes" (no critical, but important findings to address), or "Do not proceed" (critical findings that block implementation). One line, no ambiguity.
 
+When the complete orchestrated subject set is supplied, end the saved report with exactly one
+`## Machine result` YAML fence after the prose verdict. Use `schema_version: 1`,
+`phase: plan-review`, and map the prose verdict to `verdict: proceed`,
+`proceed_with_fixes`, or `do_not_proceed`. List exactly one attested SHA-256 subject for each of
+`plan`, `contract`, `context`, `requirements`, and `repository`. Do not guess hashes.
+
+Encode every prose finding in the same order with a gap-free `PR-###` ID and exactly these fields:
+`id`, `severity`, `summary`, `evidence`, `consequence`, and `fix`; severity is `critical`,
+`important`, or `minor`. The machine and prose verdict must agree: proceed has no unresolved
+Critical/Important finding, proceed-with-fixes has Important but no Critical findings, and
+do-not-proceed has at least one Critical finding. The prose verdict remains semantic authority;
+the machine section faithfully attests it for Build's mechanical compilation.
+
+```yaml
+## Machine result
+schema_version: 1
+phase: plan-review
+verdict: proceed
+subjects:
+  - { name: plan, sha256: "<64 lowercase hex>" }
+findings: []
+```
+
+When any required subject is unavailable in standalone use, omit the section and end with the
+literal `Machine result: N/A — missing subjects: <sorted comma-separated names>` line, replacing
+the angle-bracket placeholder with the actual missing names. Never emit a partial subject set.
+
 In an orchestrated run, return the report for Build root to save. In standalone mode, save the exact report to `.build/plans/{slug}-review.md` under the shared collision rules and still show that same report body to the user. A blocked review is also a report and must be saved.
 
 Do not start coding. Just critique the plan.

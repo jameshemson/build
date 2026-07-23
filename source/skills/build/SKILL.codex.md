@@ -154,6 +154,7 @@ Immediately create an initial `phase: plan` state with identity, git refs, provi
 complexity, all six agent routes, model routes, empty inventories, `completed_tasks: []`,
 `delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `checkpoint_commits: []`,
 `transition_references: []`, `transition_history: []`, `counter_events: []`, `agent_progress: {}`,
+`phase_result_references: []`, `phase_result_bootstrap: []`, and JSON `base_ref`/`workflow_artifact_prefix`,
 and initial history. Fresh workflows set `evidence_mode` to `typed` and start with `bindings: []`. It must exist before the first dispatch so progress, fallback, failure,
 and resume evidence can be recorded from the start.
 
@@ -173,15 +174,16 @@ model routes, evidence mode, typed binding summary, inventories, manifest summar
 Read state plus context, requirements, and plan. Run `review-plan` in a fresh-context agent
 with the effective `review` route. Save `{slug}-review.md` before state changes.
 
-For either proceed verdict, after any fixes, validate and persist the accepted slice definitions
-and first declared-order dependency-ready `active_slice` before implementation dispatch. Re-run `validate-plan` after every review edit; only a successful generated contract or an already-recorded runtime-unavailable prompt fallback permits acceptance.
-
-- `Proceed to implementation`: transition to `implement`.
-- `Proceed with fixes`: root revises and validates plan/requirements, records
-  `review_fixes_applied`, then transitions to `implement`.
-- `Do not proceed`: record Critical findings as `rework_notes`, transition to `plan`,
-  and re-plan.
-- Missing verdict: apply the phase-agent circuit breaker.
+Before the first post-integration buildctl state read, normalize a legacy bare-hex `base_ref` and
+result fields through the schema. Run `compile-result` on the saved report; a runnable diagnostic
+is authoritative. Root verifies the receipt, appends `{phase,receipt_id}` to
+`phase_result_references`, and applies only its allowed next phase: `Proceed to implementation`
+must validate and persist the accepted slice definitions and first declared-order dependency-ready
+`active_slice` before implementation dispatch; `Proceed with fixes` or
+`Do not proceed` records all findings as `rework_notes` and returns to `plan` for revision,
+recompilation, and fresh review. Re-run `validate-plan` after every review edit. Count every review-to-plan return; revise without repeating exploration
+unless architecture, file scope, or significant risk changed. Preserve historical
+`review_fixes_applied`; missing verdict uses the phase-agent breaker.
 
 ## Phase 3: Implement
 
@@ -279,7 +281,7 @@ runtime unavailability uses the prompt counts below:
 - Agent handoff: enforce the terminal-only deadline protocol above; silence alone never
   triggers a retry, and interruption occurs only at the immutable hard deadline.
 - Same phase re-entry: more than three returns halts with `phase-loop-limit`.
-- Plan-review: more than three total plan iterations halts with `plan-review-limit`.
+- Plan-review: every review-to-plan return counts; more than three total plan iterations halts with `plan-review-limit`.
 - Scope change: the third report halts with `scope-change-limit`.
 - No durable progress across two consecutive retries halts with `no-progress-limit`.
 - Any proposed concurrent writer overlap halts dispatch until ownership is disjoint.

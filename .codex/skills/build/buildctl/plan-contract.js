@@ -497,6 +497,10 @@ function yamlFence(section, name) {
   return fences[0][1];
 }
 
+export function parseMarkdownYamlSection(source, name) {
+  return parseYaml(yamlFence(markdownSection(source, name), name));
+}
+
 function approachBindings(approach) {
   return [...approach.matchAll(/\[(B-\d\d\d)\]/g)].map((match) => match[1]);
 }

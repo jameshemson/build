@@ -40,7 +40,7 @@ Create the `.build/plans/` directory if it doesn't exist.
 
 **Trigger**: No state file, or state says `phase: plan`
 
-1. **Git preflight**: Run `git status --porcelain`. If output is non-empty, stop and show the user the dirty files — the workflow needs a clean tree so `base_ref` diffs and worktree merges contain only workflow changes. (This stop and the multiple-workflow choice are the only allowed pre-start stops.) Then run `git rev-parse HEAD` to capture `base_ref`, and create the workflow branch: `git checkout -b build/{slug}`. For a fresh workflow, immediately write the initial `phase: plan` state before exploration, including one-line JSON `delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `checkpoint_commits: []`, `transition_references: []`, `transition_history: []`, and `counter_events: []`; retain the other initial fields required by the state schema.
+1. **Git preflight**: Run `git status --porcelain`. If output is non-empty, stop and show the user the dirty files — the workflow needs a clean tree so `base_ref` diffs and worktree merges contain only workflow changes. (This stop and the multiple-workflow choice are the only allowed pre-start stops.) Then run `git rev-parse HEAD` to capture `base_ref`, and create the workflow branch: `git checkout -b build/{slug}`. For a fresh workflow, immediately write the initial `phase: plan` state before exploration, including JSON `base_ref`, `workflow_artifact_prefix`, `phase_result_references: []`, `phase_result_bootstrap: []`, `delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `checkpoint_commits: []`, `transition_references: []`, `transition_history: []`, and `counter_events: []`; retain the other initial fields required by the state schema.
 2. **Parallel codebase exploration**: Deploy multiple Explore agents simultaneously to understand the codebase. Split by concern area, e.g.:
    - Agent 1: Architecture, project structure, build system, existing patterns
    - Agent 2: The specific area(s) of code relevant to $ARGUMENTS
@@ -64,10 +64,13 @@ Create the `.build/plans/` directory if it doesn't exist.
 9. Update the existing `.build/plans/{slug}-state.md` created during preflight; never reconstruct it. Preserve route, fallback, progress, audit-trail, and unknown fields. Update the planning inventories below; fresh workflows retain empty slice/task completion fields through review, while re-plans preserve completed slice definitions, `completed_slices`, and non-reopened `completed_tasks` until Phase 2 accepts revised incomplete definitions:
 
 ```
-slug: {slug}
-base_ref: {full git SHA from git rev-parse HEAD}
+slug: "{slug}"
+base_ref: "{full git SHA from git rev-parse HEAD}"
+workflow_artifact_prefix: "{slug}"
+phase_result_references: []
+phase_result_bootstrap: []
 branch: build/{slug}
-phase: review
+phase: "review"
 task: [one-line description]
 started: [YYYY-MM-DD]
 last_updated: [YYYY-MM-DD]
@@ -102,12 +105,20 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 1. Read `.build/plans/{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`
 2. Invoke `/build:review-plan` via the Skill tool, passing the plan path
 3. Save the review to `.build/plans/{slug}-review.md`
-4. Map the review's one-line verdict:
-   - **"Proceed to implementation"**: accept the plan for the implementation transition.
-   - **"Proceed with fixes"**: revise `{slug}-plan.md` now, addressing every Important finding, and record each change under `review_fixes_applied:`. Do not re-run the full review — the mid-review gate covers the revisions.
-   - **"Do not proceed"**: update state to `phase: plan` with `rework_notes:` listing each Critical finding, and re-enter Phase 1.
+4. Before the first post-integration buildctl state read, normalize a legacy bare-hex `base_ref`
+   and the result machine fields through the schema. Run `compile-result` against the saved review,
+   current contract, and state. A runnable diagnostic is authoritative and never selects fallback.
+5. Root verifies the immutable receipt, appends `{phase,receipt_id}` to
+   `phase_result_references`, and applies only its allowed next phase in the same state edit:
+   - **"Proceed to implementation"** permits `implement`; persist accepted slices and the first
+     dependency-ready `active_slice`.
+   - **"Proceed with fixes"** and **"Do not proceed"** permit only `plan`; record every finding in
+     `rework_notes`, revise and recompile there, and require a fresh Plan Review result.
    - **No verdict line found**: treat as a phase-agent failure (see Circuit breakers).
-5. For either accepted implementation path, re-run `validate-plan` after every review edit; a runnable failure is authoritative, while only an already-recorded runtime-unavailable fallback uses prompt checks. Then persist `delivery_slices`, preserve `completed_slices`, set `active_slice` to the first declared-order dependency-ready incomplete slice, set `phase: implement`, and append history.
+6. Count every review-to-plan return in both review circuit breakers. Re-plan from the findings
+   without repeating exploration unless they change architecture, file scope, or significant risk;
+   re-run `validate-plan` after every review edit, record fixes in history, and preserve any
+   historical `review_fixes_applied` audit trail.
 
 ---
 
@@ -239,7 +250,7 @@ Before every dispatch or transition, root appends the typed occurrence to `count
 - **Agent retry limit**: If an agent for the same workstream fails and is re-dispatched more than 2 times, stop retrying and escalate to the user. Log all failure reasons to the state file under `agent_failures:`. The problem is likely in the plan or the codebase, not a transient failure.
 - **Phase agent failure**: If a spawned phase agent (e.g. mid-review) errors or returns output missing its required verdict, re-dispatch once with the expected output format restated verbatim. On a second failure, run that phase inline in the current session and log both failures under `agent_failures:`. A phase is never skipped because its agent failed.
 - **Phase loop limit**: If the workflow cycles back to the same phase more than 3 times (e.g., implement -> verify -> fail -> implement -> verify -> fail -> implement), halt the workflow and escalate. Log the full cycle history. The problem is systemic.
-- **Plan↔review limit**: If the workflow re-enters Phase 1 from Phase 2 ("Do not proceed") more than 2 times — more than 3 total plan iterations — halt and escalate, logging each review's Critical findings in the history. A plan stuck in a review spiral means the requirements are unstable or contradictory; another iteration won't fix that.
+- **Plan↔review limit**: If any verdict returns the workflow from Phase 2 to Phase 1 more than 2 times — more than 3 total plan iterations — halt and escalate, logging each review's findings in history. A plan stuck in a review spiral means the requirements are unstable or contradictory; another iteration won't fix that.
 - **Scope change limit**: If SCOPE_CHANGE is reported more than twice in a single workflow, halt and escalate. The original feature description is likely underspecified - re-planning won't help without more input from the user.
 
 When any circuit breaker fires, update the state file with `halted: true`, `halt_reason: [which breaker]`, and `halt_context: [summary of failures/changes]`. The user can resume by updating the state file after addressing the root cause.
