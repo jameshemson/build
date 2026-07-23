@@ -214,8 +214,8 @@ then run post-checkpoint `run-evidence` for every slice command and author curre
 manual, and slice judgment YAML without auto-stamping acceptance. Run `complete-slice`; a blocked
 result keeps the same active slice. For `proposed`, root validates the receipt and applies only
 `append_completed_slice`, `set_active_slice`, `append_transition_reference`, and
-`append_history_template`, then reruns the same command and requires `already_applied`. Only then
-append the slice to `completed_slices` and activate the next dependency-ready slice. Append wave
+`append_history_template`, then reruns the same command and requires `already_applied`; the
+authorized patch already performed slice completion and next-slice activation, so never append to `completed_slices` or set `active_slice` again for that receipt. Append wave
 task IDs to `completed_tasks` only after integration passes. In a recorded genuinely-unexecutable
 buildctl fallback, use the prior prompt-owned checkpoint path and disclose it; runnable compiler,
 counter, evidence, or completion diagnostics remain authoritative. A failure keeps the same active
