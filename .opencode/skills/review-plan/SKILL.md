@@ -95,8 +95,9 @@ Critical/Important finding, proceed-with-fixes has Important but no Critical fin
 do-not-proceed has at least one Critical finding. The prose verdict remains semantic authority;
 the machine section faithfully attests it for Build's mechanical compilation.
 
-```yaml
 ## Machine result
+
+```yaml
 schema_version: 1
 phase: plan-review
 verdict: proceed
