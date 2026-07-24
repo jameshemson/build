@@ -187,10 +187,9 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-plan.md`, and `{slug}-implementation-summary.md`
 2. Invoke `/build:verify` via the Skill tool for fresh whole-workflow evidence; with compiled evidence it runs only `run-evidence --check-only` and judges receipt/consumer coverage without executing evidence commands. Recorded runtime fallback preserves the prompt exact-command protocol; no slice, worker, wave, or checkpoint result substitutes for this final authority.
 3. Save the verification report to `.build/plans/{slug}-verify.md` before changing phase.
-4. If **VERIFIED**: Update state to `phase: architect-review`. Record `verify_verdict: VERIFIED`. Auto-continue to Phase 4.
-5. If **FAILED**: Update state back to `phase: implement` with `verification_failures:` field listing what failed. Address failures and re-verify.
-6. If **PARTIAL** (some checks unavailable, artifacts missing, uncovered requirements, or missing `must_haves` evidence): Note what's unavailable. Record `verify_verdict: PARTIAL` and the gap list under `uncovered_requirements:` in state. Proceed to Phase 4 - gaps are not hidden, and architect review must account for them.
-7. Append to history
+4. When buildctl is runnable, run `compile-result` against the saved report and current state/contract/evidence. buildctl owns whole-workflow coverage and file scope; Verify authors the semantic verdict without re-executing evidence commands. A runnable diagnostic blocks and never selects fallback.
+5. Require a current immutable Verify receipt. In one root-owned state edit append `{phase,receipt_id}` to `phase_result_references`, record verdict/gaps or failures, append history, and apply only its returned allowed next phase: `architect-review` for VERIFIED/PARTIAL or `implement` for FAILED. Auto-continue only on `architect-review`.
+6. Recorded runtime absence uses the authored prose verdict as prompt fallback with the same phase mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
 
 ---
 

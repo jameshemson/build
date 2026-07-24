@@ -921,6 +921,7 @@ test('isolation: generated runtimes stay synchronized with public completion but
     'cli.js',
     'completion.js',
     'counters.js',
+    'coverage.js',
     'evidence.js',
     'immutable-json.js',
     'phase-results.js',

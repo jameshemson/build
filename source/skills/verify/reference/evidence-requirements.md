@@ -69,6 +69,26 @@ Never execute plan evidence commands in receipt mode, and never replace stale/in
 with prompt execution. Standalone prompt mode applies without a complete supplied pair or when
 runtime execution is genuinely unavailable; an active state must already record that fallback.
 
+## Verify mechanical compatibility matrix
+
+buildctl, not the verifier prompt, computes whole-workflow coverage, final file scope, prior
+acceptance currency, and the allowed next phase:
+
+| Mechanical fact | Compilable verdict | Required authored coverage |
+|---|---|---|
+| dirty worktree, invalid `base_ref`, out-of-plan change, malformed/tampered prior receipt, or stale subject | none; `E_RESULT_*`, no receipt | n/a |
+| failed evidence command | `failed` only | `VR-###` findings name every failed command |
+| missing consumer, observation, requirement, must-have, or completion receipt | `partial` only | findings name every generated gap |
+| non-empty `planned-but-unchanged` set | at most `partial` | findings name every unchanged planned path |
+| valid pre-S-001 Plan Review bootstrap | at most `partial` | a finding names the absent generated Plan Review receipt |
+| no mechanical gap | `verified`; semantic `partial`/`failed` remains available | ordinary finding/verdict consistency |
+
+Generated receipts list exact required commands, resolved requirements, gaps, failed commands,
+planned/changed/out-of-plan/planned-but-unchanged paths, and prior Plan Review status. An earlier
+state-referenced receipt remains current across a compiler-only recompile only when its immutable
+hash verifies and its plan subject equals the unchanged current source-plan hash. Verify reads
+these facts and authors semantic findings; it does not recompute or silently weaken them.
+
 ## Common Verification Commands by Stack
 
 ### Node.js / TypeScript

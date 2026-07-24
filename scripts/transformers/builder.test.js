@@ -770,6 +770,7 @@ test('real source/skills: each provider emits expected skill set with no Claude-
     'cli.js',
     'completion.js',
     'counters.js',
+    'coverage.js',
     'evidence.js',
     'immutable-json.js',
     'phase-results.js',

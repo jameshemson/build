@@ -226,3 +226,33 @@ export function repositoryCleanStatus({ repoRoot = process.cwd() } = {}) {
   ], { encoding: 'buffer' }).stdout;
   return { clean: status.length === 0, status_sha256: sha256(status) };
 }
+
+export function repositoryFileScope({
+  repoRoot = process.cwd(),
+  baseRef,
+  plannedPaths = [],
+} = {}) {
+  const root = findGitRoot(repoRoot);
+  if (typeof baseRef !== 'string' || !/^[a-f0-9]{40}$/.test(baseRef)) {
+    throw new BuildctlError('E_RESULT_BASE_REF', 'base_ref must be a full lowercase Git SHA.');
+  }
+  const exists = git(root, ['cat-file', '-e', `${baseRef}^{commit}`], { allowFailure: true });
+  if (exists.status !== 0) {
+    throw new BuildctlError('E_RESULT_BASE_REF', `base_ref is not a commit: ${baseRef}.`);
+  }
+  const changed = nulRecords(
+    git(root, ['diff', '--name-only', '-z', baseRef, 'HEAD'], { encoding: 'buffer' }).stdout,
+  ).sort();
+  const planned = [...new Set(plannedPaths)].sort();
+  if (planned.some((path) => typeof path !== 'string' || !path)) {
+    throw new BuildctlError('E_RESULT_SCOPE', 'Planned paths must be non-empty strings.');
+  }
+  const changedSet = new Set(changed);
+  const plannedSet = new Set(planned);
+  return {
+    changed,
+    out_of_plan: changed.filter((path) => !plannedSet.has(path)),
+    planned,
+    planned_but_unchanged: planned.filter((path) => !changedSet.has(path)),
+  };
+}

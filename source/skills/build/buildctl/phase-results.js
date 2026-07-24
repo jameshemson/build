@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { checkEvidence } from './evidence.js';
+import { evaluateWorkflowCoverage, receiptIndex } from './coverage.js';
 import { writeImmutableJson } from './immutable-json.js';
 import {
   BuildctlError,
@@ -10,7 +12,12 @@ import {
   resolveInsideRepo,
   sha256,
 } from './plan-contract.js';
-import { captureRepositoryIdentity } from './repository.js';
+import {
+  captureRepositoryIdentity,
+  repositoryCleanStatus,
+  repositoryFileScope,
+} from './repository.js';
+import { verifyTransitionReceipt } from './transition.js';
 import { loadWorkflowState } from './workflow-state.js';
 
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
@@ -19,6 +26,17 @@ const PREFIX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const RESULT_FIELDS = ['findings', 'phase', 'schema_version', 'subjects', 'verdict'];
 const SUBJECT_FIELDS = ['name', 'sha256'];
 const FINDING_FIELDS = ['consequence', 'evidence', 'fix', 'id', 'severity', 'summary'];
+const BOOTSTRAP_FIELDS = [
+  'accepted_contract_hash',
+  'accepted_plan_sha256',
+  'override',
+  'phase',
+  'reason',
+  'review_artifact_sha256',
+  'reviewed_contract_hash',
+  'reviewed_plan_sha256',
+  'reviewer',
+];
 
 const PHASES = {
   'plan-review': {
@@ -30,6 +48,23 @@ const PHASES = {
     findingPrefix: 'PR',
     reportState: 'review',
     subjects: ['context', 'contract', 'plan', 'repository', 'requirements'],
+  },
+  verify: {
+    allowed: {
+      failed: 'implement',
+      partial: 'architect-review',
+      verified: 'architect-review',
+    },
+    findingPrefix: 'VR',
+    reportState: 'verify',
+    subjects: [
+      'contract',
+      'evidence-ledger',
+      'implementation-summary',
+      'plan',
+      'repository',
+      'requirements',
+    ],
   },
 };
 
@@ -138,14 +173,24 @@ function authoredResult(source) {
   };
 }
 
-function proseVerdict(source) {
-  const matches = source.split(/\r?\n/).map((line) => line.trim().replace(/\.$/, '')).filter(
-    (line) => [
-      'Do not proceed',
-      'Proceed to implementation',
-      'Proceed with fixes',
-    ].includes(line),
-  );
+function proseVerdict(source, phase) {
+  const mappings = phase === 'verify'
+    ? [
+      [/^FAILED(?:\s+-|$)/, 'failed'],
+      [/^PARTIAL(?:\s+-|$)/, 'partial'],
+      [/^VERIFIED(?:\s+-|$)/, 'verified'],
+    ]
+    : [
+      [/^Do not proceed$/, 'do_not_proceed'],
+      [/^Proceed to implementation$/, 'proceed'],
+      [/^Proceed with fixes$/, 'proceed_with_fixes'],
+    ];
+  const matches = [];
+  for (const line of source.split(/\r?\n/).map((value) => value.trim().replace(/\.$/, ''))) {
+    for (const [pattern, verdict] of mappings) {
+      if (pattern.test(line)) matches.push(verdict);
+    }
+  }
   if (matches.length !== 1) {
     fail(
       'E_RESULT_VERDICT_MISMATCH',
@@ -153,15 +198,11 @@ function proseVerdict(source) {
       `Expected exactly one human-readable verdict line; found ${matches.length}.`,
     );
   }
-  return {
-    'Do not proceed': 'do_not_proceed',
-    'Proceed to implementation': 'proceed',
-    'Proceed with fixes': 'proceed_with_fixes',
-  }[matches[0]];
+  return matches[0];
 }
 
 function checkVerdict(result, source) {
-  if (proseVerdict(source) !== result.verdict) {
+  if (proseVerdict(source, result.phase) !== result.verdict) {
     fail(
       'E_RESULT_VERDICT_MISMATCH',
       'artifact.machine_result.verdict',
@@ -169,11 +210,17 @@ function checkVerdict(result, source) {
     );
   }
   const severities = new Set(result.findings.map((finding) => finding.severity));
-  const compatible = result.verdict === 'proceed'
-    ? !severities.has('critical') && !severities.has('important')
-    : result.verdict === 'proceed_with_fixes'
-      ? !severities.has('critical') && severities.has('important')
-      : severities.has('critical');
+  const compatible = result.phase === 'verify'
+    ? result.verdict === 'verified'
+      ? !severities.has('critical') && !severities.has('important')
+      : result.verdict === 'partial'
+        ? !severities.has('critical') && severities.has('important')
+        : severities.has('critical') || severities.has('important')
+    : result.verdict === 'proceed'
+      ? !severities.has('critical') && !severities.has('important')
+      : result.verdict === 'proceed_with_fixes'
+        ? !severities.has('critical') && severities.has('important')
+        : severities.has('critical');
   if (!compatible) {
     fail(
       'E_RESULT_VERDICT',
@@ -232,6 +279,274 @@ function assertSubjects(authored, computed) {
   }
 }
 
+function readJson(path, code, label) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    fail(code, label, `Cannot parse ${label}: ${error.message}`);
+  }
+}
+
+export function verifyPhaseResultReceipt(receipt) {
+  if (!object(receipt) || !HEX_SHA256.test(receipt.receipt_id)
+    || !HEX_SHA256.test(receipt.receipt_hash)) {
+    fail('E_RESULT_PRIOR_RECEIPT', 'prior_result', 'Malformed phase-result receipt.');
+  }
+  const withoutHash = structuredClone(receipt);
+  delete withoutHash.receipt_hash;
+  if (receipt.receipt_hash !== sha256(canonicalJson(withoutHash))) {
+    fail('E_RESULT_PRIOR_RECEIPT', 'prior_result.receipt_hash', 'Receipt hash mismatch.');
+  }
+  const core = structuredClone(withoutHash);
+  delete core.receipt_id;
+  if (receipt.receipt_id !== sha256(canonicalJson(core))) {
+    fail('E_RESULT_PRIOR_RECEIPT', 'prior_result.receipt_id', 'Receipt ID mismatch.');
+  }
+  return receipt.receipt_hash;
+}
+
+function completionReceipts({ contract, repoRoot, state }) {
+  const references = Array.isArray(state.values.transition_references)
+    ? state.values.transition_references
+    : [];
+  const directory = resolveInsideRepo(
+    join('.build', 'transition-receipts'),
+    repoRoot,
+    'transition receipts directory',
+  );
+  const receipts = new Map();
+  for (const [index, reference] of references.entries()) {
+    if (!object(reference) || !HEX_SHA256.test(reference.receipt_id)) {
+      fail(
+        'E_RESULT_COMPLETION_RECEIPT',
+        `state.transition_references[${index}]`,
+        'Malformed completion receipt reference.',
+      );
+    }
+    const path = join(directory, `${reference.receipt_id}.json`);
+    if (!existsSync(path)) {
+      fail(
+        'E_RESULT_COMPLETION_RECEIPT',
+        `state.transition_references[${index}]`,
+        `Missing completion receipt ${reference.receipt_id}.`,
+      );
+    }
+    const receipt = readJson(path, 'E_RESULT_COMPLETION_RECEIPT', path);
+    try {
+      verifyTransitionReceipt(receipt);
+    } catch (error) {
+      fail('E_RESULT_COMPLETION_RECEIPT', path, error.message);
+    }
+    if (receipt.receipt_id !== reference.receipt_id) {
+      fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt ID does not match state.');
+    }
+    const plan = receipt.subjects.find((subject) => subject.name === 'plan');
+    if (plan?.sha256 !== contract.source.sha256) {
+      fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt plan subject is stale.');
+    }
+    const sliceId = receipt.authorized_decision?.slice_id;
+    if (receipts.has(sliceId)) {
+      fail('E_RESULT_COMPLETION_RECEIPT', path, `Duplicate completion receipt for ${sliceId}.`);
+    }
+    receipts.set(sliceId, receipt);
+  }
+  return receipts;
+}
+
+function priorPlanReview({ contract, repoRoot, state }) {
+  const references = Array.isArray(state.values.phase_result_references)
+    ? state.values.phase_result_references
+    : [];
+  const matches = references.filter((reference) => reference?.phase === 'plan-review');
+  if (matches.length > 1) {
+    fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_references', 'Duplicate Plan Review results.');
+  }
+  if (matches.length === 1) {
+    const reference = matches[0];
+    if (!HEX_SHA256.test(reference.receipt_id)) {
+      fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_references', 'Malformed result reference.');
+    }
+    let path;
+    try {
+      path = resolveInsideRepo(
+        join('.build', 'result-receipts', `${reference.receipt_id}.json`),
+        repoRoot,
+        'Plan Review result receipt',
+        { mustExist: true },
+      );
+    } catch (error) {
+      fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_references', error.message);
+    }
+    const receipt = readJson(path, 'E_RESULT_PRIOR_RECEIPT', path);
+    verifyPhaseResultReceipt(receipt);
+    if (receipt.phase !== 'plan-review' || receipt.subjects?.plan !== contract.source.sha256) {
+      fail('E_RESULT_PRIOR_RECEIPT', path, 'Plan Review result is stale or wrong-phase.');
+    }
+    return { bootstrap: null, receipt_id: receipt.receipt_id };
+  }
+  const bootstraps = Array.isArray(state.values.phase_result_bootstrap)
+    ? state.values.phase_result_bootstrap
+    : [];
+  const matchesBootstrap = bootstraps.filter((entry) =>
+    entry?.phase === 'plan-review' && entry?.reason === 'precompiler-plan-review');
+  if (matchesBootstrap.length > 1) {
+    fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_bootstrap', 'Duplicate Plan Review bootstraps.');
+  }
+  const bootstrap = matchesBootstrap[0];
+  if (!bootstrap) return { bootstrap: null, receipt_id: null };
+  try {
+    exactKeys(bootstrap, BOOTSTRAP_FIELDS, 'state.phase_result_bootstrap');
+  } catch (error) {
+    fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_bootstrap', error.message);
+  }
+  for (const name of [
+    'accepted_contract_hash',
+    'accepted_plan_sha256',
+    'review_artifact_sha256',
+    'reviewed_contract_hash',
+    'reviewed_plan_sha256',
+  ]) {
+    if (!HEX_SHA256.test(bootstrap[name])) {
+      fail('E_RESULT_PRIOR_RECEIPT', `state.phase_result_bootstrap.${name}`, 'Expected SHA-256.');
+    }
+  }
+  for (const name of ['reviewer', 'override']) {
+    if (typeof bootstrap[name] !== 'string' || !bootstrap[name].trim()) {
+      fail(
+        'E_RESULT_PRIOR_RECEIPT',
+        `state.phase_result_bootstrap.${name}`,
+        'Expected a non-empty string.',
+      );
+    }
+  }
+  if (bootstrap.accepted_plan_sha256 !== contract.source.sha256) {
+    fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_bootstrap', 'Bootstrap plan is stale.');
+  }
+  return { bootstrap, receipt_id: null };
+}
+
+function findingsText(findings) {
+  return findings.map((finding) =>
+    [finding.summary, finding.evidence, finding.consequence, finding.fix].join('\n')).join('\n');
+}
+
+async function verifyFacts({
+  authored,
+  contract,
+  evidenceDir,
+  loaded,
+  paths,
+  repository,
+  state,
+}) {
+  const clean = repositoryCleanStatus({ repoRoot: state.repoRoot });
+  if (!clean.clean) {
+    fail('E_RESULT_DIRTY', 'repository', 'Verify result requires a clean worktree.');
+  }
+  const scope = repositoryFileScope({
+    baseRef: state.values.base_ref,
+    plannedPaths: contract.execution_manifest.flatMap((task) => task.files_modified),
+    repoRoot: state.repoRoot,
+  });
+  if (scope.out_of_plan.length > 0) {
+    fail(
+      'E_RESULT_SCOPE',
+      'repository.out_of_plan',
+      `Changed paths are outside the plan: ${scope.out_of_plan.join(', ')}.`,
+    );
+  }
+  const checked = await checkEvidence({
+    contractPath: loaded.contractPath,
+    evidenceDir,
+    repoRoot: state.repoRoot,
+  });
+  const hardEvidence = checked.diagnostics.filter(
+    (item) => item.code !== 'E_EVIDENCE_COMMAND_FAILED',
+  );
+  if (!checked.ledger || hardEvidence.length > 0) {
+    throw new BuildctlError('E_RESULT_EVIDENCE', 'Evidence ledger is not current.', {
+      diagnostics: hardEvidence.map((item) => ({
+        code: 'E_RESULT_EVIDENCE',
+        message: `${item.code}: ${item.message}`,
+        path: item.path,
+      })),
+    });
+  }
+  const receiptDiagnostics = [];
+  const receipts = receiptIndex({
+    contract,
+    diagnostics: receiptDiagnostics,
+    identity: repository,
+    ledger: checked.ledger,
+    repoRoot: state.repoRoot,
+  });
+  if (receiptDiagnostics.length > 0) {
+    throw new BuildctlError('E_RESULT_EVIDENCE', 'Evidence receipts are invalid.', {
+      diagnostics: receiptDiagnostics.map((item) => ({
+        code: 'E_RESULT_EVIDENCE',
+        message: `${item.code}: ${item.message}`,
+        path: item.path,
+      })),
+    });
+  }
+  const completions = completionReceipts({ contract, repoRoot: state.repoRoot, state });
+  const coverage = evaluateWorkflowCoverage({
+    completionReceipts: completions,
+    contract,
+    receipts,
+  });
+  const completed = new Set(
+    Array.isArray(state.values.completed_slices) ? state.values.completed_slices : [],
+  );
+  for (const slice of contract.delivery_slices) {
+    if (!completed.has(slice.id)) coverage.gaps.push(`slice:${slice.id}:not-completed`);
+  }
+  const prior = priorPlanReview({ contract, repoRoot: state.repoRoot, state });
+  const requiredMentions = [...coverage.gaps];
+  if (!prior.receipt_id) {
+    requiredMentions.push(prior.bootstrap ? 'Plan Review receipt' : 'plan-review-result');
+  }
+  requiredMentions.push(...scope.planned_but_unchanged);
+  const gaps = [...new Set([
+    ...coverage.gaps,
+    ...scope.planned_but_unchanged.map((path) => `planned-unchanged:${path}`),
+    ...(!prior.receipt_id
+      ? [prior.bootstrap ? 'prior:plan-review-receipt-bootstrap' : 'prior:plan-review-result']
+      : []),
+  ])].sort();
+  const text = findingsText(authored.findings);
+  if (coverage.failedCommands.length > 0) {
+    if (authored.verdict !== 'failed'
+      || coverage.failedCommands.some((command) => !text.includes(command))) {
+      fail(
+        'E_RESULT_VERDICT',
+        'artifact.machine_result.verdict',
+        'Failed evidence commands require failed verdict findings naming every command.',
+      );
+    }
+  } else if (gaps.length > 0) {
+    if (authored.verdict !== 'partial'
+      || requiredMentions.some((mention) => !text.includes(mention))) {
+      fail(
+        'E_RESULT_VERDICT',
+        'artifact.machine_result.verdict',
+        `Mechanical gaps require partial findings naming every gap: ${gaps.join(', ')}.`,
+      );
+    }
+  }
+  return {
+    evidence: {
+      failed_commands: coverage.failedCommands,
+      gaps,
+      ledger_hash: checked.ledger.ledger_hash,
+      required_commands: coverage.requiredCommands,
+      resolved_requirements: coverage.resolvedRequirements,
+    },
+    file_scope: scope,
+    prior_plan_review: prior,
+  };
+}
+
 function receiptCore({
   artifact,
   authored,
@@ -239,6 +554,7 @@ function receiptCore({
   repository,
   state,
   subjects,
+  mechanicalFacts,
 }) {
   const counts = { critical: 0, important: 0, minor: 0 };
   for (const finding of authored.findings) counts[finding.severity] += 1;
@@ -260,7 +576,7 @@ function receiptCore({
       contract_hash: contract.contract_hash,
       source_plan_sha256: contract.source.sha256,
     },
-    mechanical_facts: {
+    mechanical_facts: mechanicalFacts || {
       base_ref: state.values.base_ref,
       finding_counts: counts,
       repository_fingerprint: repository.fingerprint,
@@ -328,13 +644,47 @@ export async function compilePhaseResult({
     evidenceDir,
     repoRoot: state.repoRoot,
   });
-  const subjects = {
-    contract: sha256(readFileSync(loaded.contractPath)),
-    context: sha256(readFileSync(paths.context)),
-    plan: sha256(readFileSync(paths.plan)),
-    repository: repository.fingerprint,
-    requirements: sha256(readFileSync(paths.requirements)),
-  };
+  let subjects;
+  let mechanicalFacts;
+  if (authored.phase === 'verify') {
+    const summary = resolveInsideRepo(
+      join('.build', 'plans', `${state.values.workflow_artifact_prefix || state.values.slug}-implementation-summary.md`),
+      state.repoRoot,
+      'implementation summary',
+      { mustExist: true },
+    );
+    const ledger = resolveInsideRepo(
+      join(evidenceDir || join('.build', 'evidence', loaded.contract.slug), 'ledger.json'),
+      state.repoRoot,
+      'evidence ledger',
+      { mustExist: true },
+    );
+    subjects = {
+      contract: sha256(readFileSync(loaded.contractPath)),
+      'evidence-ledger': sha256(readFileSync(ledger)),
+      'implementation-summary': sha256(readFileSync(summary)),
+      plan: sha256(readFileSync(paths.plan)),
+      repository: repository.fingerprint,
+      requirements: sha256(readFileSync(paths.requirements)),
+    };
+    mechanicalFacts = await verifyFacts({
+      authored,
+      contract: loaded.contract,
+      evidenceDir,
+      loaded,
+      paths,
+      repository,
+      state,
+    });
+  } else {
+    subjects = {
+      contract: sha256(readFileSync(loaded.contractPath)),
+      context: sha256(readFileSync(paths.context)),
+      plan: sha256(readFileSync(paths.plan)),
+      repository: repository.fingerprint,
+      requirements: sha256(readFileSync(paths.requirements)),
+    };
+  }
   assertSubjects(authored, subjects);
   const core = receiptCore({
     artifact: { path: artifactFile, source },
@@ -343,6 +693,7 @@ export async function compilePhaseResult({
     repository,
     state,
     subjects,
+    mechanicalFacts,
   });
   const receiptId = sha256(canonicalJson(core));
   const withId = { ...core, receipt_id: receiptId };
