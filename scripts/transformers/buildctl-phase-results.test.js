@@ -177,11 +177,37 @@ async function makeVerifyRepo({
   failedEvidence = false,
   outOfPlan = false,
   plannedUnchanged = false,
+  rejectedReview = false,
+  rereview = false,
 } = {}) {
   const setup = await makePlanReviewRepo({ failedEvidence });
-  const reviewResult = bootstrap
-    ? null
-    : JSON.parse(run(compileArgs(setup), setup.repo).stdout);
+  const reviewResults = [];
+  if (!bootstrap) {
+    reviewResults.push(JSON.parse(run(compileArgs(setup), setup.repo).stdout));
+    if (rereview || rejectedReview) {
+      const nextReport = setup.report
+        .replace(
+          'Proceed to implementation',
+          rejectedReview ? 'Do not proceed' : 'Proceed to implementation',
+        )
+        .replace('verdict: proceed', `verdict: ${rejectedReview ? 'do_not_proceed' : 'proceed'}`)
+        .replace(
+          'findings: []',
+          [
+            'findings:',
+            '  - id: PR-001',
+            `    severity: ${rejectedReview ? 'critical' : 'minor'}`,
+            `    summary: "${rejectedReview ? 'The revised plan is rejected.' : 'The revised plan retains a minor note.'}"`,
+            '    evidence: "The second immutable review fixture is distinct from the first."',
+            `    consequence: "${rejectedReview ? 'Implementation is not authorized.' : 'The accepted plan retains a non-blocking note.'}"`,
+            `    fix: "${rejectedReview ? 'Return to planning before implementation.' : 'Track the note after implementation.'}"`,
+          ].join('\n'),
+        );
+      writeFileSync(setup.artifactPath, nextReport, 'utf8');
+      reviewResults.push(JSON.parse(run(compileArgs(setup), setup.repo).stdout));
+      assert.notEqual(reviewResults[0].receipt_id, reviewResults[1].receipt_id);
+    }
+  }
   const baseRef = git(setup.repo, 'rev-parse', 'HEAD');
   writeFileSync(
     join(setup.repo, 'src/legacy-pose.js'),
@@ -273,10 +299,10 @@ async function makeVerifyRepo({
     `base_ref: ${JSON.stringify(baseRef)}`,
     'phase: "verify"',
     'workflow_artifact_prefix: "receipt-fixture"',
-    `phase_result_references: ${JSON.stringify(reviewResult ? [{
+    `phase_result_references: ${JSON.stringify(reviewResults.map((result) => ({
       phase: 'plan-review',
-      receipt_id: reviewResult.receipt_id,
-    }] : [])}`,
+      receipt_id: result.receipt_id,
+    })))}`,
     `phase_result_bootstrap: ${JSON.stringify(bootstrap ? [{
       accepted_contract_hash: contract.contract_hash,
       accepted_plan_sha256: contract.source.sha256,
@@ -323,6 +349,7 @@ async function makeVerifyRepo({
     evidenceCommand: contract.evidence_commands[0].command,
     evidenceDir,
     report: verifyReport,
+    reviewResults,
     state: verifyState,
   };
 }
@@ -345,9 +372,29 @@ function compileVerifyArgs(setup) {
   ];
 }
 
-async function makeArchitectRepo() {
+async function makeArchitectRepo({ reverify = false } = {}) {
   const setup = await makeVerifyRepo();
-  const verifyResult = JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout);
+  const verifyResults = [
+    JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout),
+  ];
+  if (reverify) {
+    const nextReport = setup.report.replace(
+      'findings: []',
+      [
+        'findings:',
+        '  - id: VR-001',
+        '    severity: minor',
+        '    summary: "The second Verify result retains a minor note."',
+        '    evidence: "The second immutable Verify fixture is distinct from the first."',
+        '    consequence: "The verified implementation retains a non-blocking note."',
+        '    fix: "Track the note after completion."',
+      ].join('\n'),
+    );
+    writeFileSync(setup.artifactPath, nextReport, 'utf8');
+    verifyResults.push(JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout));
+    assert.notEqual(verifyResults[0].receipt_id, verifyResults[1].receipt_id);
+  }
+  const verifyResult = verifyResults.at(-1);
   const verifyReceipt = JSON.parse(readFileSync(
     join(setup.repo, verifyResult.receipt_path),
     'utf8',
@@ -355,7 +402,7 @@ async function makeArchitectRepo() {
   const parsed = parseWorkflowState(setup.state);
   const references = [
     ...parsed.phase_result_references,
-    { phase: 'verify', receipt_id: verifyResult.receipt_id },
+    ...verifyResults.map((result) => ({ phase: 'verify', receipt_id: result.receipt_id })),
   ];
   const architectState = setup.state
     .replace('phase: "verify"', 'phase: "architect-review"')
@@ -391,6 +438,7 @@ async function makeArchitectRepo() {
     artifactPath: architectPath,
     architectState,
     report,
+    verifyResults,
     verifyArtifactPath: setup.artifactPath,
     verifyReceiptPath: join(setup.repo, verifyResult.receipt_path),
   };
@@ -482,25 +530,31 @@ test('phase-result verify: coverage and planned file-scope gaps cannot compile a
   assert.equal(verified.verdict, 'verified');
   assert.equal(verified.allowed_next_phase, 'architect-review');
 
-  const repeatedReview = await makeVerifyRepo();
+  const repeatedReview = await makeVerifyRepo({ rereview: true });
   const repeatedReviewState = parseWorkflowState(repeatedReview.state);
-  const reviewReference = repeatedReviewState.phase_result_references.find(
+  const reviewReferences = repeatedReviewState.phase_result_references.filter(
     (entry) => entry.phase === 'plan-review',
   );
-  writeFileSync(
-    repeatedReview.statePath,
-    repeatedReview.state.replace(
-      /^phase_result_references: .*$/m,
-      `phase_result_references: ${JSON.stringify([
-        reviewReference,
-        reviewReference,
-      ])}`,
-    ),
-  );
+  assert.equal(reviewReferences.length, 2);
+  assert.notEqual(reviewReferences[0].receipt_id, reviewReferences[1].receipt_id);
   const afterRereview = JSON.parse(
     run(compileVerifyArgs(repeatedReview), repeatedReview.repo).stdout,
   );
   assert.equal(afterRereview.verdict, 'verified');
+  const afterRereviewReceipt = JSON.parse(readFileSync(
+    join(repeatedReview.repo, afterRereview.receipt_path),
+    'utf8',
+  ));
+  assert.equal(
+    afterRereviewReceipt.mechanical_facts.prior_plan_review.receipt_id,
+    reviewReferences[1].receipt_id,
+  );
+
+  const rejectedReview = await makeVerifyRepo({ rejectedReview: true });
+  assert.match(
+    run(compileVerifyArgs(rejectedReview), rejectedReview.repo, 1).stderr,
+    /E_RESULT_PRIOR_RECEIPT/,
+  );
 
   const recompiled = await makeVerifyRepo();
   const originalContract = loadContract({
@@ -698,25 +752,25 @@ test('phase-result architect-review: stale Verify results and changed diffs bloc
   assert.equal(replay.receipt_id, compiled.receipt_id);
   assert.equal(readFileSync(join(current.repo, replay.receipt_path), 'utf8'), receiptBytes);
 
-  const repeatedVerify = await makeArchitectRepo();
+  const repeatedVerify = await makeArchitectRepo({ reverify: true });
   const repeatedVerifyState = parseWorkflowState(repeatedVerify.architectState);
-  const verifyReference = repeatedVerifyState.phase_result_references.find(
+  const verifyReferences = repeatedVerifyState.phase_result_references.filter(
     (entry) => entry.phase === 'verify',
   );
-  writeFileSync(
-    repeatedVerify.statePath,
-    repeatedVerify.architectState.replace(
-      /^phase_result_references: .*$/m,
-      `phase_result_references: ${JSON.stringify([
-        ...repeatedVerifyState.phase_result_references,
-        verifyReference,
-      ])}`,
-    ),
-  );
+  assert.equal(verifyReferences.length, 2);
+  assert.notEqual(verifyReferences[0].receipt_id, verifyReferences[1].receipt_id);
   const afterReverify = JSON.parse(
     run(compileArchitectArgs(repeatedVerify), repeatedVerify.repo).stdout,
   );
   assert.equal(afterReverify.verdict, 'pass');
+  const afterReverifyReceipt = JSON.parse(readFileSync(
+    join(repeatedVerify.repo, afterReverify.receipt_path),
+    'utf8',
+  ));
+  assert.equal(
+    afterReverifyReceipt.mechanical_facts.verify_result.receipt_id,
+    verifyReferences[1].receipt_id,
+  );
 
   const wrongPrior = await makeArchitectRepo();
   const wrongState = parseWorkflowState(wrongPrior.architectState);
