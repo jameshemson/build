@@ -1014,6 +1014,35 @@ test('v1.14 Verify source contracts require compiled coverage and scope before t
   }
 });
 
+test('v1.14 Architect Review source contracts bind terminal verdict to Verify result and diff', () => {
+  const architect = readRel('source/skills/architect-review/SKILL.md');
+  const orchestrators = [
+    readRel('source/skills/build/SKILL.md'),
+    readRel('source/skills/build/SKILL.codex.md'),
+  ];
+  for (const term of [
+    '## Machine result',
+    'phase: architect-review',
+    'verdict: pass',
+    'AR-###',
+    'verify-result',
+    'implementation-summary',
+    'Machine result: N/A — missing subjects: <sorted comma-separated names>',
+    'prose verdict',
+  ]) assert.ok(architect.includes(term), `Architect Review source missing ${term}`);
+  for (const source of orchestrators) {
+    for (const term of [
+      '`compile-result`',
+      '`phase_result_references`',
+      'accepted Verify result',
+      'exact final diff',
+      'allowed next phase',
+      'runnable diagnostic',
+      'root',
+    ]) assert.ok(source.includes(term), `Build source missing ${term}`);
+  }
+});
+
 test('v1.13 orchestrators retain root-applied completion and deterministic counters', () => {
   const claude = readRel('source/skills/build/SKILL.md');
   const codex = readRel('source/skills/build/SKILL.codex.md');

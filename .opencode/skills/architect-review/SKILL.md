@@ -78,6 +78,22 @@ PASS / PASS_WITH_NOTES / FAIL
 **PASS_WITH_NOTES**: Ship it, but address the noted items soon.
 **FAIL**: Do not ship. Critical or important issues must be resolved first.
 
+When all orchestrated subjects are available, end the saved review after the prose verdict with exactly one `## Machine result` YAML fence. Use `schema_version: 1`, `phase: architect-review`, the mapped lowercase `verdict: pass|pass_with_notes|fail`, and exactly one SHA-256 subject for each of `plan`, `contract`, `implementation-summary`, `repository`, `verify`, and `verify-result`; do not guess hashes.
+
+Encode every prose finding in order with gap-free `AR-###` IDs and exactly `id`, `severity`, `summary`, `evidence`, `consequence`, and `fix`. The prose verdict and machine verdict must agree: pass has no unresolved Critical/Important finding, pass-with-notes has at least one Minor but no Critical/Important finding, and fail has a Critical or Important finding. The prose review remains semantic authority; the machine section only attests it for Build.
+
+```yaml
+## Machine result
+schema_version: 1
+phase: architect-review
+verdict: pass
+subjects:
+  - { name: verify-result, sha256: "<64 lowercase hex>" }
+findings: []
+```
+
+When any required subject is unavailable in standalone use, omit the section and end with the literal `Machine result: N/A — missing subjects: <sorted comma-separated names>` line, replacing the placeholder with actual names. Never emit a partial subject set.
+
 Be direct.
 
 *(Treat the user's message that invoked this skill as the task input.)*

@@ -78,7 +78,7 @@ Dogfood v1.13.0 before expanding transition authority. Continue only if complete
 and observed failures or wasted time come from stale, incomplete, or ambiguous phase judgments
 rather than from semantic review quality.
 
-## v1.14.0 — deterministic phase receipts
+## v1.14.0 — deterministic phase receipts (shipped)
 
 - Keep Plan Review, Verify, and Architect Review as authored Markdown/YAML judgments, then
   compile them into generated, schema-validated result receipts.

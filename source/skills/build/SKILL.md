@@ -188,7 +188,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 2. Invoke `/build:verify` via the Skill tool for fresh whole-workflow evidence; with compiled evidence it runs only `run-evidence --check-only` and judges receipt/consumer coverage without executing evidence commands. Recorded runtime fallback preserves the prompt exact-command protocol; no slice, worker, wave, or checkpoint result substitutes for this final authority.
 3. Save the verification report to `.build/plans/{slug}-verify.md` before changing phase.
 4. When buildctl is runnable, run `compile-result` against the saved report and current state/contract/evidence. buildctl owns whole-workflow coverage and file scope; Verify authors the semantic verdict without re-executing evidence commands. A runnable diagnostic blocks and never selects fallback.
-5. Require a current immutable Verify receipt. In one root-owned state edit append `{phase,receipt_id}` to `phase_result_references`, record verdict/gaps or failures, append history, and apply only its returned allowed next phase: `architect-review` for VERIFIED/PARTIAL or `implement` for FAILED. Auto-continue only on `architect-review`.
+5. Require a current immutable Verify receipt. In one root-owned state edit append `{phase,receipt_id}` to `phase_result_references`, record verdict plus `uncovered_requirements` or failures, append history, and apply only its returned allowed next phase: `architect-review` for VERIFIED/PARTIAL or `implement` for FAILED. Auto-continue only on `architect-review`.
 6. Recorded runtime absence uses the authored prose verdict as prompt fallback with the same phase mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
 
 ---
@@ -201,14 +201,9 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 2. Read the whole workflow diff since the workflow started. If `base_ref` exists in state, use `git diff {base_ref}...HEAD`; otherwise use `git diff HEAD` and report `base_ref unavailable`. Architect Review covers this whole diff, never only the final slice.
 3. Invoke `/build:architect-review` via the Skill tool with explicit context: workflow slug, state path, `{slug}-verify.md` path, verification verdict, and review target `git diff {base_ref}...HEAD` (or `git diff HEAD` if `base_ref` is unavailable).
 4. Save the review to `.build/plans/{slug}-architect-review.md` before changing phase.
-5. Update state:
-   - **PASS** or **PASS_WITH_NOTES**: `phase: complete`
-   - **FAIL**: `phase: implement`, add `architect_fixes:` field with specific issues
-6. Append to history
-
-After the agent returns:
-- **Passed**: Continue to Phase 5 (Complete).
-- **Issues**: Re-enter Phase 3 to fix the architect's findings, then re-verify.
+5. When buildctl is runnable, run `compile-result` against the saved review. It requires the current accepted Verify result and exact final diff; a runnable diagnostic blocks and never selects fallback.
+6. Require the immutable Architect Review receipt. In one root-owned edit append `{phase,receipt_id}` to `phase_result_references`, record findings/verdict and history, and apply only its allowed next phase: `complete` for PASS/PASS_WITH_NOTES or `implement` with `architect_fixes` for FAIL. Auto-continue only on `complete`; rework returns through implementation and fresh Verify.
+7. Recorded runtime absence uses the authored prose verdict with the same mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
 
 ---
 

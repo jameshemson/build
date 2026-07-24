@@ -106,7 +106,7 @@ test('all release-version carriers agree', () => {
     1,
     `Version drift across release files: ${carriers.map((c) => `${c.path}=${c.version}`).join(', ')}. Bump all ${carriers.length} together.`,
   );
-  assert.equal(unique[0], '1.13.0', 'release version must be 1.13.0');
+  assert.equal(unique[0], '1.14.0', 'release version must be 1.14.0');
 });
 
 test('package exposes the canonical self-contained buildctl CLI', () => {
@@ -115,10 +115,28 @@ test('package exposes the canonical self-contained buildctl CLI', () => {
   const cli = readFileSync(join(ROOT, packageJson.bin.buildctl), 'utf8');
   assert.ok(cli.startsWith('#!/usr/bin/env node\n'));
   for (const file of [
-    'completion.js', 'counters.js', 'evidence.js', 'immutable-json.js', 'plan-contract.js',
-    'repository.js', 'transition.js', 'validation.js', 'workflow-state.js',
+    'completion.js', 'counters.js', 'coverage.js', 'evidence.js', 'immutable-json.js',
+    'phase-results.js', 'plan-contract.js', 'repository.js', 'transition.js', 'validation.js',
+    'workflow-state.js',
   ]) {
     assert.ok(statSync(join(ROOT, 'source/skills/build/buildctl', file)).isFile());
+  }
+});
+
+test('v1.14 release documents deterministic phase receipts and preserves standalone continuity', () => {
+  for (const carrier of VERSION_CARRIERS) {
+    assert.equal(carrier.get(readJson(join(ROOT, carrier.path))), '1.14.0', carrier.path);
+  }
+  for (const [path, pattern] of [
+    [readmePath, /compile-result[\s\S]*Plan Review[\s\S]*Verify[\s\S]*Architect Review/i],
+    [harnessesPath, /deterministic phase result receipts[\s\S]*root-only/i],
+    [roadmapPath, /v1\.14\.0 — deterministic phase receipts \(shipped\)/i],
+    [changelogPath, /## 1\.14\.0 - 2026-07-24[\s\S]*compile-result/i],
+  ]) assert.match(readFileSync(path, 'utf8'), pattern, path);
+  for (const skill of ['review-plan', 'verify', 'architect-review']) {
+    const source = readFileSync(join(sourceSkillsDir, skill, 'SKILL.md'), 'utf8');
+    assert.match(source, /## Machine result/);
+    assert.match(source, /Machine result: N\/A — missing subjects:/);
   }
 });
 
@@ -288,7 +306,7 @@ test('ROADMAP sequences deterministic Build authority without claiming deferred 
   assert.match(roadmap, /Deferred[\s\S]*leases[\s\S]*domain[\s\S]*trajectory[\s\S]*routing/i);
 });
 
-test('v1.13 release docs and versions describe bounded completion authority', () => {
+test('v1.13 shipped docs retain bounded completion authority under v1.14', () => {
   const roadmap = readFileSync(roadmapPath, 'utf8');
   const changelog = readFileSync(changelogPath, 'utf8');
   const docs = `${readFileSync(readmePath, 'utf8')}\n${readFileSync(harnessesPath, 'utf8')}`;
@@ -299,7 +317,7 @@ test('v1.13 release docs and versions describe bounded completion authority', ()
   assert.match(docs, /buildctl never (?:writes workflow state|mutates git)/i);
   assert.deepEqual(
     VERSION_CARRIERS.map((carrier) => carrier.get(readJson(join(ROOT, carrier.path)))),
-    ['1.13.0', '1.13.0', '1.13.0', '1.13.0'],
+    ['1.14.0', '1.14.0', '1.14.0', '1.14.0'],
   );
 });
 
