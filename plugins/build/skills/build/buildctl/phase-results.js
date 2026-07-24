@@ -383,19 +383,35 @@ function completionReceipts({ contract, repoRoot, state }) {
   return receipts;
 }
 
-function priorPlanReview({ contract, repoRoot, state }) {
+function latestPhaseReference(state, phase, { required = false } = {}) {
   const references = Array.isArray(state.values.phase_result_references)
     ? state.values.phase_result_references
     : [];
-  const matches = references.filter((reference) => reference?.phase === 'plan-review');
-  if (matches.length > 1) {
-    fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_references', 'Duplicate Plan Review results.');
-  }
-  if (matches.length === 1) {
-    const reference = matches[0];
-    if (!HEX_SHA256.test(reference.receipt_id)) {
-      fail('E_RESULT_PRIOR_RECEIPT', 'state.phase_result_references', 'Malformed result reference.');
+  let latest = null;
+  for (const [index, reference] of references.entries()) {
+    if (reference?.phase !== phase) continue;
+    if (!HEX_SHA256.test(reference.receipt_id || '')) {
+      fail(
+        'E_RESULT_PRIOR_RECEIPT',
+        `state.phase_result_references[${index}]`,
+        `Malformed ${phase} result reference.`,
+      );
     }
+    latest = reference;
+  }
+  if (required && !latest) {
+    fail(
+      'E_RESULT_PRIOR_RECEIPT',
+      'state.phase_result_references',
+      `Expected a valid referenced ${phase} result.`,
+    );
+  }
+  return latest;
+}
+
+function priorPlanReview({ contract, repoRoot, state }) {
+  const reference = latestPhaseReference(state, 'plan-review');
+  if (reference) {
     let path;
     try {
       path = resolveInsideRepo(
@@ -463,21 +479,11 @@ function priorVerifyResult({
   state,
   verifyPath,
 }) {
-  const references = Array.isArray(state.values.phase_result_references)
-    ? state.values.phase_result_references
-    : [];
-  const matches = references.filter((reference) => reference?.phase === 'verify');
-  if (matches.length !== 1 || !HEX_SHA256.test(matches[0]?.receipt_id || '')) {
-    fail(
-      'E_RESULT_PRIOR_RECEIPT',
-      'state.phase_result_references',
-      'Expected exactly one valid referenced Verify result.',
-    );
-  }
+  const reference = latestPhaseReference(state, 'verify', { required: true });
   let path;
   try {
     path = resolveInsideRepo(
-      join('.build', 'result-receipts', `${matches[0].receipt_id}.json`),
+      join('.build', 'result-receipts', `${reference.receipt_id}.json`),
       repoRoot,
       'Verify result receipt',
       { mustExist: true },
@@ -487,7 +493,7 @@ function priorVerifyResult({
   }
   const receipt = readJson(path, 'E_RESULT_PRIOR_RECEIPT', path);
   verifyPhaseResultReceipt(receipt);
-  if (receipt.receipt_id !== matches[0].receipt_id
+  if (receipt.receipt_id !== reference.receipt_id
     || receipt.phase !== 'verify'
     || !['verified', 'partial'].includes(receipt.verdict)
     || receipt.subjects?.plan !== contract.source.sha256
