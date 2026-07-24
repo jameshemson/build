@@ -482,6 +482,26 @@ test('phase-result verify: coverage and planned file-scope gaps cannot compile a
   assert.equal(verified.verdict, 'verified');
   assert.equal(verified.allowed_next_phase, 'architect-review');
 
+  const repeatedReview = await makeVerifyRepo();
+  const repeatedReviewState = parseWorkflowState(repeatedReview.state);
+  const reviewReference = repeatedReviewState.phase_result_references.find(
+    (entry) => entry.phase === 'plan-review',
+  );
+  writeFileSync(
+    repeatedReview.statePath,
+    repeatedReview.state.replace(
+      /^phase_result_references: .*$/m,
+      `phase_result_references: ${JSON.stringify([
+        reviewReference,
+        reviewReference,
+      ])}`,
+    ),
+  );
+  const afterRereview = JSON.parse(
+    run(compileVerifyArgs(repeatedReview), repeatedReview.repo).stdout,
+  );
+  assert.equal(afterRereview.verdict, 'verified');
+
   const recompiled = await makeVerifyRepo();
   const originalContract = loadContract({
     contractPath: recompiled.contractPath,
@@ -677,6 +697,26 @@ test('phase-result architect-review: stale Verify results and changed diffs bloc
   const replay = JSON.parse(run(compileArchitectArgs(current), current.repo).stdout);
   assert.equal(replay.receipt_id, compiled.receipt_id);
   assert.equal(readFileSync(join(current.repo, replay.receipt_path), 'utf8'), receiptBytes);
+
+  const repeatedVerify = await makeArchitectRepo();
+  const repeatedVerifyState = parseWorkflowState(repeatedVerify.architectState);
+  const verifyReference = repeatedVerifyState.phase_result_references.find(
+    (entry) => entry.phase === 'verify',
+  );
+  writeFileSync(
+    repeatedVerify.statePath,
+    repeatedVerify.architectState.replace(
+      /^phase_result_references: .*$/m,
+      `phase_result_references: ${JSON.stringify([
+        ...repeatedVerifyState.phase_result_references,
+        verifyReference,
+      ])}`,
+    ),
+  );
+  const afterReverify = JSON.parse(
+    run(compileArchitectArgs(repeatedVerify), repeatedVerify.repo).stdout,
+  );
+  assert.equal(afterReverify.verdict, 'pass');
 
   const wrongPrior = await makeArchitectRepo();
   const wrongState = parseWorkflowState(wrongPrior.architectState);

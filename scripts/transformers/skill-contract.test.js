@@ -973,6 +973,7 @@ test('v1.14 Plan Review source contracts require authored result compilation bef
     '`workflow_artifact_prefix`',
     '`phase_result_references`',
     '`phase_result_bootstrap`',
+    'the newest reference for a phase is current',
     'bare 40-character lowercase hexadecimal',
     'normalize it before the first post-integration buildctl state read',
   ]) assert.ok(schema.includes(term), `state schema missing ${term}`);
