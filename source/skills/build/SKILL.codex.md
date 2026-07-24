@@ -238,11 +238,7 @@ Read state, requirements, plan, and implementation summary. Only after every sli
 run `verify` in a fresh-context agent as the fresh whole-workflow authority. With compiled evidence, Verify runs only `run-evidence --check-only` and judges receipt freshness, exact-command consumers, expected observations, requirement/must-have coverage, and debt without executing evidence commands. Prompt fallback retains the prior exact-command protocol. Root's final evidence ledger owns each compiled exact command and the fresh full-suite result; Phase 4 owns receipt coverage and the debt scan.
 Save `{slug}-verify.md` before changing state.
 
-- `VERIFIED`: record verdict and transition to `architect-review`.
-- `FAILED`: record `verification_failures` and transition to `implement`.
-- `PARTIAL`: record verdict plus every `uncovered_requirements` gap, then transition to
-  `architect-review`; gaps remain visible through completion.
-- Missing verdict: apply the phase-agent circuit breaker.
+When runnable, run `compile-result` against the saved report and current state/contract/evidence; buildctl owns whole-workflow coverage and file scope while Verify authors semantic judgment without re-executing evidence commands. A runnable diagnostic blocks and never selects fallback. Require the current immutable result, then root appends `{phase,receipt_id}` to `phase_result_references`, records verdict and gaps/failures plus history, and applies only its allowed next phase: VERIFIED/PARTIAL to `architect-review`, FAILED to `implement`. Recorded runtime absence uses the authored mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
 
 ## Phase 5: Architect review
 

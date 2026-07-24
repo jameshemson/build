@@ -978,6 +978,42 @@ test('v1.14 Plan Review source contracts require authored result compilation bef
   ]) assert.ok(schema.includes(term), `state schema missing ${term}`);
 });
 
+test('v1.14 Verify source contracts require compiled coverage and scope before transition', () => {
+  const verify = readRel('source/skills/verify/SKILL.md');
+  const evidence = readRel('source/skills/verify/reference/evidence-requirements.md');
+  const orchestrators = [
+    readRel('source/skills/build/SKILL.md'),
+    readRel('source/skills/build/SKILL.codex.md'),
+  ];
+  for (const term of [
+    '## Machine result',
+    'phase: verify',
+    'verdict: verified',
+    'VR-###',
+    'implementation-summary',
+    'evidence-ledger',
+    'Machine result: N/A — missing subjects: <sorted comma-separated names>',
+    'prose verdict',
+  ]) assert.ok(verify.includes(term), `Verify source missing ${term}`);
+  for (const term of [
+    'Verify mechanical compatibility matrix',
+    'planned-but-unchanged',
+    'pre-S-001 Plan Review bootstrap',
+    'failed evidence command',
+    'whole-workflow coverage',
+  ]) assert.ok(evidence.includes(term), `Verify evidence reference missing ${term}`);
+  for (const source of orchestrators) {
+    for (const term of [
+      '`compile-result`',
+      '`phase_result_references`',
+      'allowed next phase',
+      'buildctl owns whole-workflow coverage and file scope',
+      'runnable diagnostic',
+      'without re-executing evidence commands',
+    ]) assert.ok(source.includes(term), `Build source missing ${term}`);
+  }
+});
+
 test('v1.13 orchestrators retain root-applied completion and deterministic counters', () => {
   const claude = readRel('source/skills/build/SKILL.md');
   const codex = readRel('source/skills/build/SKILL.codex.md');

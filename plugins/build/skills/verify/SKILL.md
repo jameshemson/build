@@ -93,46 +93,23 @@ If you catch yourself writing any of these, STOP. Get real evidence instead.
 
 ## Output format
 
-```
-## Verification Report
-Timestamp: [YYYY-MM-DD HH:MM]
-### Tests
-Command: [exact command run]
-Result: PASS / FAIL / N/A
-Output:
-[actual output, truncated to last 50 lines if longer]
-### Build
-Command: [exact command run]
-Result: PASS / FAIL / N/A
-Output:
-[actual output]
-### Type check
-Command: [exact command run]
-Result: PASS / FAIL / N/A
-Output:
-[actual output]
-### Lint
-Command: [exact command run]
-Result: PASS / FAIL / N/A
-Output:
-[actual output]
-### Plan-declared evidence
-Required artifacts: [present / missing list]
-Evidence mode: [compiled receipts + check-only result / prompt fallback]
-Command ledger: [exact command | unioned categories/task IDs/REQs/must_haves | result | fresh/stale]
-Requirement coverage: [REQ-* covered / uncovered requirements]
-must_haves evidence: [covered / missing]
-### Debt scan
-Files scanned: [N]
-Markers: [each path:line:text, tagged policy-literal/referenced-actionable/unreferenced-actionable — or "none"]
-Result: PASS / FAIL / N/A
-### Verdict
-VERIFIED - all available checks pass
-FAILED - [list what failed]
-PARTIAL - [list what passed], [list what's unavailable]
-```
+Write `## Verification Report`, timestamp, Tests/Build/Type check/Lint sections with exact Command, PASS/FAIL/N/A, and actual Output; then Plan-declared evidence with required artifacts, mode, the exact-command ledger, requirement and must_haves coverage; then Debt scan with files, classified markers, and result. End prose with exactly one verdict line: `VERIFIED - all available checks pass`, `FAILED - <failures>`, or `PARTIAL - <passed and unavailable evidence>`.
 
 This report is fresh verification evidence for `architect-review` in the same conversation. In an orchestrated run, Build root saves it. In standalone mode, save the exact report to `.build/plans/{slug}-verify.md` under the shared collision rules and still show that same report body to the user; save FAILED and PARTIAL reports too.
+
+When all orchestrated subjects are available, end the saved report after the prose verdict with exactly one `## Machine result` YAML fence. Use `schema_version: 1`, `phase: verify`, the mapped lowercase `verdict: verified|partial|failed`, and exactly one SHA-256 subject for each of `plan`, `contract`, `requirements`, `implementation-summary`, `evidence-ledger`, and `repository`; do not guess hashes. Encode prose findings in order with gap-free `VR-###` IDs and exactly `id`, `severity`, `summary`, `evidence`, `consequence`, and `fix`. Severity is `critical`, `important`, or `minor`; the prose verdict and machine verdict must agree.
+
+```yaml
+## Machine result
+schema_version: 1
+phase: verify
+verdict: verified
+subjects:
+  - { name: plan, sha256: "<64 lowercase hex>" }
+findings: []
+```
+
+buildctl supplies the mechanical whole-workflow coverage, scope, bootstrap/currency facts, and allowed phase; Verify remains the semantic authority that authors findings and verdict without re-executing receipt-mode commands. Follow the exact compatibility matrix in the evidence reference. When any required subject is unavailable in standalone use, omit the section and end with the literal `Machine result: N/A — missing subjects: <sorted comma-separated names>` line, replacing the placeholder with actual names; never emit a partial subject set.
 
 ## Rules
 
