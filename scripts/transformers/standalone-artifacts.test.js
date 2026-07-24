@@ -6,6 +6,7 @@ import { ROOT } from './utils.js';
 import { transform } from './transform.js';
 import { PROVIDERS } from './providers.js';
 import { VERSION_CARRIERS } from './version-carriers.js';
+import { parseMarkdownYamlSection } from '../../source/skills/build/buildctl/plan-contract.js';
 
 const SKILLS = {
   'impl-plan': {
@@ -100,6 +101,21 @@ test('every portable skill saves its natural artifact without replacing its resp
   for (const [name, { path }] of Object.entries(SKILLS)) {
     assertPortableSkill(name, read(path));
     assert.ok(shared.includes(SKILLS[name].artifact), `shared contract missing ${SKILLS[name].artifact}`);
+  }
+});
+
+test('published phase-result examples use the compiler Markdown and YAML shape', () => {
+  for (const [name, phase, verdict] of [
+    ['review-plan', 'plan-review', 'proceed'],
+    ['verify', 'verify', 'verified'],
+    ['architect-review', 'architect-review', 'pass'],
+  ]) {
+    const parsed = parseMarkdownYamlSection(read(SKILLS[name].path), 'Machine result');
+    assert.equal(parsed.schema_version, 1, name);
+    assert.equal(parsed.phase, phase, name);
+    assert.equal(parsed.verdict, verdict, name);
+    assert.ok(Array.isArray(parsed.subjects), name);
+    assert.ok(Array.isArray(parsed.findings), name);
   }
 });
 

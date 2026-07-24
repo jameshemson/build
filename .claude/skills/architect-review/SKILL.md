@@ -87,8 +87,9 @@ When all orchestrated subjects are available, end the saved review after the pro
 
 Encode every prose finding in order with gap-free `AR-###` IDs and exactly `id`, `severity`, `summary`, `evidence`, `consequence`, and `fix`. The prose verdict and machine verdict must agree: pass has no unresolved Critical/Important finding, pass-with-notes has at least one Minor but no Critical/Important finding, and fail has a Critical or Important finding. The prose review remains semantic authority; the machine section only attests it for Build.
 
-```yaml
 ## Machine result
+
+```yaml
 schema_version: 1
 phase: architect-review
 verdict: pass

@@ -102,8 +102,9 @@ This report is fresh verification evidence for `architect-review` in the same co
 
 When all orchestrated subjects are available, end the saved report after the prose verdict with exactly one `## Machine result` YAML fence. Use `schema_version: 1`, `phase: verify`, the mapped lowercase `verdict: verified|partial|failed`, and exactly one SHA-256 subject for each of `plan`, `contract`, `requirements`, `implementation-summary`, `evidence-ledger`, and `repository`; do not guess hashes. Encode prose findings in order with gap-free `VR-###` IDs and exactly `id`, `severity`, `summary`, `evidence`, `consequence`, and `fix`. Severity is `critical`, `important`, or `minor`; the prose verdict and machine verdict must agree.
 
-```yaml
 ## Machine result
+
+```yaml
 schema_version: 1
 phase: verify
 verdict: verified
