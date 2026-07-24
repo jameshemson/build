@@ -181,10 +181,10 @@ test('all provider transforms retain portable artifact behavior without syntax l
   assert.deepEqual(codexBodies.get('codex-cross'), codexBodies.get('codex'));
 });
 
-test('v1.13 release preserves standalone artifact continuity', () => {
+test('v1.14 standalone release preserves artifact continuity', () => {
   for (const carrier of VERSION_CARRIERS) {
     const json = JSON.parse(read(carrier.path));
-    assert.equal(carrier.get(json), '1.13.0', carrier.path);
+    assert.equal(carrier.get(json), '1.14.0', carrier.path);
   }
   assert.match(read('README.md'), /standalone[\s\S]*\.build\/plans\/\{slug\}-(?:plan|review|verify|architect-review)\.md/i);
   assert.match(read('HARNESSES.md'), /standalone Plan[\s\S]*buildctl[\s\S]*OpenCode[\s\S]*fallback/i);

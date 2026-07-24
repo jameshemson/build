@@ -31,6 +31,10 @@ const REVIEW_FIXTURE = join(
   'scripts/fixtures/buildctl/phase-results/plan-review.md',
 );
 const VERIFY_FIXTURE = join(ROOT, 'scripts/fixtures/buildctl/phase-results/verify.md');
+const ARCHITECT_FIXTURE = join(
+  ROOT,
+  'scripts/fixtures/buildctl/phase-results/architect-review.md',
+);
 const sandboxes = [];
 
 afterEach(() => {
@@ -308,10 +312,14 @@ async function makeVerifyRepo({
     REPOSITORY_SHA256: identity.fingerprint,
   };
   const verifyReport = replaceAll(readFileSync(VERIFY_FIXTURE, 'utf8'), reportValues);
-  writeFileSync(setup.artifactPath, verifyReport, 'utf8');
+  const verifyArtifactPath = join(
+    setup.repo,
+    '.build/plans/receipt-fixture-verify.md',
+  );
+  writeFileSync(verifyArtifactPath, verifyReport, 'utf8');
   return {
     ...setup,
-    artifactPath: setup.artifactPath,
+    artifactPath: verifyArtifactPath,
     evidenceCommand: contract.evidence_commands[0].command,
     evidenceDir,
     report: verifyReport,
@@ -320,6 +328,75 @@ async function makeVerifyRepo({
 }
 
 function compileVerifyArgs(setup) {
+  return [
+    process.execPath,
+    CLI,
+    'compile-result',
+    '--state',
+    setup.statePath,
+    '--contract',
+    setup.contractPath,
+    '--artifact',
+    setup.artifactPath,
+    '--evidence-dir',
+    setup.evidenceDir,
+    '--receipts-dir',
+    '.build/result-receipts',
+  ];
+}
+
+async function makeArchitectRepo() {
+  const setup = await makeVerifyRepo();
+  const verifyResult = JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout);
+  const verifyReceipt = JSON.parse(readFileSync(
+    join(setup.repo, verifyResult.receipt_path),
+    'utf8',
+  ));
+  const parsed = parseWorkflowState(setup.state);
+  const references = [
+    ...parsed.phase_result_references,
+    { phase: 'verify', receipt_id: verifyResult.receipt_id },
+  ];
+  const architectState = setup.state
+    .replace('phase: "verify"', 'phase: "architect-review"')
+    .replace(
+      /^phase_result_references: .*$/m,
+      `phase_result_references: ${JSON.stringify(references)}`,
+    );
+  writeFileSync(setup.statePath, architectState, 'utf8');
+  const repository = await captureRepositoryIdentity({
+    repoRoot: setup.repo,
+    evidenceDir: setup.evidenceDir,
+  });
+  const summaryPath = join(
+    setup.repo,
+    '.build/plans/receipt-fixture-implementation-summary.md',
+  );
+  const architectPath = join(
+    setup.repo,
+    '.build/plans/receipt-fixture-architect-review.md',
+  );
+  const values = {
+    PLAN_SHA256: sha256(readFileSync(join(setup.repo, 'plan.yaml'))),
+    CONTRACT_SHA256: sha256(readFileSync(setup.contractPath)),
+    SUMMARY_SHA256: sha256(readFileSync(summaryPath)),
+    REPOSITORY_SHA256: repository.fingerprint,
+    VERIFY_SHA256: sha256(readFileSync(setup.artifactPath)),
+    VERIFY_RESULT_SHA256: verifyReceipt.receipt_hash,
+  };
+  const report = replaceAll(readFileSync(ARCHITECT_FIXTURE, 'utf8'), values);
+  writeFileSync(architectPath, report, 'utf8');
+  return {
+    ...setup,
+    artifactPath: architectPath,
+    architectState,
+    report,
+    verifyArtifactPath: setup.artifactPath,
+    verifyReceiptPath: join(setup.repo, verifyResult.receipt_path),
+  };
+}
+
+function compileArchitectArgs(setup) {
   return [
     process.execPath,
     CLI,
@@ -584,4 +661,90 @@ test('phase-result verify: coverage and planned file-scope gaps cannot compile a
     run(compileVerifyArgs(tamperedPrior), tamperedPrior.repo, 1).stderr,
     /E_RESULT_PRIOR_RECEIPT/,
   );
+});
+
+test('phase-result architect-review: stale Verify results and changed diffs block pass', async () => {
+  const current = await makeArchitectRepo();
+  const stateBefore = readFileSync(current.statePath, 'utf8');
+  const headBefore = git(current.repo, 'rev-parse', 'HEAD');
+  const compiled = JSON.parse(
+    run(compileArchitectArgs(current), current.repo).stdout,
+  );
+  assert.equal(compiled.phase, 'architect-review');
+  assert.equal(compiled.verdict, 'pass');
+  assert.equal(compiled.allowed_next_phase, 'complete');
+  const receiptBytes = readFileSync(join(current.repo, compiled.receipt_path), 'utf8');
+  const replay = JSON.parse(run(compileArchitectArgs(current), current.repo).stdout);
+  assert.equal(replay.receipt_id, compiled.receipt_id);
+  assert.equal(readFileSync(join(current.repo, replay.receipt_path), 'utf8'), receiptBytes);
+
+  const wrongPrior = await makeArchitectRepo();
+  const wrongState = parseWorkflowState(wrongPrior.architectState);
+  const planReviewReference = wrongState.phase_result_references.find(
+    (entry) => entry.phase === 'plan-review',
+  );
+  writeFileSync(
+    wrongPrior.statePath,
+    wrongPrior.architectState.replace(
+      /"phase":"verify","receipt_id":"[a-f0-9]{64}"/,
+      `"phase":"verify","receipt_id":"${planReviewReference.receipt_id}"`,
+    ),
+  );
+  assert.match(
+    run(compileArchitectArgs(wrongPrior), wrongPrior.repo, 1).stderr,
+    /E_RESULT_PRIOR_RECEIPT/,
+  );
+
+  const staleVerify = await makeArchitectRepo();
+  writeFileSync(staleVerify.verifyArtifactPath, `${staleVerify.report}\nchanged verify\n`);
+  assert.match(
+    run(compileArchitectArgs(staleVerify), staleVerify.repo, 1).stderr,
+    /E_RESULT_PRIOR_RECEIPT/,
+  );
+
+  const changedDiff = await makeArchitectRepo();
+  writeFileSync(
+    join(changedDiff.repo, 'src/legacy-pose.js'),
+    'export const adopted = "changed-after-verify";\n',
+  );
+  git(changedDiff.repo, 'add', 'src/legacy-pose.js');
+  git(changedDiff.repo, 'commit', '-qm', 'changed after verify');
+  assert.match(
+    run(compileArchitectArgs(changedDiff), changedDiff.repo, 1).stderr,
+    /E_RESULT_PRIOR_RECEIPT/,
+  );
+
+  const invalid = await makeArchitectRepo();
+  writeFileSync(
+    invalid.artifactPath,
+    invalid.report
+      .replace('No findings.', '- Important: unresolved issue.')
+      .replace(
+        'findings: []',
+        [
+          'findings:',
+          '  - id: AR-001',
+          '    severity: important',
+          '    summary: "An important issue remains."',
+          '    evidence: "The fixture names the unresolved issue."',
+          '    consequence: "Shipping would retain a correctness risk."',
+          '    fix: "Return to implementation and resolve the issue."',
+        ].join('\n'),
+      ),
+    'utf8',
+  );
+  assert.match(
+    run(compileArchitectArgs(invalid), invalid.repo, 1).stderr,
+    /E_RESULT_VERDICT/,
+  );
+
+  const mismatch = await makeArchitectRepo();
+  writeFileSync(mismatch.artifactPath, mismatch.report.replace(/^PASS$/m, 'FAIL'));
+  assert.match(
+    run(compileArchitectArgs(mismatch), mismatch.repo, 1).stderr,
+    /E_RESULT_VERDICT_MISMATCH/,
+  );
+
+  assert.equal(readFileSync(current.statePath, 'utf8'), stateBefore);
+  assert.equal(git(current.repo, 'rev-parse', 'HEAD'), headBefore);
 });

@@ -179,7 +179,7 @@ result fields through the schema. Run `compile-result` on the saved report; a ru
 is authoritative. Root verifies the receipt, appends `{phase,receipt_id}` to
 `phase_result_references`, and applies only its allowed next phase: `Proceed to implementation`
 must validate and persist the accepted slice definitions and first declared-order dependency-ready
-`active_slice` before implementation dispatch; `Proceed with fixes` or
+`active_slice` before implementation dispatch and transition to `implement`; `Proceed with fixes` or
 `Do not proceed` records all findings as `rework_notes` and returns to `plan` for revision,
 recompilation, and fresh review. Re-run `validate-plan` after every review edit. Count every review-to-plan return; revise without repeating exploration
 unless architecture, file scope, or significant risk changed. Preserve historical
@@ -238,7 +238,7 @@ Read state, requirements, plan, and implementation summary. Only after every sli
 run `verify` in a fresh-context agent as the fresh whole-workflow authority. With compiled evidence, Verify runs only `run-evidence --check-only` and judges receipt freshness, exact-command consumers, expected observations, requirement/must-have coverage, and debt without executing evidence commands. Prompt fallback retains the prior exact-command protocol. Root's final evidence ledger owns each compiled exact command and the fresh full-suite result; Phase 4 owns receipt coverage and the debt scan.
 Save `{slug}-verify.md` before changing state.
 
-When runnable, run `compile-result` against the saved report and current state/contract/evidence; buildctl owns whole-workflow coverage and file scope while Verify authors semantic judgment without re-executing evidence commands. A runnable diagnostic blocks and never selects fallback. Require the current immutable result, then root appends `{phase,receipt_id}` to `phase_result_references`, records verdict and gaps/failures plus history, and applies only its allowed next phase: VERIFIED/PARTIAL to `architect-review`, FAILED to `implement`. Recorded runtime absence uses the authored mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
+When runnable, run `compile-result` against the saved report and current state/contract/evidence; buildctl owns whole-workflow coverage and file scope while Verify authors semantic judgment without re-executing evidence commands. A runnable diagnostic blocks and never selects fallback. Require the current immutable result, then root appends `{phase,receipt_id}` to `phase_result_references`, records verdict and gaps/failures plus history, and applies only its allowed next phase: transition to `architect-review` for VERIFIED/PARTIAL or `implement` for FAILED. Recorded runtime absence uses the authored mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
 
 ## Phase 5: Architect review
 
@@ -248,9 +248,7 @@ Run the `architect-review` contract inline with the target and verify verdict. A
 custom `architect-review` route may explicitly delegate it.
 Save `{slug}-architect-review.md` before changing state.
 
-- `PASS` or `PASS_WITH_NOTES`: transition to terminal `complete`.
-- `FAIL`: record `architect_fixes` and transition to `implement` for fixes and re-verify.
-- Missing verdict: apply the phase-agent circuit breaker.
+When runnable, run `compile-result` against the saved review; it requires the current accepted Verify result and exact final diff, and a runnable diagnostic blocks without fallback. Root validates the immutable receipt, appends `{phase,receipt_id}` to `phase_result_references`, records verdict/findings and history, and applies only its allowed next phase: transition to terminal `complete` for PASS/PASS_WITH_NOTES, or `implement` with `architect_fixes` for FAIL and fresh Verify. Recorded runtime absence uses the authored mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
 
 At `complete`, summarize delivered work, tests, decisions, branch, all six agent routes and sources, every `agent_selection_fallback` (or explicitly `none`), requested model routes and every `model_fallback` (or explicitly `none`), including literal `profile-owned` wherever selected, and the user's merge command.
 Surface all PARTIAL gaps under `Uncovered requirements`. Root archives all slug artifacts

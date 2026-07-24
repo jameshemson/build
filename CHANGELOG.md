@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.14.0 - 2026-07-24
+
+### Added
+
+- Added `buildctl compile-result` for Plan Review, Verify, and Architect Review. It compiles
+  authored semantic judgments into immutable result receipts bound to exact subject hashes,
+  stable findings, repository identity, and one allowed next phase.
+- Added code-owned Verify coverage and file-scope classification, including current completion
+  receipts, precompiler Plan Review bootstrap, compiler-only contract recompilation, and
+  planned-but-unchanged visibility.
+
+### Changed
+
+- Build root remains the sole workflow-state and git writer. It validates each generated result
+  receipt, records its immutable reference, and applies only the receipt's eligible phase.
+- Architect Review pass is now bound to the current accepted Verify result and exact final diff;
+  Plan Review and Verify likewise fail closed on stale or structurally incompatible inputs.
+- Standalone Plan Review, Verify, and Architect Review author either the complete portable
+  machine-result section or the exact `Machine result: N/A — missing subjects: <names>` form.
+
+### Scope
+
+- OpenCode remains a portable four-skill bundle without the Build runtime. Runnable result
+  diagnostics are authoritative; prompt fallback remains limited to genuine runtime absence.
+
 ## 1.13.0 - 2026-07-22
 
 ### Added
