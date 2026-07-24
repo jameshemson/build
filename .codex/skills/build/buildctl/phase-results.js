@@ -425,8 +425,10 @@ function priorPlanReview({ contract, repoRoot, state }) {
     }
     const receipt = readJson(path, 'E_RESULT_PRIOR_RECEIPT', path);
     verifyPhaseResultReceipt(receipt);
-    if (receipt.phase !== 'plan-review' || receipt.subjects?.plan !== contract.source.sha256) {
-      fail('E_RESULT_PRIOR_RECEIPT', path, 'Plan Review result is stale or wrong-phase.');
+    if (receipt.phase !== 'plan-review'
+      || receipt.verdict !== 'proceed'
+      || receipt.subjects?.plan !== contract.source.sha256) {
+      fail('E_RESULT_PRIOR_RECEIPT', path, 'Plan Review result is stale, rejected, or wrong-phase.');
     }
     return { bootstrap: null, receipt_id: receipt.receipt_id };
   }
