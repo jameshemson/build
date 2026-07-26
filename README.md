@@ -160,7 +160,7 @@ In Claude Code, each skill sets its own model for standalone runs:
 | `/build:architect-review` | Opus | High | fork |
 | `/build:verify` | inherited | inherited | inherited |
 
-Skill frontmatter takes precedence: a skill invoked from inside an orchestrator-spawned agent still runs on its own pinned model, not the agent's (verified empirically — a Haiku agent invoking `review-plan` executes on Sonnet). The orchestrator's `build/{slug}` dispatch agents (implementation, merge-conflict resolution) accept Fable via the Agent model parameter; skill frontmatter does not currently resolve the `fable` alias (it falls back silently to the invoking model), which is why the two judgment skills pin Opus.
+Skill frontmatter takes precedence: a skill invoked from inside an orchestrator-spawned agent still runs on its own pinned model, not the agent's (verified empirically — a Haiku agent invoking `review-plan` executes on Sonnet). The orchestrator's `build/{slug}` dispatch agents (implementation, merge-conflict resolution) request Sonnet for single-file mechanical work and Opus for multi-file integration or design judgment. Note that skill frontmatter does not resolve the `fable` alias — it falls back silently to the invoking model — so the two judgment skills pin Opus explicitly rather than relying on inheritance.
 
 ## License
 

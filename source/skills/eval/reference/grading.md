@@ -77,8 +77,9 @@ Check that a "Parallel workstreams" section exists and contains at least one nam
 ### manifest-valid
 Find a fenced ```yaml block containing `evidence_mode: typed`, `bindings:`, and
 `execution_manifest:`. Check that every binding has exactly `id`, `kind`, `name`,
-`task_id`, and `must_have_id`, and every task has all eight fields: `id`, `wave`,
-`depends_on`, `files_modified`, `requirements`, `must_haves`, `verify`, `done`. Each
+`task_id`, and `must_have_id`, and every task has all ten fields: `id`, `wave`,
+`depends_on`, `workstream`, `files_modified`, `requirements`, `decisions`, `must_haves`,
+`verify`, `done`. Each
 must-have must have exactly `id`, `claim`, and `evidence`; evidence must contain exactly
 `kind` and `ref`, with kind `behavioral-test`, `command-assertion`, `structural`, or
 `manual-receipt`. Every binding must resolve to one declared task and must-have.

@@ -11,7 +11,7 @@ Claude Code plugin providing a structured build workflow: plan, review, implemen
 ### Generated output (committed, do not edit directly)
 
 - `.claude/skills/` — Claude Code output. Identity transform; source is emitted as-is.
-  - `build/` — Orchestrator. Drives the full pipeline. Claude-only.
+  - `build/` — Orchestrator. Drives the full pipeline. Excluded from OpenCode; the Codex trees get their own orchestrator built from `SKILL.codex.md`.
   - `impl-plan/` — Create implementation plans. Standalone or called by orchestrator.
   - `review-plan/` — Skeptical plan review. Standalone or called by orchestrator.
   - `architect-review/` — Post-implementation architect review. Standalone or called by orchestrator.
@@ -19,7 +19,7 @@ Claude Code plugin providing a structured build workflow: plan, review, implemen
   - `eval/` — Eval runner. Tests skills against defined test cases with assertions. Claude-only.
 - `.opencode/skills/` — OpenCode output. Contains only the 4 portable skills (impl-plan, review-plan, verify, architect-review). Claude-only fields stripped, $ARGUMENTS and /build: references rewritten.
 - `.opencode/commands/` — OpenCode slash commands. Four flat `.md` files, each a thin `@.opencode/skills/<name>/SKILL.md` include so users can invoke the portable skills as `/impl-plan`, `/review-plan`, `/verify`, `/architect-review`. Do not edit directly.
-- `.agents/skills/` — Codex output for repo-local discovery. Same 4 portable skills.
+- `.agents/skills/` — Codex output for repo-local discovery. Five skills: the 4 portable ones plus `build`, whose entrypoint is built from `SKILL.codex.md`. `buildctl` ships here too; OpenCode is the only tree without it.
 - `plugins/build/skills/` — Codex output for Plugins UI install packaging. Byte-identical to `.agents/skills/` (enforced by a 3-way sandbox test in `builder.test.js`). Do not edit directly.
 - `.codex/skills/` — Codex cross-harness bridge. Byte-identical to `.agents/skills/` via shared `codexRewrites` by reference. Exists so tools that cross-read `.codex/skills/` (notably Cursor) can discover our skills. Do not edit directly.
 
@@ -99,7 +99,9 @@ One known risk in the current test suite, judged acceptable for this single-main
 - If you see a clearly better approach, give it in 2-4 bullets, then proceed unless it needs a decision from me.
 - For substantial features, use /build rather than freelancing.
 
-## Writing plans (Sonnet plans, Opus implements)
+## Writing plans
 
-- Be explicit and scoped: the implementer follows the plan literally and won't infer unstated requirements or generalize from one case to others. State the files, acceptance criteria, edge cases, and what's out of scope.
+Opus plans (`impl-plan` pins `model: opus`), Sonnet implements by default, Opus takes multi-file integration and design judgment.
+
+- Be explicit and scoped: state the files, acceptance criteria, edge cases, and what's out of scope. A plan that needs the implementer to infer unstated requirements is an underspecified plan, whatever model reads it.
 - Keep it minimal: plan only what the task needs. No extra abstractions, files, configurability, or defensive code that wasn't asked for.
