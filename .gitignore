@@ -17,3 +17,4 @@ dist-tmp/
 .env
 .env.*
 !.env.example
+.playwright-mcp/

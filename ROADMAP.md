@@ -101,5 +101,12 @@ rather than from semantic review quality.
   a universal production-readiness checklist.
 - End-to-end trajectory benchmarks and scored model routing.
 - Broad write-agent parallelism or provider routing changes without measured evidence.
+- A deterministic resume gate (`buildctl validate-state`): artifact completeness for the recorded
+  phase, receipt-reference resolution and currency, `base_ref` normalization, and provider-variant
+  `agent_progress` classification, checked before a resuming orchestrator acts on state. Replaces
+  prompt-owned resume reconciliation; a natural prerequisite for cross-harness handoff.
+- Cross-harness state fixtures: a Codex-authored state resumed under the Claude orchestrator
+  contract and vice versa, mechanically verifying unknown-field preservation and phase-boundary
+  handoff. Today that forward-compatibility rule is asserted in the state schema but untested.
 - Direct Clodex integration. Treat it only as an optional compatibility and dogfood environment
   after the core cross-harness contract is stable.
