@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.14.1 - 2026-07-26
+
+### Changed
+
+- Claude implementation dispatch now requests Sonnet for single-file mechanical tasks and Opus
+  for multi-file integration or design judgment. The previous Fable preference and its
+  availability fallback are removed from Phase 3 guidance, the merge-conflict resolver, and the
+  auto-continue routing table. Skill frontmatter pins are unchanged; `impl-plan` and
+  `architect-review` still pin Opus because frontmatter does not resolve the `fable` alias.
+- `eval/reference/grading.md` validated manifest tasks against an eight-field schema while the
+  contract in `plan-quality.md` defines ten. The grader now checks all ten, including
+  `workstream` and `decisions`.
+
+### Documentation
+
+- Recorded why the skill prose is dense: it is the enforcement mechanism for harnesses without
+  `buildctl`, and specific clauses answer observed failures logged in the archived
+  `codex-end-to-end-flow`, `codex-agent-supervision`, and `bounded-execution-invariant`
+  workflows. The `skill-contract.test.js` phrase assertions are named as a deliberate guard
+  against removing that scaffolding.
+- Corrected three stale claims that `build` is Claude-only. It is excluded from OpenCode only;
+  the three Codex trees build their orchestrator from `SKILL.codex.md`, making five Codex skills
+  rather than four. OpenCode is the only tree without `buildctl`.
+- Removed per-skill descriptions and the npm script block from `CLAUDE.md`, both of which
+  restated content already available in skill frontmatter and `package.json`.
+
+### Scope
+
+- No behavioral change to the Codex or OpenCode outputs: this release regenerates
+  `.claude/skills/` only. No buildctl, receipt-protocol, or machine-result contract is affected.
+
 ## 1.14.0 - 2026-07-24
 
 ### Added
