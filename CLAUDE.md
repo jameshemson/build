@@ -79,6 +79,8 @@ Version lives in four files that MUST be bumped together:
 
 The canonical list lives in `scripts/transformers/version-carriers.js`. `npm run check-sync` fails if any of the four disagree. `manifests.test.js` enforces the same parity in-process. See the pre-push checklist above.
 
+A bump also needs the literal release version updated in the tests that assert it — `manifests.test.js` (three sites) and `standalone-artifacts.test.js` (one). `version-carriers.js` makes the four carriers agree with each other but not with those hardcoded expectations, so `npm run check-sync` passes while `npm test` fails. Grep the old version across `scripts/` before assuming a bump is complete.
+
 ## Testing
 
 Test each skill standalone before testing the full orchestrator pipeline. See README.md for verification steps.
