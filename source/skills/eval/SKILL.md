@@ -66,6 +66,34 @@ You are running an eval for the architect-review skill.
 4. Report DONE when the file is written.
 ```
 
+**For `build` test cases** (has `"state_fixture"` and `"state_slug"` fields):
+
+The orchestrator is a decision function over workflow state. These cases evaluate the transition it
+would choose, never its execution — a real invocation would run a git preflight, cut a branch, and
+dispatch implementation agents. Read-only by construction:
+```
+You are running an eval for the build orchestrator's phase-transition logic.
+
+This is a READ-ONLY evaluation. Do not create, modify, or delete any file except the single
+output file named in step 4. Do not run any git command that changes state (no checkout, branch,
+commit, add, or stash). Do not invoke /build:build.
+
+1. Read every `{state_slug}-*.md` artifact in {this-skill-dir}/{state_fixture}. Together they are
+   a workflow mid-flight; treat them as if they were the contents of `.build/plans/`.
+2. Read the orchestrator's own instructions at {this-skill-dir}/../build/SKILL.md, and the state
+   schema it links at {this-skill-dir}/../build/reference/state-schema.md.
+3. Applying those instructions to that state, decide what the orchestrator does next. Write your
+   answer with these four headings, in this order:
+   - `## Next phase` — the exact value the `phase:` field would take next, or `unchanged` if the
+     orchestrator would act without transitioning.
+   - `## Next action` — the single concrete action taken first, naming the skill or command.
+   - `## Why` — the specific instruction that determines this, quoted from the orchestrator or the
+     state schema.
+   - `## Rejected` — each phase you considered and did not choose, with the reason.
+4. Save that answer to {run-dir}/{eval-id}/output.md using the Write tool.
+5. Report DONE when the file is written.
+```
+
 ## Step 6: Spawn grader agents (parallel, after all runners complete)
 
 After all runner agents return, spawn grader agents — one per test case, all in a single message. Use Sonnet for all graders.

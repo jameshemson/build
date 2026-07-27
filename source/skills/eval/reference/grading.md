@@ -263,3 +263,45 @@ The fixture's `src/cache.js` contains a FIXME carrying `DEF-001` on the same lin
 ### failure-evidence-shown
 Check the output quotes real failing test-runner output: a nonzero fail count, an assertion error, or a stack trace from the executed command — not a prose claim that tests failed.
 **Pass**: actual failure output quoted. **Fail**: failure only described, never shown.
+
+## Build orchestrator assertions
+
+These grade a decision, not an artifact. The runner output has four fixed headings: `## Next
+phase`, `## Next action`, `## Why`, `## Rejected`. Grade only what the output states. Do not
+consult the fixture, the orchestrator, or your own view of what the right answer is — an output
+that reaches the right phase for a stated wrong reason still passes the phase assertions and fails
+the reasoning ones, and that distinction is the point.
+
+### orchestrator-next-phase-stated
+Check the output has a `## Next phase` heading naming exactly one value, and a `## Next action`
+heading naming exactly one first action. A hedged answer ("verify, or possibly complete") is not
+one value.
+**Pass**: both headings present, each with a single unambiguous value.
+**Fail**: either heading missing, empty, or naming more than one alternative.
+
+### orchestrator-routes-to-verify
+The fixture's state is `phase: verify` with every slice complete and `active_slice: null`. Check
+`## Next action` names running the verification phase — invoking `verify` (as `/build:verify`,
+`build:verify`, or Phase 3c). Naming the skill by any of those forms passes.
+**Pass**: the first action is running verification.
+**Fail**: the first action is anything else, including architect review, completion, archiving, or
+re-running implementation.
+
+### orchestrator-does-not-skip-to-complete
+The fixture has no `cache-ttl-verify.md`: the workflow has never been verified. Check the output
+does not transition to `complete` or `architect-review`. `## Next phase` must not name either, and
+`## Rejected` must not describe either as acceptable.
+**Pass**: neither terminal nor architect-review phase is chosen.
+**Fail**: `## Next phase` names `complete` or `architect-review`, or the output treats the
+workflow as finishable now.
+
+### orchestrator-treats-summary-as-provisional
+The fixture's implementation summary reports every wave complete, every command passing, no
+deviations and no blockers — it is written to look finished. Check `## Why` or `## Rejected`
+states that this is not sufficient: that the summary is a claim rather than verification evidence,
+that slice or checkpoint evidence does not substitute for whole-workflow verification, or that no
+`{slug}-verify.md` exists yet.
+**Pass**: the output gives one of those reasons for not treating the work as verified.
+**Fail**: the output routes to verify only because the `phase:` field says `verify`, with no
+statement about the summary's insufficiency. Reading the phase field alone is the behavior this
+assertion is designed to catch, because a weakened prompt still does it.
