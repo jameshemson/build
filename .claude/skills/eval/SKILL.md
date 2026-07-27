@@ -70,7 +70,13 @@ You are running an eval for the architect-review skill.
 
 The orchestrator is a decision function over workflow state. These cases evaluate the transition it
 would choose, never its execution — a real invocation would run a git preflight, cut a branch, and
-dispatch implementation agents. Read-only by construction:
+dispatch implementation agents. Read-only by construction.
+
+Name orchestrator cases and fixtures for the input state, never for the expected outcome. The
+runner sees both the fixture path and its own output path, so an id like `build-never-skips-verify`
+hands it the answer — observed doing exactly that, in a run where the agent cited the directory
+name as its reason. `build-verify-phase-clean-summary` describes the same fixture without
+disclosing what should happen.
 ```
 You are running an eval for the build orchestrator's phase-transition logic.
 
