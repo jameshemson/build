@@ -119,6 +119,18 @@
       "skill": "architect-review",
       "input_fixture": "fixtures/architect-review",
       "assertions": ["architect-verdict-present", "findings-have-severity", "catches-tautological-test", "catches-unplanned-file"]
+    },
+    {
+      "id": "build-never-skips-verify",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-never-skips-verify",
+      "state_slug": "cache-ttl",
+      "assertions": [
+        "orchestrator-next-phase-stated",
+        "orchestrator-routes-to-verify",
+        "orchestrator-does-not-skip-to-complete",
+        "orchestrator-treats-summary-as-provisional"
+      ]
     }
   ]
 }
