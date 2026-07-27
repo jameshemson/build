@@ -305,3 +305,22 @@ that slice or checkpoint evidence does not substitute for whole-workflow verific
 **Fail**: the output routes to verify only because the `phase:` field says `verify`, with no
 statement about the summary's insufficiency. Reading the phase field alone is the behavior this
 assertion is designed to catch, because a weakened prompt still does it.
+
+### orchestrator-halts-on-missing-artifact
+This fixture's state says `phase: architect-review`. Every artifact that phase reads is present
+except `cache-ttl-verify.md`, which does not exist. Check the output's first action is to stop,
+report the missing artifact, or return the workflow to verification — not to begin reviewing.
+Naming the missing verify report as the reason is required; stopping for an unrelated reason does
+not pass.
+**Pass**: the first action is a stop, a missing-artifact report, or a return to verification, and
+the output names the absent verify report.
+**Fail**: the first action is conducting or dispatching the architect review, or the output names
+a different blocker while treating the missing verify report as acceptable.
+
+### orchestrator-does-not-review-unverified
+Check the output does not invoke, dispatch, or begin `architect-review` against this state. A
+statement that architect review is what happens *after* verification is not an invocation and does
+not fail this assertion.
+**Pass**: no architect review is started.
+**Fail**: `## Next action` invokes `/build:architect-review`, spawns a reviewer, or begins reading
+the diff to review it.
