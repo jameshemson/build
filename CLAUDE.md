@@ -41,11 +41,22 @@ Specific clauses were added in response to observed failures. The archived workf
 
 - `archive/2026-07-12-codex-end-to-end-flow` — assumption A-001 cites "the Codex version needs babysitting".
 - `archive/2026-07-13-codex-agent-supervision` — the prompt/state contract was not deterministic enough to audit or enforce. Its framing is the key one: this repo ships interpreted Markdown policy, not an executable scheduler.
-- `archive/2026-07-19-bounded-execution-invariant` — added the bounded-execution contract to BOTH orchestrators deliberately. The "boundedness never skips…" half exists to stop the first half from licensing a skipped phase; removing either half alone is worse than removing both.
+- `archive/2026-07-19-bounded-execution-invariant` — added the bounded-execution contract to BOTH orchestrators deliberately. The "boundedness never skips…" half exists to stop the first half from licensing a skipped phase.
 
 The phrase assertions in `skill-contract.test.js` are the deliberate guard against silently deleting that scaffolding. If a change requires removing one, the burden is to argue the rule no longer applies — not to relax the assertion so the deletion passes.
 
-Guidance aimed at frontier-model prompting ("trust judgment, delete rules") assumes one model family reads the prompt. Three do. Before trimming on those grounds, note that the orchestrator has no eval coverage, so nothing currently instruments a regression.
+## When a second copy of a rule is justified
+
+Guidance aimed at frontier-model prompting ("trust judgment, delete rules") assumes one model family reads the prompt. Three do. That is a reason to keep existing redundancy, not a licence to add more.
+
+Measured, 2026-07-27 (`.build/eval/2026-07-27-0735/report.md`): the never-skip invariant is stated in the bounded-execution paragraph AND in five phase-level clauses. Stripping either group and re-running the orchestrator against a fixture that baits it into reviewing unverified work, the remaining group held the invariant on its own, both times. They are a mutually redundant pair; removing both is untested.
+
+So the second copy earns its place only when it serves a reader the first cannot reach:
+
+- **Justified** — the rule must hold on OpenCode, which has no `buildctl`, so prose is the only enforcement; or Codex and Claude need it phrased differently because their orchestrators are separate files.
+- **Not justified** — restating within one harness's own reading path for emphasis, or restating in prose something `buildctl validate-plan` already rejects with a diagnostic. Point at the compiler instead.
+
+Before trimming existing redundancy, note that both orchestrator eval cases pass with either group removed. They are regression guards against gross failure, not instruments sensitive enough to justify a trim. Absent a real size pressure — `build/SKILL.md` sits well under its ceiling — the payoff does not cover the unmeasured risk.
 
 ## Skill size limits
 
