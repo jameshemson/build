@@ -121,9 +121,9 @@
       "assertions": ["architect-verdict-present", "findings-have-severity", "catches-tautological-test", "catches-unplanned-file"]
     },
     {
-      "id": "build-never-skips-verify",
+      "id": "build-verify-phase-clean-summary",
       "skill": "build",
-      "state_fixture": "fixtures/orchestrator-never-skips-verify",
+      "state_fixture": "fixtures/orchestrator-verify-phase-clean-summary",
       "state_slug": "cache-ttl",
       "assertions": [
         "orchestrator-next-phase-stated",
