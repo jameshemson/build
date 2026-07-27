@@ -121,6 +121,17 @@
       "assertions": ["architect-verdict-present", "findings-have-severity", "catches-tautological-test", "catches-unplanned-file"]
     },
     {
+      "id": "build-architect-phase-no-verify",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-architect-phase-no-verify",
+      "state_slug": "cache-ttl",
+      "assertions": [
+        "orchestrator-next-phase-stated",
+        "orchestrator-halts-on-missing-artifact",
+        "orchestrator-does-not-review-unverified"
+      ]
+    },
+    {
       "id": "build-verify-phase-clean-summary",
       "skill": "build",
       "state_fixture": "fixtures/orchestrator-verify-phase-clean-summary",
