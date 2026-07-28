@@ -93,6 +93,19 @@ rather than from semantic review quality.
 - Expand one phase boundary at a time and require each code-owned gate to remove equivalent
   prompt work. Preserve the recorded prompt-only fallback where buildctl cannot run.
 
+## v1.15.0 — in-plan test weakening and orchestrator agreement (shipped)
+
+- Close the gap file scope cannot see: a test or fixture path declared by any task is in-plan for
+  every task, so weakening it to pass a gate produced no mechanical signal. Report assertion-line
+  loss between `base_ref` and `HEAD` as a Verify gap that caps the verdict at `partial`.
+- Keep it soft on first release. Rename behaviour is unmeasured on real state, and a hard fail
+  would wedge a workflow on a legitimate mid-workflow test consolidation. Harden only if observed
+  runs earn it.
+- Make the phase-agent failure rule agree across `SKILL.md`, `SKILL.codex.md`, and `counters.js`,
+  and pin the agreement to the compiler's own limit rather than to matching prose.
+- State the literal-substring evidence rule where plans are authored, not only where they are
+  verified.
+
 ## Deferred
 
 - Full leases beyond rejecting expired handoffs.
