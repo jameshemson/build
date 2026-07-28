@@ -55,6 +55,8 @@ const REQUIRED_TERMS = {
     'Proceed with fixes',
     'uncovered_requirements',
     'review_fixes_applied',
+    'phase-agent-failure',
+    'never replace an independent phase agent with inline execution',
   ],
   'source/skills/build/SKILL.codex.md': [
     'exactly five active phases',
@@ -97,6 +99,8 @@ const REQUIRED_TERMS = {
     'Resume',
     'Abort',
     'Circuit breakers',
+    'never replace independent review with inline',
+    'halts with `phase-agent-failure`',
     'Never merge to the user\'s branch',
   ],
   'source/skills/verify/SKILL.md': [
@@ -1057,6 +1061,30 @@ test('v1.13 orchestrators retain root-applied completion and deterministic count
     ));
     assert.doesNotMatch(source, /Only then\s+append the slice to `completed_slices`/);
   }
+});
+
+test('both Build orchestrators route a second phase-agent failure to the counter halt', () => {
+  const counters = readRel('source/skills/build/buildctl/counters.js');
+  const [, haltAt, haltReason] = counters.match(
+    /fresh_judgment_retry: Object\.freeze\(\{ halt_at: (\d+), halt_reason: '([a-z-]+)' \}\)/,
+  );
+  assert.equal(haltAt, '2', 'fresh_judgment_retry still halts on the second failure');
+
+  const claude = readRel('source/skills/build/SKILL.md');
+  const codex = readRel('source/skills/build/SKILL.codex.md');
+  for (const source of [claude, codex]) {
+    // The prose must name the halt buildctl already returns. When they disagree,
+    // SKILL.md's "runnable diagnostics are authoritative" silently wins and the
+    // prose instructs behaviour the compiler overrides.
+    assert.ok(source.includes(haltReason), `orchestrator names ${haltReason}`);
+    assert.doesNotMatch(
+      source,
+      /run that phase inline/,
+      'inline execution never substitutes for an independent phase agent',
+    );
+  }
+  assert.ok(claude.includes('never replace an independent phase agent with inline execution'));
+  assert.ok(codex.includes('never replace independent review with inline'));
 });
 
 test('Kemet-derived evidence eval metadata and fixtures stay deterministic', () => {
