@@ -179,6 +179,7 @@ async function makeVerifyRepo({
   plannedUnchanged = false,
   rejectedReview = false,
   rereview = false,
+  weakenedTest = false,
 } = {}) {
   const setup = await makePlanReviewRepo({ failedEvidence });
   const reviewResults = [];
@@ -207,6 +208,27 @@ async function makeVerifyRepo({
       reviewResults.push(JSON.parse(run(compileArgs(setup), setup.repo).stdout));
       assert.notEqual(reviewResults[0].receipt_id, reviewResults[1].receipt_id);
     }
+  }
+  if (weakenedTest) {
+    // Land a stronger version of the planned test file before base_ref, so the
+    // feature commit's ordinary version is a measurable loss of assertions.
+    writeFileSync(
+      join(setup.repo, 'test/legacy-pose.test.js'),
+      [
+        "import test from 'node:test';",
+        "import assert from 'node:assert/strict';",
+        "import { adopted } from '../src/legacy-pose.js';",
+        "test('adopts a legacy building pose', () => {",
+        "  console.log('adopts a legacy building pose');",
+        "  assert.equal(adopted, 'verified');",
+        '  assert.ok(adopted.length > 0);',
+        '});',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    git(setup.repo, 'add', '.');
+    git(setup.repo, 'commit', '-qm', 'wave 0 test');
   }
   const baseRef = git(setup.repo, 'rev-parse', 'HEAD');
   writeFileSync(
@@ -520,6 +542,26 @@ test('phase-result plan-review: stale subjects and invalid verdicts block withou
   assert.equal(
     git(setup.repo, 'status', '--porcelain=v1', '--untracked-files=all'),
     statusBefore,
+  );
+});
+
+test('phase-result verify: an in-plan test file that lost assertions cannot compile as verified', async () => {
+  const weakened = await makeVerifyRepo({ weakenedTest: true });
+  // The path is in the plan, so file scope stays clean and the must-have
+  // observation still matches; only the shrink gap stands between the weakened
+  // test and a verified verdict.
+  const blocked = run(compileVerifyArgs(weakened), weakened.repo, 1);
+  assert.match(blocked.stderr, /E_RESULT_VERDICT/);
+  assert.match(blocked.stderr, /test-shrink:test\/legacy-pose\.test\.js/);
+
+  const clean = await makeVerifyRepo();
+  const verified = JSON.parse(run(compileVerifyArgs(clean), clean.repo).stdout);
+  assert.equal(verified.verdict, 'verified');
+  const receipt = JSON.parse(readFileSync(join(clean.repo, verified.receipt_path), 'utf8'));
+  assert.deepEqual(receipt.mechanical_facts.test_shrink.shrunk, []);
+  assert.equal(
+    receipt.mechanical_facts.test_shrink.bounds.unit,
+    'lines matching assertion_pattern',
   );
 });
 

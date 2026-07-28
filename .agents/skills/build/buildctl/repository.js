@@ -227,12 +227,25 @@ export function repositoryCleanStatus({ repoRoot = process.cwd() } = {}) {
   return { clean: status.length === 0, status_sha256: sha256(status) };
 }
 
-export function repositoryFileScope({
-  repoRoot = process.cwd(),
-  baseRef,
-  plannedPaths = [],
-} = {}) {
-  const root = findGitRoot(repoRoot);
+// Paths this check reads. Reported verbatim as test_shrink.bounds so a narrow
+// scan never reads as a clean whole-repository result.
+const TEST_PATH_PATTERN = /(^|\/)(__tests__|tests?|spec|fixtures?|seeds?)\/|\.(test|spec)\.[A-Za-z0-9]+$|_test\.[A-Za-z0-9]+$|(^|\/)conftest\.py$/;
+
+// One line may carry several assertions; this counts lines, not assertions, so
+// the number is comparable across a reformat but still falls when checks go.
+const ASSERTION_PATTERN = /\bassert\b|\bexpect\s*\(|\bshould\b|^\s*(?:async\s+)?(?:test|it)\s*\(|^\s*def\s+test_|^\s*func\s+Test[A-Z]|#\[test\]/;
+
+function assertionLines(source) {
+  if (source === null) return 0;
+  return source.split(/\r?\n/).filter((line) => ASSERTION_PATTERN.test(line)).length;
+}
+
+function blobAt(repoRoot, ref, path) {
+  const result = git(repoRoot, ['show', `${ref}:${path}`], { allowFailure: true });
+  return result.status === 0 ? result.stdout : null;
+}
+
+function requireBaseRef(root, baseRef) {
   if (typeof baseRef !== 'string' || !/^[a-f0-9]{40}$/.test(baseRef)) {
     throw new BuildctlError('E_RESULT_BASE_REF', 'base_ref must be a full lowercase Git SHA.');
   }
@@ -240,6 +253,75 @@ export function repositoryFileScope({
   if (exists.status !== 0) {
     throw new BuildctlError('E_RESULT_BASE_REF', `base_ref is not a commit: ${baseRef}.`);
   }
+}
+
+// -M pairs a rename into one record, so a renamed test file is compared against
+// its own former contents instead of reading as a delete plus an unrelated add.
+function renameAwareChanges(root, baseRef, headRef) {
+  const records = nulRecords(
+    git(root, ['diff', '-M', '--name-status', '-z', baseRef, headRef], { encoding: 'buffer' }).stdout,
+  );
+  const changes = [];
+  for (let index = 0; index < records.length;) {
+    const status = records[index];
+    const renamed = status.startsWith('R') || status.startsWith('C');
+    changes.push({
+      after: status.startsWith('D') ? null : records[index + (renamed ? 2 : 1)],
+      before: records[index + 1],
+      status,
+    });
+    index += renamed ? 3 : 2;
+  }
+  return changes;
+}
+
+export function repositoryTestShrink({
+  repoRoot = process.cwd(),
+  baseRef,
+  headRef = 'HEAD',
+} = {}) {
+  const root = findGitRoot(repoRoot);
+  requireBaseRef(root, baseRef);
+  if (headRef !== 'HEAD') requireBaseRef(root, headRef);
+  const examined = [];
+  const shrunk = [];
+  for (const change of renameAwareChanges(root, baseRef, headRef)) {
+    if (!TEST_PATH_PATTERN.test(change.before)
+      && !(change.after && TEST_PATH_PATTERN.test(change.after))) continue;
+    // A path absent at base_ref is new; a new file cannot have lost coverage.
+    const source = blobAt(root, baseRef, change.before);
+    if (source === null) continue;
+    const before = assertionLines(source);
+    const after = change.after ? assertionLines(blobAt(root, headRef, change.after)) : 0;
+    examined.push(change.after || change.before);
+    if (after < before) {
+      shrunk.push({
+        after,
+        before,
+        path: change.after || change.before,
+        ...(change.after && change.after !== change.before ? { renamed_from: change.before } : {}),
+        ...(change.after ? {} : { deleted: true }),
+      });
+    }
+  }
+  return {
+    bounds: {
+      assertion_pattern: ASSERTION_PATTERN.source,
+      path_pattern: TEST_PATH_PATTERN.source,
+      unit: 'lines matching assertion_pattern',
+    },
+    examined: examined.sort(),
+    shrunk: shrunk.sort((left, right) => left.path.localeCompare(right.path)),
+  };
+}
+
+export function repositoryFileScope({
+  repoRoot = process.cwd(),
+  baseRef,
+  plannedPaths = [],
+} = {}) {
+  const root = findGitRoot(repoRoot);
+  requireBaseRef(root, baseRef);
   const changed = nulRecords(
     git(root, ['diff', '--name-only', '-z', baseRef, 'HEAD'], { encoding: 'buffer' }).stdout,
   ).sort();
