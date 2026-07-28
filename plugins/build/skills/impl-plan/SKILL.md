@@ -160,7 +160,7 @@ execution_manifest:
     verify: "npm test -- tests/example.test.ts"
     done: "REQ-001 implementation passes the named Wave 0 test"
 ```
-Every named symbol, behavior, and invariant in Approach has exactly one literal marker, equal binding, manifest task, and must-have. Each new compiled task has exactly one marker/binding/must-have chain and is evidence-atomic in one bounded implement-verify cycle. Behavioral-test and command-assertion refs use `<exact command> :: <expected observation>`; structural evidence proves only structural claims.
+Every named symbol, behavior, and invariant in Approach has exactly one literal marker, equal binding, manifest task, and must-have. Each new compiled task has exactly one marker/binding/must-have chain and is evidence-atomic in one bounded implement-verify cycle. Behavioral-test and command-assertion refs use `<exact command> :: <expected observation>`; structural evidence proves only structural claims. The observation must be a literal substring of that command's own captured stdout or stderr — `complete-slice` compares it verbatim against the stored receipt, so a paraphrase like `all tests pass` compiles and then blocks the gate after the work is done.
 
 An existing plan without `evidence_mode` is `legacy-untyped`: unchanged tasks may continue, but behavioral strings still require direct evidence. During re-plan, reopened tasks must upgrade to typed must-haves and bindings; do not bulk-rewrite completed tasks.
 
