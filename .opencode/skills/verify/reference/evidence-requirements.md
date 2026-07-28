@@ -80,11 +80,17 @@ acceptance currency, and the allowed next phase:
 | failed evidence command | `failed` only | `VR-###` findings name every failed command |
 | missing consumer, observation, requirement, must-have, or completion receipt | `partial` only | findings name every generated gap |
 | non-empty `planned-but-unchanged` set | at most `partial` | findings name every unchanged planned path |
+| non-empty `test-shrink` set | at most `partial` | findings name every test path that lost assertions |
 | valid pre-S-001 Plan Review bootstrap | at most `partial` | a finding names the absent generated Plan Review receipt |
 | no mechanical gap | `verified`; semantic `partial`/`failed` remains available | ordinary finding/verdict consistency |
 
 Generated receipts list exact required commands, resolved requirements, gaps, failed commands,
-planned/changed/out-of-plan/planned-but-unchanged paths, and prior Plan Review status. An earlier
+planned/changed/out-of-plan/planned-but-unchanged paths, and prior Plan Review status. They also
+carry `test_shrink`: every test or fixture path that existed at `base_ref` and reaches `HEAD` with
+fewer assertion lines, with the `bounds` naming the paths and pattern the scan read. Such a path is
+in-plan by definition, so file scope cannot see it and its must-have observation still matches — a
+shrink is a gap to account for in findings, not a failure on its own. Deciding whether it was a
+legitimate consolidation or a weakened gate is Verify's semantic call. An earlier
 state-referenced receipt remains current across a compiler-only recompile only when its immutable
 hash verifies and its plan subject equals the unchanged current source-plan hash. Verify reads
 these facts and authors semantic findings; it does not recompute or silently weaken them.

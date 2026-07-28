@@ -228,6 +228,8 @@ const TYPED_EVIDENCE_CONTRACT_TERMS = {
     'without executing an evidence command',
     'expected observation must appear in the stored',
     'Never execute plan evidence commands in receipt mode',
+    'non-empty `test-shrink` set',
+    'fewer assertion lines',
   ],
   'source/skills/build/SKILL.md': [
     '`evidence_mode`',

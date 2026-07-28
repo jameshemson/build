@@ -16,6 +16,7 @@ import {
   captureRepositoryIdentity,
   repositoryCleanStatus,
   repositoryFileScope,
+  repositoryTestShrink,
 } from './repository.js';
 import { verifyTransitionReceipt } from './transition.js';
 import { loadWorkflowState } from './workflow-state.js';
@@ -633,14 +634,23 @@ async function verifyFacts({
     if (!completed.has(slice.id)) coverage.gaps.push(`slice:${slice.id}:not-completed`);
   }
   const prior = priorPlanReview({ contract, repoRoot: state.repoRoot, state });
+  // A test file that lost assertions during the workflow is in-plan, so file
+  // scope cannot see it and its must-have observation still matches. Surface it
+  // as a gap the verdict must account for rather than a silent pass.
+  const testShrink = repositoryTestShrink({
+    baseRef: state.values.base_ref,
+    repoRoot: state.repoRoot,
+  });
   const requiredMentions = [...coverage.gaps];
   if (!prior.receipt_id) {
     requiredMentions.push(prior.bootstrap ? 'Plan Review receipt' : 'plan-review-result');
   }
   requiredMentions.push(...scope.planned_but_unchanged);
+  requiredMentions.push(...testShrink.shrunk.map((entry) => entry.path));
   const gaps = [...new Set([
     ...coverage.gaps,
     ...scope.planned_but_unchanged.map((path) => `planned-unchanged:${path}`),
+    ...testShrink.shrunk.map((entry) => `test-shrink:${entry.path}`),
     ...(!prior.receipt_id
       ? [prior.bootstrap ? 'prior:plan-review-receipt-bootstrap' : 'prior:plan-review-result']
       : []),
@@ -675,6 +685,7 @@ async function verifyFacts({
     },
     file_scope: scope,
     prior_plan_review: prior,
+    test_shrink: testShrink,
   };
 }
 
