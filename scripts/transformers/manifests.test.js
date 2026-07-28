@@ -106,7 +106,7 @@ test('all release-version carriers agree', () => {
     1,
     `Version drift across release files: ${carriers.map((c) => `${c.path}=${c.version}`).join(', ')}. Bump all ${carriers.length} together.`,
   );
-  assert.equal(unique[0], '1.14.1', 'release version must be 1.14.1');
+  assert.equal(unique[0], '1.15.0', 'release version must be 1.15.0');
 });
 
 test('package exposes the canonical self-contained buildctl CLI', () => {
@@ -125,7 +125,7 @@ test('package exposes the canonical self-contained buildctl CLI', () => {
 
 test('v1.14 release documents deterministic phase receipts and preserves standalone continuity', () => {
   for (const carrier of VERSION_CARRIERS) {
-    assert.equal(carrier.get(readJson(join(ROOT, carrier.path))), '1.14.1', carrier.path);
+    assert.equal(carrier.get(readJson(join(ROOT, carrier.path))), '1.15.0', carrier.path);
   }
   for (const [path, pattern] of [
     [readmePath, /compile-result[\s\S]*Plan Review[\s\S]*Verify[\s\S]*Architect Review/i],
@@ -317,8 +317,23 @@ test('v1.13 shipped docs retain bounded completion authority under v1.14', () =>
   assert.match(docs, /buildctl never (?:writes workflow state|mutates git)/i);
   assert.deepEqual(
     VERSION_CARRIERS.map((carrier) => carrier.get(readJson(join(ROOT, carrier.path)))),
-    ['1.14.1', '1.14.1', '1.14.1', '1.14.1'],
+    ['1.15.0', '1.15.0', '1.15.0', '1.15.0'],
   );
+});
+
+test('v1.15 release documents in-plan test weakening and orchestrator agreement', () => {
+  for (const carrier of VERSION_CARRIERS) {
+    assert.equal(carrier.get(readJson(join(ROOT, carrier.path))), '1.15.0', carrier.path);
+  }
+  for (const [path, pattern] of [
+    [roadmapPath, /v1\.15\.0 — in-plan test weakening and orchestrator agreement \(shipped\)/i],
+    [changelogPath, /## 1\.15\.0 - 2026-07-28[\s\S]*test_shrink/i],
+    [changelogPath, /## 1\.15\.0[\s\S]*phase-agent-failure/i],
+    [changelogPath, /## 1\.15\.0[\s\S]*literal substring/i],
+  ]) assert.match(readFileSync(path, 'utf8'), pattern, path);
+  // The soft-gate choice is the release's load-bearing decision; record why it
+  // is soft so a later hardening is a deliberate call, not a silent drift.
+  assert.match(readFileSync(roadmapPath, 'utf8'), /Keep it soft on first release/i);
 });
 
 test('negative fixture rejects four-skill Codex set', () => {

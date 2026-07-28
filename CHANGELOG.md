@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.15.0 - 2026-07-28
+
+### Added
+
+- `buildctl compile-result --phase verify` now reports `test_shrink`: every test or fixture path
+  that existed at `base_ref` and reaches `HEAD` with fewer assertion lines. A test file named in
+  `files_modified` is in-plan by definition, so file scope cannot see it being weakened and its
+  must-have observation still matches — previously nothing mechanical fired. The set caps the
+  verdict at `partial` and requires findings to name every affected path; it never fails the
+  compile on its own, because a mid-workflow test consolidation is legitimate and must not wedge
+  a workflow. Rename pairing uses `git diff -M`, binary blobs are skipped, and `bounds` reports
+  the scanned path and assertion patterns so a narrow scan never reads as a clean whole-repository
+  result.
+
+### Fixed
+
+- The Claude orchestrator told a second failed phase agent to run its phase inline, at exactly the
+  point `check-counters` returns an authoritative `phase-agent-failure` halt
+  (`fresh_judgment_retry`, `halt_at: 2`) and the Codex orchestrator halts. Because runnable
+  buildctl diagnostics already win, the prose instructed behaviour the compiler overrides. A
+  second phase-agent failure now halts and escalates on both orchestrators, and a test reads the
+  limit out of `counters.js` so the two cannot drift apart again.
+
+### Documentation
+
+- The rule that a `behavioral-test` or `command-assertion` observation must be a literal substring
+  of that command's own captured output was stated only in the Verify evidence reference, which
+  `impl-plan` and `review-plan` never read. Plans were authored with prose observations that
+  compiled cleanly and then failed at `complete-slice`, after implementation. All three authoring
+  paths now state it, pinned by a test that also asserts `coverage.js` still performs a substring
+  compare.
+
+### Scope
+
+- Receipt shape is additive: `mechanical_facts.test_shrink` is new, `schema_version` is unchanged,
+  and existing receipts verify as before. No change to `complete-slice`, the evidence ledger, or
+  the authored machine-result contract.
+
 ## 1.14.1 - 2026-07-26
 
 ### Changed
