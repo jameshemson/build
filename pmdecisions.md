@@ -1,5 +1,20 @@
 # Decisions
 
+## 2026-07-28: v1.15.0 shipped mechanism without the dogfood gate running first
+`status: accepted` · `confidence: high` · `revisit: if a second mechanism release lands before the instrumented Codex-native run`
+
+**Decision:** Ship the in-plan test-weakening gate, the phase-agent halt fix, and the evidence-ref guidance as 1.15.0, and record that the 2026-07-24 dogfood gate did not gate it.
+
+**What happened:** The 2026-07-24 entry accepted "No new mechanism ships this week" as the price of putting one instrumented Codex-native run ahead of the Clodex-versus-Verify-agent fork. v1.14.1 landed 2026-07-26. That run and the Codex issue recheck (#16900/#19197/#14866) have still not happened. 1.15.0 shipped mechanism anyway, from an unrelated source: an audit of July transcripts surfaced three recurring corrections, and one — a test file weakened to pass a gate — had no mechanical guard at all.
+
+**Why it did not wait:** All three were verified against the code before anything was built, and two were already enforced (`coverage.js:95` for literal evidence refs, `agent_retry` for dispatch escalation), so only the uncovered case shipped. The work is orthogonal to the fork and spends none of its evidence budget; the dogfood run still decides that question on unchanged terms.
+
+**Accepting:** The 2026-07-24 decision stays `open` and its revisit condition is unchanged. 1.15.0 has been dogfooded informally and behaves as intended, but that is not the instrumented Codex-native run that entry specifies, and this release is not evidence for either branch of the fork.
+
+**Kill criterion:** If a second mechanism release lands before the instrumented run, the dogfood gate is not a real gate — stop calling it one and re-plan the v1.15 direction on the evidence actually available.
+
+---
+
 ## 2026-07-24: v1.15 direction - dogfood gate before Clodex or Verify-agent retirement
 `status: open` · `confidence: medium` · `revisit: after v1.14 is landed and one instrumented Codex-native dogfood run (plus a recheck of Codex issues #16900/#19197/#14866) completes`
 
