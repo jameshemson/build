@@ -240,9 +240,16 @@ function assertionLines(source) {
   return source.split(/\r?\n/).filter((line) => ASSERTION_PATTERN.test(line)).length;
 }
 
+// Binary fixtures (images, snapshots) live under the same directories as tests.
+// Decoding one as text would produce a meaningless line count, so treat any blob
+// containing a NUL byte as absent rather than counting it.
 function blobAt(repoRoot, ref, path) {
-  const result = git(repoRoot, ['show', `${ref}:${path}`], { allowFailure: true });
-  return result.status === 0 ? result.stdout : null;
+  const result = git(repoRoot, ['show', `${ref}:${path}`], {
+    allowFailure: true,
+    encoding: 'buffer',
+  });
+  if (result.status !== 0) return null;
+  return result.stdout.includes(0) ? null : result.stdout.toString('utf8');
 }
 
 function requireBaseRef(root, baseRef) {

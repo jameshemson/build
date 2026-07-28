@@ -1,7 +1,7 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { repositoryTestShrink } from '../../source/skills/build/buildctl/repository.js';
@@ -144,6 +144,19 @@ test('test-shrink: new test files and non-test files are never findings', () => 
   const result = repositoryTestShrink({ baseRef: base, repoRoot: repo });
   assert.deepEqual(result.shrunk, []);
   assert.deepEqual(result.examined, [], 'a file absent at base_ref cannot have lost coverage');
+});
+
+test('test-shrink: a binary fixture is never counted as lost assertions', () => {
+  const repo = sandbox();
+  mkdirSync(join(repo, 'fixtures'), { recursive: true });
+  const before = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x61, 0x73, 0x73, 0x65, 0x72, 0x74]);
+  writeFileSync(join(repo, 'fixtures/snapshot.png'), before);
+  const base = commit(repo, 'binary fixture');
+  writeFileSync(join(repo, 'fixtures/snapshot.png'), Buffer.from([0x89, 0x50, 0x00]));
+  commit(repo, 'regenerate the fixture');
+
+  const result = repositoryTestShrink({ baseRef: base, repoRoot: repo });
+  assert.deepEqual(result.shrunk, [], 'a binary blob has no assertion lines to lose');
 });
 
 test('test-shrink: bounds are reported so a narrow scan never reads as whole-repository', () => {
