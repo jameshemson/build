@@ -175,6 +175,7 @@ const TYPED_EVIDENCE_CONTRACT_TERMS = {
     '`decisions`',
     'exactly one marker/binding/must-have chain',
     '`<exact command> :: <expected observation>`',
+    'literal substring of that command\'s own captured stdout or stderr',
   ],
   'source/skills/impl-plan/reference/plan-quality.md': [
     'Typed evidence contract',
@@ -186,6 +187,7 @@ const TYPED_EVIDENCE_CONTRACT_TERMS = {
     'top-level `requirements`, `decisions`, and `assumptions`',
     'exactly one marker, one binding, and one must-have',
     '`<exact command> :: <expected observation>`',
+    'literal substring of that command\'s own captured stdout or stderr',
   ],
   'source/skills/review-plan/SKILL.md': [
     'Validate the typed evidence contract',
@@ -199,6 +201,7 @@ const TYPED_EVIDENCE_CONTRACT_TERMS = {
     'prompt fallback',
     'literal `[B-###]` marker',
     'exactly one marker/binding/must-have chain',
+    'literal substring of that command\'s own output',
   ],
   'source/skills/verify/SKILL.md': [
     'evidence mode',
@@ -1085,6 +1088,27 @@ test('both Build orchestrators route a second phase-agent failure to the counter
   }
   assert.ok(claude.includes('never replace an independent phase agent with inline execution'));
   assert.ok(codex.includes('never replace independent review with inline'));
+});
+
+test('planner and reviewer state the literal-substring rule coverage.js enforces', () => {
+  // The gate is a verbatim substring test against the receipt's captured output.
+  // If that ever becomes a regex or a normalized compare, the authoring guidance
+  // below is wrong and must change with it.
+  const coverage = readRel('source/skills/build/buildctl/coverage.js');
+  assert.match(coverage, /const output = receipt \? `\$\{receipt\.stdout\.tail\}\\n\$\{receipt\.stderr\.tail\}` : '';/);
+  assert.match(coverage, /!output\.includes\(parsed\.observation\)/);
+
+  for (const path of [
+    'source/skills/impl-plan/SKILL.md',
+    'source/skills/impl-plan/reference/plan-quality.md',
+    'source/skills/review-plan/SKILL.md',
+  ]) {
+    assert.match(
+      readRel(path),
+      /observation must be a literal substring of that command's own/,
+      `${path} states the literal-substring rule to its own reader`,
+    );
+  }
 });
 
 test('Kemet-derived evidence eval metadata and fixtures stay deterministic', () => {
