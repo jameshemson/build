@@ -203,6 +203,12 @@ effective `implement` route. A successful non-null
 custom selection remains `profile-owned` and omits Build model/effort. Serialize dependencies
 and overlap; root owns shared files, git operations, commits, and integration.
 
+For inline work and every delegated implementation prompt, apply Occam's Razor within the accepted
+plan: choose the simplest implementation that fully satisfies it, using existing project mechanisms
+when appropriate while preserving clear responsibilities and established boundaries. Do not
+introduce a material unplanned abstraction, configuration surface, extension point, dependency, or
+infrastructure component for hypothetical needs; treat one as `SCOPE_CHANGE` if it becomes necessary.
+
 Wave 0 collects the fastest targeted evidence; run a full baseline only to diagnose a
 suspected pre-existing failure. Workers run scoped owned-file/task checks and never the full suite
 unless assigned a named slow gate and runtime. Root runs each exact wave/slice integration command
