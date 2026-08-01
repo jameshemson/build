@@ -139,6 +139,10 @@ const BEHAVIORS = [
   ['hard-expiry interrupt', 'interrupt only at hard expiry'],
   ['workstream batching', 'Never spawn one writer per manifest task.'],
   ['root workstream membership validation', 'every manifest ID in exactly one named workstream'],
+  ['Codex implementation Occam guard', "For inline work and every delegated implementation prompt, apply Occam's Razor within the accepted plan"],
+  ['implementation boundary preservation', 'while preserving clear responsibilities and established boundaries'],
+  ['hypothetical implementation surface guard', 'material unplanned abstraction, configuration surface, extension point, dependency, or infrastructure component for hypothetical needs'],
+  ['implementation simplicity scope-change route', 'treat one as `SCOPE_CHANGE` if it becomes necessary'],
   ['layered test ownership', 'Wave 0 collects the fastest targeted evidence'],
   ['artifact-before-state transitions', 'Always write and validate the artifact needed by the next phase before updating\n`phase`'],
   ['completion route disclosure', 'requested model routes and every `model_fallback` (or explicitly `none`)'],
@@ -564,6 +568,18 @@ test('v1.13 orchestrators retain completion authorization and state-fed counters
 test('Codex orchestrator source stays within its 300-line compression budget', () => {
   const lines = readRel(ORCHESTRATOR_PATH).trimEnd().split(/\r?\n/).length;
   assert.ok(lines <= 300, `Codex orchestrator has ${lines} lines; maximum is 300`);
+});
+
+test('implementation Occam guard remains Codex-only', () => {
+  for (const path of [
+    'source/skills/build/SKILL.md',
+    'source/skills/impl-plan/SKILL.md',
+    'source/skills/review-plan/SKILL.md',
+    'source/skills/verify/SKILL.md',
+    'source/skills/architect-review/SKILL.md',
+  ]) {
+    assert.doesNotMatch(readRel(path), /Occam's Razor/, `${path} must not receive Codex-only prompting`);
+  }
 });
 
 test('installed-skill smoke requires terminal complete state', () => {
