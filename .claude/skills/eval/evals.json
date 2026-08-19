@@ -142,6 +142,27 @@
         "orchestrator-does-not-skip-to-complete",
         "orchestrator-treats-summary-as-provisional"
       ]
+    },
+    {
+      "id": "build-plan-phase-fable-mode",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-plan-phase-fable-mode",
+      "state_slug": "fable-mode",
+      "assertions": ["orchestrator-fable-plan-active-session"]
+    },
+    {
+      "id": "build-review-phase-mixed-mode",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-review-phase-mixed-mode",
+      "state_slug": "mixed-mode",
+      "assertions": ["orchestrator-mixed-relays-review"]
+    },
+    {
+      "id": "build-review-phase-mixed-mode-relay-pending",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-review-phase-mixed-mode-relay-pending",
+      "state_slug": "relay-pending",
+      "assertions": ["orchestrator-mixed-resume-validates-relay"]
     }
   ]
 }

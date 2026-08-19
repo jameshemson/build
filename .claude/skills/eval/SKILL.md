@@ -87,7 +87,9 @@ commit, add, or stash). Do not invoke /build:build.
 1. Read every `{state_slug}-*.md` artifact in {this-skill-dir}/{state_fixture}. Together they are
    a workflow mid-flight; treat them as if they were the contents of `.build/plans/`.
 2. Read the orchestrator's own instructions at {this-skill-dir}/../build/SKILL.md, and the state
-   schema it links at {this-skill-dir}/../build/reference/state-schema.md.
+   schema it links at {this-skill-dir}/../build/reference/state-schema.md, and any reference file
+   those instructions link to for the fixture's current phase — for mode fixtures,
+   {this-skill-dir}/../build/reference/workflow-modes.md.
 3. Applying those instructions to that state, decide what the orchestrator does next. Write your
    answer with these four headings, in this order:
    - `## Next phase` — the exact value the `phase:` field would take next, or `unchanged` if the
