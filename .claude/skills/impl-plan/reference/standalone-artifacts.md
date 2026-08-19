@@ -3,7 +3,10 @@
 Apply these rules only when the invocation is not explicitly orchestrated and no active
 Build state matches the request. An unrelated or archived state does not make the run
 orchestrated. In an orchestrated run, return the normal body; Build root saves it and
-retains all state, transition, and git authority.
+retains all state, transition, and git authority. One exception outranks both conditions:
+an invocation beginning with the literal `[relay]` marker is governed by the "Relay
+invocations" section below regardless of orchestration context, and a relay run always
+saves its own artifact.
 
 ## Mode and supplied inputs
 
