@@ -19,7 +19,7 @@ assumptions_confirmed: [A-001 confirmed]
 workstreams: [csv-import]
 execution_manifest: [T-001 wave 1 depends_on [] files src/csv-import.js, test/csv-import.test.js]
 compiled_contract: {"path":".build/contracts/relay-pending/contract.json","plan_hash":"3f9e45a74022c104deb4269898720a0061092c18bf29e1931d304cfccb72dd23","contract_hash":"7ee978763f3ab727abcb37987980242ea549eab0fe645cb9ac50dd2924e3d942","compiler_version":"buildctl@1.15.0"}
-relay: {"phase": "review", "command": "[relay] $build:review-plan .build/plans/relay-pending-plan.md", "artifact": ".build/plans/relay-pending-review.md"}
+relay: {"phase": "review", "command": "[relay] $build:review-plan .build/plans/relay-pending-plan.md .build/contracts/relay-pending/contract.json .build/plans/relay-pending-context.md .build/plans/relay-pending-requirements.md repository=1f2e3d4c5b6a79880102030405060708090a0b0c0d0e0f101112131415161718", "artifact": ".build/plans/relay-pending-review.md"}
 phase_result_references: []
 phase_result_bootstrap: []
 delivery_slices: [{"id":"S-001","task_ids":["T-001"]}]
