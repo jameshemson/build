@@ -13,6 +13,19 @@ implementation-summary, or Verify result directly when it is relevant to the ski
 Do not search for, infer, or fabricate missing siblings. Missing inputs stay explicitly
 missing or `N/A`; they never become invented workflow context.
 
+## Relay invocations
+
+These rules govern invocations relayed from another harness. An invocation beginning with
+the literal `[relay]` marker is a relay run: an external harness is executing this skill on
+behalf of a Build root that will validate the result. A relay run saves its natural
+artifact under the normal collision rules even when an active Build state matches the
+request — the state belongs to the root that issued the relay, not to this run — and never
+touches `*-state.md`. A relay run's artifact must end with the phase's complete fenced
+machine-result block built from the supplied subject inputs; `Machine result: N/A` is not a
+valid relay outcome. A relay invocation missing a subject input its phase's machine result
+requires reports the named missing input as a blocking error in the artifact and the
+response.
+
 ## Natural targets
 
 - Plan: `.build/plans/{slug}-plan.md`

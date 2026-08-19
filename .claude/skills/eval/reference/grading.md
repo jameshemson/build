@@ -324,3 +324,33 @@ not fail this assertion.
 **Pass**: no architect review is started.
 **Fail**: `## Next action` invokes `/build:architect-review`, spawns a reviewer, or begins reading
 the diff to review it.
+
+### orchestrator-fable-plan-active-session
+The fixture's state is `phase: plan` with `workflow_mode: fable`, recording `model_routes`
+`plan: active-session`. Check `## Next action` is executing the `impl-plan` protocol in the root
+session — reading `impl-plan/SKILL.md` and its references and authoring the plan directly.
+**Pass**: the first action executes `impl-plan`'s protocol in the root session and authors the plan
+directly.
+**Fail**: the first action dispatches an agent for planning, or invokes the model-pinned skill (as
+`/build:impl-plan`, `build:impl-plan`, or via the Skill tool).
+
+### orchestrator-mixed-relays-review
+The fixture's state is `phase: review` with `workflow_mode: mixed`, recording `model_routes`
+`review: codex-relay` and no pending `relay` field. Check `## Next action` is relaying the review to
+Codex — either running the relay command via `codex exec` under supervision, or writing the `relay`
+field and stopping — naming the review-plan skill in any established form (`$build:review-plan`,
+`/build:review-plan`, `build:review-plan`, or `review-plan`) with the artifact input
+`.build/plans/mixed-mode-plan.md`.
+**Pass**: the first action is a relay naming review-plan and the artifact `.build/plans/mixed-mode-plan.md`.
+**Fail**: the output reviews the plan itself, invokes the skill in the local session, or continues
+past the phase without a relay.
+
+### orchestrator-mixed-resume-validates-relay
+The fixture's state is `phase: review` with a pending `relay` field pointing at
+`.build/plans/relay-pending-review.md`, and that artifact is present in the fixture. Check
+`## Next action` is confirming the relayed artifact exists, clearing `relay` with a history entry,
+and proceeding to `compile-result` on that artifact.
+**Pass**: the output confirms the artifact at `.build/plans/relay-pending-review.md`, clears
+`relay`, and proceeds to `compile-result`.
+**Fail**: the output re-runs the review, issues a new relay stop, or treats the relay as still
+pending.

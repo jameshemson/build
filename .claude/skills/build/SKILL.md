@@ -3,7 +3,7 @@ name: build
 description: Structured build workflow - plan, review, implement, verify, architect review. Drives the entire cycle autonomously.
 user-invocable: true
 argument-hint: "<feature description>"
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskOutput
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskOutput, AskUserQuestion
 ---
 
 You are orchestrating a structured build workflow. You act like Claude Code itself - use agents for parallel work, use tasks for tracking, be autonomous but structured. **You drive the entire workflow from start to finish without stopping to ask the user to switch sessions or models.** Use agents with model overrides to run phases that need a different model.
@@ -34,20 +34,26 @@ Also read the artifacts required for the current phase - these carry context fro
 
 Create the `.build/plans/` directory if it doesn't exist.
 
+## Mode and routing
+
+Resolve `workflow_mode` before the git preflight: an explicit `mode=` token in $ARGUMENTS wins, then a `build-mode:` line in the effective `AGENTS.md` (on Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists), then — on a fresh workflow only — ask with AskUserQuestion; this mode ask is the third allowed pre-start stop. The recorded `workflow_mode` is authoritative on resume and is never re-asked; a missing `workflow_mode` resolves to `claude`.
+
+Snapshot `workflow_mode`, `agent_routes`, and `model_routes` in state before any dispatch, following the six-key routing contract in [workflow modes](reference/workflow-modes.md). Modes differ only in who executes a phase. `review` and `verify` are never routed `active-session`.
+
 ---
 
 ## Phase 1: Plan
 
 **Trigger**: No state file, or state says `phase: plan`
 
-1. **Git preflight**: Run `git status --porcelain`. If output is non-empty, stop and show the user the dirty files — the workflow needs a clean tree so `base_ref` diffs and worktree merges contain only workflow changes. (This stop and the multiple-workflow choice are the only allowed pre-start stops.) Then run `git rev-parse HEAD` to capture `base_ref`, and create the workflow branch: `git checkout -b build/{slug}`. For a fresh workflow, immediately write the initial `phase: plan` state before exploration, including JSON `base_ref`, `workflow_artifact_prefix`, `phase_result_references: []`, `phase_result_bootstrap: []`, `delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `checkpoint_commits: []`, `transition_references: []`, `transition_history: []`, and `counter_events: []`; retain the other initial fields required by the state schema.
+1. **Git preflight**: Run `git status --porcelain`. If output is non-empty, stop and show the user the dirty files — the workflow needs a clean tree so `base_ref` diffs and worktree merges contain only workflow changes. (This stop, the multiple-workflow choice, and the fresh-workflow mode ask are the only allowed pre-start stops.) Then run `git rev-parse HEAD` to capture `base_ref`, and create the workflow branch: `git checkout -b build/{slug}`. For a fresh workflow, immediately write the initial `phase: plan` state before exploration, including JSON `base_ref`, `workflow_artifact_prefix`, `phase_result_references: []`, `phase_result_bootstrap: []`, `delivery_slices: []`, `active_slice: null`, `completed_slices: []`, `checkpoint_commits: []`, `transition_references: []`, `transition_history: []`, and `counter_events: []`; retain the other initial fields required by the state schema.
 2. **Parallel codebase exploration**: Deploy multiple Explore agents simultaneously to understand the codebase. Split by concern area, e.g.:
    - Agent 1: Architecture, project structure, build system, existing patterns
    - Agent 2: The specific area(s) of code relevant to $ARGUMENTS
    - Agent 3: Existing tests, test patterns, CI configuration
    - Add more agents if the task spans multiple domains (frontend/backend, multiple services, etc.)
    Wait for all agents to return before proceeding.
-3. Invoke `/build:impl-plan` via the Skill tool for: [orchestrated] $ARGUMENTS
+3. Invoke `/build:impl-plan` via the Skill tool for: [orchestrated] $ARGUMENTS. When `model_routes` records `plan: active-session` (`fable` and `mixed`), execute the `impl-plan` protocol in the root session — read `../impl-plan/SKILL.md` and its references and author the plan directly — instead of the Skill invocation.
 4. The plan MUST include:
    - **Requirements and Decisions**: `REQ-*`, `D-*`, and `A-*` inventories with acceptance criteria.
    - **Execution Manifest**: a contract with `evidence_mode` set to `typed`, exact `bindings`, and `execution_manifest` tasks with `id`, `wave`, `depends_on`, `files_modified`, `requirements`, typed `must_haves`, `verify`, and `done`.
@@ -103,7 +109,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 **Trigger**: State says `phase: review`
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-context.md`, `{slug}-requirements.md`, and `{slug}-plan.md`
-2. Invoke `/build:review-plan` via the Skill tool, passing the plan path
+2. Invoke `/build:review-plan` via the Skill tool, passing the plan path. In `mixed` mode this phase is a relay stop: follow the relay contract in [workflow modes](reference/workflow-modes.md) instead of invoking the skill, and on resume validate the relayed artifact before `compile-result`.
 3. Save the review to `.build/plans/{slug}-review.md`
 4. Before the first post-integration buildctl state read, normalize a legacy bare-hex `base_ref`
    and the result machine fields through the schema. Run `compile-result` against the saved review,
@@ -185,7 +191,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 **Trigger**: State says `phase: verify`
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-plan.md`, and `{slug}-implementation-summary.md`
-2. Invoke `/build:verify` via the Skill tool for fresh whole-workflow evidence; with compiled evidence it runs only `run-evidence --check-only` and judges receipt/consumer coverage without executing evidence commands. Recorded runtime fallback preserves the prompt exact-command protocol; no slice, worker, wave, or checkpoint result substitutes for this final authority.
+2. Invoke `/build:verify` via the Skill tool for fresh whole-workflow evidence; with compiled evidence it runs only `run-evidence --check-only` and judges receipt/consumer coverage without executing evidence commands. Recorded runtime fallback preserves the prompt exact-command protocol; no slice, worker, wave, or checkpoint result substitutes for this final authority. In `mixed` mode this phase is a relay stop: follow the relay contract in [workflow modes](reference/workflow-modes.md) instead of invoking the skill, and on resume validate the relayed artifact before `compile-result`.
 3. Save the verification report to `.build/plans/{slug}-verify.md` before changing phase.
 4. When buildctl is runnable, run `compile-result` against the saved report and current state/contract/evidence. buildctl owns whole-workflow coverage and file scope; Verify authors the semantic verdict without re-executing evidence commands. A runnable diagnostic blocks and never selects fallback.
 5. Require a current immutable Verify receipt. In one root-owned state edit append `{phase,receipt_id}` to `phase_result_references`, record verdict plus `uncovered_requirements` or failures, append history, and apply only its returned allowed next phase: `architect-review` for VERIFIED/PARTIAL or `implement` for FAILED. Auto-continue only on `architect-review`.
@@ -199,7 +205,7 @@ Validate the proposed slice graph before saving it. On re-plan, preserve complet
 
 1. Read `.build/plans/{slug}-state.md`, `{slug}-requirements.md`, `{slug}-context.md`, `{slug}-plan.md`, `{slug}-review.md`, `{slug}-implementation-summary.md`, and `{slug}-verify.md`. Stop and report any missing artifact before reviewing.
 2. Read the whole workflow diff since the workflow started. If `base_ref` exists in state, use `git diff {base_ref}...HEAD`; otherwise use `git diff HEAD` and report `base_ref unavailable`. Architect Review covers this whole diff, never only the final slice.
-3. Invoke `/build:architect-review` via the Skill tool with explicit context: workflow slug, state path, `{slug}-verify.md` path, verification verdict, and review target `git diff {base_ref}...HEAD` (or `git diff HEAD` if `base_ref` is unavailable).
+3. Invoke `/build:architect-review` via the Skill tool with explicit context: workflow slug, state path, `{slug}-verify.md` path, verification verdict, and review target `git diff {base_ref}...HEAD` (or `git diff HEAD` if `base_ref` is unavailable). In `mixed` mode this phase is a relay stop: follow the relay contract in [workflow modes](reference/workflow-modes.md) instead of invoking the skill, and on resume validate the relayed artifact before `compile-result`. When `model_routes` records `architect-review: active-session` (`fable`), execute the `architect-review` protocol in the root session with the same explicit context.
 4. Save the review to `.build/plans/{slug}-architect-review.md` before changing phase.
 5. When buildctl is runnable, run `compile-result` against the saved review. It requires the current accepted Verify result and exact final diff; a runnable diagnostic blocks and never selects fallback.
 6. Require the immutable Architect Review receipt. In one root-owned edit append `{phase,receipt_id}` to `phase_result_references`, record findings/verdict and history, and apply only its allowed next phase: `complete` for PASS/PASS_WITH_NOTES or `implement` with `architect_fixes` for FAIL. Auto-continue only on `complete`; rework returns through implementation and fresh Verify.
@@ -231,7 +237,7 @@ Skills with pinned frontmatter (`/build:review-plan` → sonnet, `/build:verify`
 - **Sonnet agent** for: Mid-Review (Phase 3b)
 - **Opus agents** for: implementation workstreams that need design judgment (see Phase 3 model guidance)
 
-Pass any spawned agent a summary of relevant context and file paths so it can work autonomously, wait for its result, and continue the workflow from its output.
+Pass any spawned agent a summary of relevant context and file paths so it can work autonomously, wait for its result, and continue the workflow from its output. The fresh-workflow mode ask and a `mixed`-mode relay stop are the only mode-licensed stops; each is a pause of a live workflow, not a session-switch stop, and every other never-stop rule stands.
 
 **Never stop and ask the user to start a new session.** The build loop drives itself.
 
@@ -246,6 +252,7 @@ Before every dispatch or transition, root appends the typed occurrence to `count
 - **Phase loop limit**: If the workflow cycles back to the same phase more than 3 times (e.g., implement -> verify -> fail -> implement -> verify -> fail -> implement), halt the workflow and escalate. Log the full cycle history. The problem is systemic.
 - **Plan↔review limit**: If any verdict returns the workflow from Phase 2 to Phase 1 more than 2 times — more than 3 total plan iterations — halt and escalate, logging each review's findings in history. A plan stuck in a review spiral means the requirements are unstable or contradictory; another iteration won't fix that.
 - **Scope change limit**: If SCOPE_CHANGE is reported more than twice in a single workflow, halt and escalate. The original feature description is likely underspecified - re-planning won't help without more input from the user.
+- **No-progress limit**: If the same scope records a `no_progress` counter event twice — for example two consecutive relay resumes without the expected artifact — halt with `no-progress-limit`, restate exactly what is missing, and escalate rather than looping.
 
 When any circuit breaker fires, update the state file with `halted: true`, `halt_reason: [which breaker]`, and `halt_context: [summary of failures/changes]`. The user can resume by updating the state file after addressing the root cause.
 
@@ -257,6 +264,7 @@ When any circuit breaker fires, update the state file with `halted: true`, `halt
 - **Always update state last.** The state file is the source of truth across sessions.
 - **Never stop to ask the user to switch sessions.** Use agents with model overrides instead.
 - **Never skip phases.** The review exists for a reason. The verify gate exists for a reason.
+- **A mode changes who executes a phase, never whether it runs.** No mode skips review, verify, or architect review; no mode routes `review` or `verify` to the root session.
 - **Tests are mandatory.** Every phase that writes code must write or update tests. If tests don't pass at the end of your phase, you're not done.
 - **Verify before architect review.** Phase 3c is not optional. No verification evidence = no architect review.
 - **Handle agent statuses explicitly.** DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT, BLOCKED, SCOPE_CHANGE. Don't ignore concerns or work around blocks.
