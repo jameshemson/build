@@ -304,6 +304,21 @@ test('ROADMAP sequences deterministic Build authority without claiming deferred 
   assert.match(roadmap, /v1\.13[\s\S]*complete-slice[\s\S]*transition/i);
   assert.match(roadmap, /portable[\s\S]*(?:fallback|OpenCode|Codex)/i);
   assert.match(roadmap, /Deferred[\s\S]*leases[\s\S]*domain[\s\S]*trajectory[\s\S]*routing/i);
+  // Same Deferred-order chain, extended: the workflow-mode deferrals must stay
+  // inside Deferred and after the existing routing entry, not drift above it.
+  assert.match(
+    roadmap,
+    /Deferred[\s\S]*leases[\s\S]*domain[\s\S]*trajectory[\s\S]*routing[\s\S]*presets[\s\S]*relay failure paths/i,
+  );
+});
+
+test('workflow-mode docs scope modes to Claude and routing to both orchestrators', () => {
+  const readme = readFileSync(readmePath, 'utf8');
+  const harnesses = readFileSync(harnessesPath, 'utf8');
+  assert.match(readme, /### Workflow modes/);
+  assert.match(readme, /mode=(claude|fable|mixed)/);
+  assert.match(readme, /Codex and Claude Code users may add/);
+  assert.match(harnesses, /named workflow modes are Claude-orchestrator-only today/);
 });
 
 test('v1.13 shipped docs retain bounded completion authority under v1.14', () => {
