@@ -53,6 +53,8 @@ The marketplace manifest is at `.agents/plugins/marketplace.json`; the plugin ma
 
 A user who both clones the repo AND installs the plugin will see duplicate entries for the five Codex skills. The two copies are byte-identical (enforced by a sandbox byte-equality test); behavior is the same, only the UI listing is noisier.
 
+Note that named workflow modes are Claude-orchestrator-only today — the `mode=claude` / `mode=fable` / `mode=mixed` selection is read only by the Claude orchestrator. The six-key `## Build agent routing` block, by contrast, is supported by both orchestrators: Codex has had it since the custom-agent-routing release, and this release ports it to Claude. Codex preset parity for the new named modes is roadmap-deferred. `workflow-modes.md` ships in the Codex output trees but is unreferenced there.
+
 ### Codex end-to-end flow
 
 Run `$build:build <feature>` once to drive Plan → Plan Review → Implement → Verify → Architect Review, including repair loops and resumable `.build/plans/` artifacts. The root orchestrator owns workflow state, branch and commit operations, diff inspection, integrated checks, and phase transitions. Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents. Explicit non-null custom routes may opt any phase into delegation.

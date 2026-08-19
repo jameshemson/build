@@ -114,7 +114,7 @@ These are requests rather than guaranteed pins. When the current spawn surface c
 
 ### Custom Build agents
 
-Codex users may add an optional literal `## Build agent routing` block to the current invocation or effective `AGENTS.md`. A partial map resolves each key independently with this precedence: invocation > effective `AGENTS.md` > Build default. The six public keys are:
+Codex and Claude Code users may add an optional literal `## Build agent routing` block to the current invocation or effective `AGENTS.md`. A partial map resolves each key independently with this precedence: invocation > effective `AGENTS.md` > Build default. On Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists. The six public keys are:
 
 ```md
 ## Build agent routing
@@ -138,6 +138,19 @@ Generated skill outputs are committed artifacts. When changing `source/skills/`,
 
 See [ROADMAP.md](ROADMAP.md) for the deterministic evidence and transition-authority sequence.
 
+### Workflow modes
+
+The Claude orchestrator supports three named workflow modes: `claude` (the default), `fable`, and `mixed`. Selection resolves from an optional `mode=claude` / `mode=fable` / `mode=mixed` invocation token, a `build-mode:` line in the effective `AGENTS.md`, or an option screen asked once on a fresh workflow — no memorized syntax required.
+
+Four tracks:
+
+- **Sole Claude** — `/build` as-is; the `claude` default, today's pinned routing.
+- **Sole Codex** — run `$build:build` in a Codex session; nothing new to install.
+- **`fable`** — the root session executes the plan and architect-review protocols itself; review and verify remain independent fresh-context agents.
+- **`mixed`** — fable planning plus cross-model adversarial judgment: plan review, verify, and architect review run on Codex via a supervised `codex exec` invocation, with a manual relay stop as fallback.
+
+See `reference/workflow-modes.md` in the build skill for the full contract.
+
 ## Standalone use
 
 Each skill is useful on its own:
@@ -160,7 +173,7 @@ In Claude Code, each skill sets its own model for standalone runs:
 | `/build:architect-review` | Opus | High | fork |
 | `/build:verify` | inherited | inherited | inherited |
 
-Skill frontmatter takes precedence: a skill invoked from inside an orchestrator-spawned agent still runs on its own pinned model, not the agent's (verified empirically — a Haiku agent invoking `review-plan` executes on Sonnet). The orchestrator's `build/{slug}` dispatch agents (implementation, merge-conflict resolution) request Sonnet for single-file mechanical work and Opus for multi-file integration or design judgment. Note that skill frontmatter does not resolve the `fable` alias — it falls back silently to the invoking model — so the two judgment skills pin Opus explicitly rather than relying on inheritance.
+Skill frontmatter takes precedence: a skill invoked from inside an orchestrator-spawned agent still runs on its own pinned model, not the agent's (verified empirically — a Haiku agent invoking `review-plan` executes on Sonnet). The orchestrator's `build/{slug}` dispatch agents (implementation, merge-conflict resolution) request Sonnet for single-file mechanical work and Opus for multi-file integration or design judgment. Note that skill frontmatter does not resolve the `fable` alias — it falls back silently to the invoking model — so the two judgment skills pin Opus explicitly rather than relying on inheritance. Fable mode executes the plan and architect-review protocols in the root session precisely because skill frontmatter cannot express a session-model pin, for the same reason the fable-alias note above gives. The standalone skills' pins are unchanged.
 
 ## License
 
