@@ -72,8 +72,9 @@ literal `[relay]` marker, then runs
 as a supervised background command with a 20-minute deadline. The run is accepted only when all
 three of the following hold:
 
-1. No tracked-file changes: `git status --porcelain` is empty. Otherwise discard the run and revert
-   the working tree to its pre-run state.
+1. No change outside the expected artifact: `git status --porcelain` shows no entry other than the
+   expected artifact's path, and `{slug}-state.md` is byte-identical to its pre-run hash, which root
+   records before dispatch. Otherwise discard the run and revert the working tree to its pre-run state.
 2. The expected artifact is present at its natural path.
 3. `compile-result` returns a successful receipt for that phase.
 
