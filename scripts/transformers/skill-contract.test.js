@@ -316,6 +316,27 @@ const WORKFLOW_MODE_CONTRACTS = {
   ],
 };
 
+const RELAY_TEMPLATE_PHASES = {
+  'review-plan': 'plan-review',
+  verify: 'verify',
+  'architect-review': 'architect-review',
+};
+
+const RELAY_FILE_SUBJECT_FRAGMENTS = {
+  context: '{slug}-context.md',
+  contract: 'contract.json',
+  'evidence-ledger': 'ledger.json',
+  'implementation-summary': '{slug}-implementation-summary.md',
+  plan: '{slug}-plan.md',
+  requirements: '{slug}-requirements.md',
+  verify: '{slug}-verify.md',
+};
+
+const RELAY_VALUE_SUBJECT_TOKENS = {
+  repository: 'repository=',
+  'verify-result': 'verify-result=',
+};
+
 const KEMET_EVIDENCE_ASSERTIONS = [
   'catches-unbound-approach-obligation',
   'catches-non-atomic-task',
@@ -664,6 +685,65 @@ function assertWorkflowModeContracts(contents = Object.fromEntries(
   }
 }
 
+function readPhaseSubjects() {
+  const source = readRel('source/skills/build/buildctl/phase-results.js');
+  const declaration = source.indexOf('const PHASES = {');
+  assert.ok(declaration >= 0, 'phase-results.js must declare a PHASES constant');
+  const open = source.indexOf('{', declaration);
+  let depth = 0;
+  let end = -1;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    else if (source[index] === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        end = index + 1;
+        break;
+      }
+    }
+  }
+  assert.ok(end > open, 'the PHASES object literal must be balanced');
+  return new Function(`return (${source.slice(open, end)});`)();
+}
+
+function relayCommandTemplates() {
+  const content = readRel('source/skills/build/reference/workflow-modes.md');
+  const templates = {};
+  for (const [, template, skill] of content.matchAll(
+    /`(\[relay\] \$build:([a-z-]+)[^`]*)`/g,
+  )) {
+    templates[skill] = template;
+  }
+  return templates;
+}
+
+function assertRelayTemplateSubjects(phases = readPhaseSubjects(), templates = relayCommandTemplates()) {
+  for (const [skill, phase] of Object.entries(RELAY_TEMPLATE_PHASES)) {
+    const template = templates[skill];
+    assert.ok(
+      template,
+      `workflow-modes.md must define a [relay] $build:${skill} command template`,
+    );
+    const subjects = phases[phase]?.subjects;
+    assert.ok(
+      Array.isArray(subjects) && subjects.length > 0,
+      `phase-results.js must define compile-result subjects for ${phase}`,
+    );
+    for (const subject of subjects) {
+      const fragment = RELAY_FILE_SUBJECT_FRAGMENTS[subject]
+        ?? RELAY_VALUE_SUBJECT_TOKENS[subject];
+      assert.ok(
+        fragment,
+        `no relay-template representation is mapped for ${phase} subject ${subject}`,
+      );
+      assert.ok(
+        template.includes(fragment),
+        `the ${skill} relay template must carry ${phase} subject ${subject} as ${JSON.stringify(fragment)}`,
+      );
+    }
+  }
+}
+
 function fencedYaml(content, root) {
   const blocks = [...content.matchAll(/```yaml\n([\s\S]*?)```/g)].map((match) => match[1]);
   const block = blocks.find((candidate) => candidate.split('\n').some(
@@ -993,6 +1073,30 @@ test('both Build orchestrators retain compiled-plan and deterministic-receipt au
 
 test('the Claude orchestrator, its mode reference, and the relay clause retain the workflow-mode contract', () => {
   assertWorkflowModeContracts();
+});
+
+test('each mixed-mode relay template names its phase\'s complete compile-result subject set', () => {
+  assertRelayTemplateSubjects();
+});
+
+test('a relay template dropping a compile-result subject is rejected', () => {
+  const phases = readPhaseSubjects();
+  const templates = relayCommandTemplates();
+  for (const [skill, phase] of Object.entries(RELAY_TEMPLATE_PHASES)) {
+    for (const subject of phases[phase].subjects) {
+      const fragment = RELAY_FILE_SUBJECT_FRAGMENTS[subject]
+        ?? RELAY_VALUE_SUBJECT_TOKENS[subject];
+      const mutated = {
+        ...templates,
+        [skill]: templates[skill].replaceAll(fragment, ''),
+      };
+      assert.throws(
+        () => assertRelayTemplateSubjects(phases, mutated),
+        new RegExp(`subject ${subject}\\b`),
+        `dropping ${subject} from the ${skill} relay template must fail`,
+      );
+    }
+  }
 });
 
 test('v1.14 Plan Review source contracts require authored result compilation before transition', () => {

@@ -50,6 +50,8 @@ function assertSharedContract(content) {
     'Do not search for, infer, or fabricate missing siblings',
     'An invocation beginning with the literal `[relay]` marker is a relay run: an external harness is executing this skill on behalf of a Build root that will validate the result.',
     'A relay run saves its natural artifact under the normal collision rules even when an active Build state matches the request — the state belongs to the root that issued the relay, not to this run — and never touches `*-state.md`.',
+    'A relay run\'s artifact must end with the phase\'s complete fenced machine-result block built from the supplied subject inputs; `Machine result: N/A` is not a valid relay outcome.',
+    'A relay invocation missing a subject input its phase\'s machine result requires reports the named missing input as a blocking error in the artifact and the response.',
     '## Deterministic slug and collision rule',
     'lowercase ASCII',
     'outside `[a-z0-9]`',
@@ -173,6 +175,8 @@ test('negative mutations break the shared standalone authority contract', () => 
     'never create or mutate `*-state.md`',
     'An invocation beginning with the literal `[relay]` marker is a relay run: an external harness is executing this skill on behalf of a Build root that will validate the result.',
     'A relay run saves its natural artifact under the normal collision rules even when an active Build state matches the request — the state belongs to the root that issued the relay, not to this run — and never touches `*-state.md`.',
+    'A relay run\'s artifact must end with the phase\'s complete fenced machine-result block built from the supplied subject inputs; `Machine result: N/A` is not a valid relay outcome.',
+    'A relay invocation missing a subject input its phase\'s machine result requires reports the named missing input as a blocking error in the artifact and the response.',
   ]) {
     assert.ok(shared.includes(phrase), `fixture missing ${phrase}`);
     assert.throws(() => assertSharedContract(shared.replace(phrase, '')));

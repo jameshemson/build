@@ -93,14 +93,20 @@ append the scoped `no_progress` reset event. On resume without it, restate the c
 path, branch, and expected artifact path, append one scoped `no_progress` increment event, run
 `check-counters` — authoritative halt at 2 events — and stop again.
 
-**Command templates.** Each is the full subject for its phase; root substitutes `{slug}` and
-`{base_ref}` from state and passes no other context.
+**Command templates.** Each is the full subject for its phase. Root substitutes `{slug}` and
+`{base_ref}` from state, `{repository_fingerprint}` — the `repository.fingerprint` value from the
+current evidence ledger, as emitted by `run-evidence` — and `{verify_receipt_hash}`, the
+`receipt_hash` of the accepted Verify receipt. The `name=value` tokens carry subject values that
+are not files: neither the repository fingerprint nor the Verify receipt hash is derivable from any
+path, so root passes each one literally.
 
-- Review — `[relay] $build:review-plan .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-context.md .build/plans/{slug}-requirements.md`
-- Verify — `[relay] $build:verify` followed by the contract, evidence-ledger, requirements, and
-  implementation-summary paths as recorded in state.
-- Architect review — `[relay] $build:architect-review` followed by `{slug}-verify.md`,
-  `{slug}-requirements.md`, `{slug}-context.md`, and the diff target `git diff {base_ref}...HEAD`.
+- Review — `[relay] $build:review-plan .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-context.md .build/plans/{slug}-requirements.md repository={repository_fingerprint}`
+- Verify — `[relay] $build:verify .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-requirements.md .build/plans/{slug}-implementation-summary.md .build/evidence/{slug}/ledger.json repository={repository_fingerprint}`
+- Architect review — `[relay] $build:architect-review .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-implementation-summary.md .build/plans/{slug}-verify.md verify-result={verify_receipt_hash} repository={repository_fingerprint} diff={base_ref}...HEAD`
+
+Each template names its phase's complete `compile-result` subject set — file subjects by path, value
+subjects by the `repository=` and `verify-result=` tokens — so a relayed skill can author the full
+machine-result block without inferring a missing subject.
 
 Saved-artifact semantics for a `[relay]` run — where the skill writes and under what name — are
 owned by the relay clause in `../impl-plan/reference/standalone-artifacts.md`, not by this file.

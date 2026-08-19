@@ -339,10 +339,15 @@ The fixture's state is `phase: review` with `workflow_mode: mixed`, recording `m
 `review: codex-relay` and no pending `relay` field. Check `## Next action` is relaying the review to
 Codex — either running the relay command via `codex exec` under supervision, or writing the `relay`
 field and stopping — naming the review-plan skill in any established form (`$build:review-plan`,
-`/build:review-plan`, `build:review-plan`, or `review-plan`) with the artifact input
-`.build/plans/mixed-mode-plan.md`.
-**Pass**: the first action is a relay naming review-plan and the artifact `.build/plans/mixed-mode-plan.md`.
-**Fail**: the output reviews the plan itself, invokes the skill in the local session, or continues
+`/build:review-plan`, `build:review-plan`, or `review-plan`) and carrying the review phase's full
+subject set: the plan, contract, context, and requirements artifact paths
+(`.build/plans/mixed-mode-plan.md`, `.build/contracts/mixed-mode/contract.json`,
+`.build/plans/mixed-mode-context.md`, `.build/plans/mixed-mode-requirements.md`) plus a
+`repository=` token carrying the repository fingerprint.
+**Pass**: the first action is a relay naming review-plan and carrying all four artifact paths plus a
+`repository=` fingerprint token.
+**Fail**: the command names only the plan — the shape that cannot produce a compilable machine
+result — the output reviews the plan itself, invokes the skill in the local session, or continues
 past the phase without a relay.
 
 ### orchestrator-mixed-resume-validates-relay
