@@ -48,6 +48,8 @@ function assertSharedContract(content) {
     'Use an explicitly supplied artifact path before request text',
     'plan, contract, ledger, requirements, context, implementation-summary, or Verify result',
     'Do not search for, infer, or fabricate missing siblings',
+    'An invocation beginning with the literal `[relay]` marker is a relay run: an external harness is executing this skill on behalf of a Build root that will validate the result.',
+    'A relay run saves its natural artifact under the normal collision rules even when an active Build state matches the request — the state belongs to the root that issued the relay, not to this run — and never touches `*-state.md`.',
     '## Deterministic slug and collision rule',
     'lowercase ASCII',
     'outside `[a-z0-9]`',
@@ -169,6 +171,8 @@ test('negative mutations break the shared standalone authority contract', () => 
     'lowest available numeric suffix, starting with `-2`',
     'Runnable compiler or evidence diagnostics are authoritative and must not select fallback.',
     'never create or mutate `*-state.md`',
+    'An invocation beginning with the literal `[relay]` marker is a relay run: an external harness is executing this skill on behalf of a Build root that will validate the result.',
+    'A relay run saves its natural artifact under the normal collision rules even when an active Build state matches the request — the state belongs to the root that issued the relay, not to this run — and never touches `*-state.md`.',
   ]) {
     assert.ok(shared.includes(phrase), `fixture missing ${phrase}`);
     assert.throws(() => assertSharedContract(shared.replace(phrase, '')));

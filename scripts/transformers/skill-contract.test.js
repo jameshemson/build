@@ -149,6 +149,7 @@ const HARD_LINE_LIMITS = {
   'source/skills/verify/SKILL.md': 150,
   'source/skills/architect-review/SKILL.md': 130,
   'source/skills/impl-plan/reference/plan-quality.md': 220,
+  'source/skills/build/reference/workflow-modes.md': 200,
 };
 
 const DELIVERY_SLICE_FIELDS = [
@@ -277,6 +278,41 @@ const BUILDCTL_ORCHESTRATION_CONTRACTS = {
     '`complete-slice`',
     '`check-counters`',
     '`already_applied`',
+  ],
+};
+
+// Workflow modes are a named preset over routing; the prose is the only place the
+// mode grammar, the two mode-licensed stops, and the never-stop carve-outs are stated.
+// Phrases are matched against whitespace-normalized content so Markdown reflow is
+// harmless but a deleted rule is not.
+const WORKFLOW_MODE_CONTRACTS = {
+  'source/skills/build/reference/workflow-modes.md': [
+    'The three modes are `claude`, `fable`, and `mixed`; a missing `workflow_mode` resolves to `claude` and preserves current behavior.',
+    'Resolution precedence is a `mode=claude`, `mode=fable`, or `mode=mixed` token in the invocation, then a `build-mode:` line in the effective `AGENTS.md`, then a fresh-workflow AskUserQuestion; the recorded `workflow_mode` is authoritative on resume and is never re-asked.',
+    'On Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists.',
+    'The invocation may contain at most one token matching `\\bmode=(claude|fable|mixed)\\b` and the effective `AGENTS.md` at most one line matching `^build-mode:[ \\t]*(claude|fable|mixed)[ \\t]*$`; a duplicate or unrecognized value rejects that entire source by name and resolution falls to the next source.',
+    'In `mixed` mode root first runs the relay command itself via `codex exec -s workspace-write` under a 20-minute deadline; a discarded, artifactless, or receipt-rejected run is retried once, and a second failure selects the manual relay stop.',
+    '`review` and `verify` are never routed `active-session`; independent fresh-context judgment is mode-invariant.',
+    'A relay stop pauses a live workflow for the user to run one named standalone skill in Codex; it is not a session-switch stop, root remains the sole workflow-state and git writer, and Codex runs only the standalone portable skills.',
+    'The only public keys, in state order, are `plan`, `review`, `explore`, `implement`, `verify`, and `architect-review`; `review` also governs mid-review.',
+    'Agent names are opaque.',
+    'skill frontmatter does not resolve the `fable` alias',
+  ],
+  'source/skills/build/SKILL.md': [
+    'Resolve `workflow_mode` before the git preflight: an explicit `mode=` token in $ARGUMENTS wins, then a `build-mode:` line in the effective `AGENTS.md` (on Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists), then — on a fresh workflow only — ask with AskUserQuestion; this mode ask is the third allowed pre-start stop.',
+    'The recorded `workflow_mode` is authoritative on resume and is never re-asked; a missing `workflow_mode` resolves to `claude`.',
+    'Snapshot `workflow_mode`, `agent_routes`, and `model_routes` in state before any dispatch, following the six-key routing contract in [workflow modes](reference/workflow-modes.md).',
+    '`review` and `verify` are never routed `active-session`.',
+    'The fresh-workflow mode ask and a `mixed`-mode relay stop are the only mode-licensed stops; each is a pause of a live workflow, not a session-switch stop, and every other never-stop rule stands.',
+    'A mode changes who executes a phase, never whether it runs',
+    'no-progress-limit',
+    'without stopping to ask the user to switch sessions or models',
+    'Never stop and ask the user to start a new session.',
+    'Never stop to ask the user to switch sessions.',
+  ],
+  'source/skills/impl-plan/reference/standalone-artifacts.md': [
+    'An invocation beginning with the literal `[relay]` marker is a relay run: an external harness is executing this skill on behalf of a Build root that will validate the result.',
+    'A relay run saves its natural artifact under the normal collision rules even when an active Build state matches the request — the state belongs to the root that issued the relay, not to this run — and never touches `*-state.md`.',
   ],
 };
 
@@ -620,6 +656,14 @@ function assertBuildctlOrchestrationContracts(contents = Object.fromEntries(
   }
 }
 
+function assertWorkflowModeContracts(contents = Object.fromEntries(
+  Object.keys(WORKFLOW_MODE_CONTRACTS).map((path) => [path, readRel(path)]),
+)) {
+  for (const [path, terms] of Object.entries(WORKFLOW_MODE_CONTRACTS)) {
+    assertRequiredTerms(normalizeOrchestrationWhitespace(contents[path]), terms, path);
+  }
+}
+
 function fencedYaml(content, root) {
   const blocks = [...content.matchAll(/```yaml\n([\s\S]*?)```/g)].map((match) => match[1]);
   const block = blocks.find((candidate) => candidate.split('\n').some(
@@ -945,6 +989,10 @@ test('planner, reviewer, verifier, and both orchestrators retain typed evidence 
 
 test('both Build orchestrators retain compiled-plan and deterministic-receipt authority', () => {
   assertBuildctlOrchestrationContracts();
+});
+
+test('the Claude orchestrator, its mode reference, and the relay clause retain the workflow-mode contract', () => {
+  assertWorkflowModeContracts();
 });
 
 test('v1.14 Plan Review source contracts require authored result compilation before transition', () => {
@@ -1301,6 +1349,22 @@ for (const [path, terms] of Object.entries(BUILDCTL_ORCHESTRATION_CONTRACTS)) {
       assert.ok(contents[path].includes(phrase), `buildctl fixture missing ${phrase}`);
       contents[path] = contents[path].replaceAll(phrase, '');
       assert.throws(() => assertBuildctlOrchestrationContracts(contents));
+    });
+  }
+}
+
+for (const [path, terms] of Object.entries(WORKFLOW_MODE_CONTRACTS)) {
+  for (const phrase of terms) {
+    test(`workflow-mode contract rejects ${path} removal of ${phrase}`, () => {
+      const contents = Object.fromEntries(
+        Object.keys(WORKFLOW_MODE_CONTRACTS).map((candidate) => [
+          candidate,
+          normalizeOrchestrationWhitespace(readRel(candidate)),
+        ]),
+      );
+      assert.ok(contents[path].includes(phrase), `workflow-mode fixture missing ${phrase}`);
+      contents[path] = contents[path].replaceAll(phrase, '');
+      assert.throws(() => assertWorkflowModeContracts(contents));
     });
   }
 }
