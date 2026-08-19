@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-08-19: workflow modes ships; the v1.15 dogfood kill criterion fires
+`status: accepted` · `confidence: high` · `revisit: if the codex-exec primary relay fails its first real mixed-mode workflow, or if a third mechanism release lands before an instrumented dogfood run`
+
+**Decision:** Ship workflow modes as a second mechanism release landing before the instrumented Codex-native dogfood run; per the 2026-07-28 kill criterion, the dogfood gate stops being called a gate.
+
+**What happened:** The v1.15 direction question — consolidate orchestration on Claude with GPT as judgment provider — is now being answered by shipped mechanism: `mixed` mode is that consolidation in preset form, with codex-exec as the primary relay mechanism. This choice is user-directed; feasibility was proven in-session by a non-interactive `gpt-5.6-sol` adversarial review of the feature's own plan, which found a Critical receipt-compatibility hole two Claude review rounds had missed.
+
+**Accepting:** The instrumented run remains worth doing but no longer gates releases.
+
+---
+
 ## 2026-07-28: v1.15.0 shipped mechanism without the dogfood gate running first
 `status: accepted` · `confidence: high` · `revisit: if a second mechanism release lands before the instrumented Codex-native run`
 
