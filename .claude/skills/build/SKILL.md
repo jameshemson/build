@@ -36,7 +36,7 @@ Create the `.build/plans/` directory if it doesn't exist.
 
 ## Mode and routing
 
-Resolve `workflow_mode` before the git preflight: an explicit `mode=` token in $ARGUMENTS wins, then a `build-mode:` line in the effective `AGENTS.md` (on Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists), then — on a fresh workflow only — ask with AskUserQuestion; this mode ask is the third allowed pre-start stop. The recorded `workflow_mode` is authoritative on resume and is never re-asked; a missing `workflow_mode` resolves to `claude`.
+Resolve `workflow_mode` before the git preflight: an explicit `mode=` token in $ARGUMENTS wins, then a `build-mode:` line in the effective `AGENTS.md` (on Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists), then — on a fresh workflow only — ask with AskUserQuestion; this mode ask is the third allowed pre-start stop. The recorded `workflow_mode` is authoritative on resume and is never re-asked; a missing `workflow_mode` resolves to `opus`.
 
 Snapshot `workflow_mode`, `agent_routes`, and `model_routes` in state before any dispatch, following the six-key routing contract in [workflow modes](reference/workflow-modes.md). Modes differ only in who executes a phase. `review` and `verify` are never routed `active-session`.
 

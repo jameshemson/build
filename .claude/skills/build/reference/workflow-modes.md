@@ -7,24 +7,24 @@ as `workflow_mode` in state, with the source it came from, before its first disp
 
 ## Modes
 
-The three modes are `claude`, `fable`, and `mixed`; a missing `workflow_mode` resolves to `claude` and preserves current behavior.
+The three modes are `opus`, `fable`, and `mixed`; a missing `workflow_mode` resolves to `opus` and preserves current behavior.
 
-- **`claude`** — all six agent-route keys take the Build default, and `model_routes` records the
+- **`opus`** — all six agent-route keys take the Build default, and `model_routes` records the
   documented pins: `plan` opus at `high` effort through the `/build:impl-plan` Skill invocation,
   `review` sonnet with `context: fork`, `architect-review` opus at `high` effort with
   `context: fork`, and every other key inherited from the dispatching session. This mode is
-  exactly current behavior; a workflow that resolves to `claude` must be indistinguishable from
+  exactly current behavior; a workflow that resolves to `opus` must be indistinguishable from
   one that never read this file.
 - **`fable`** — `plan: active-session` and `architect-review: active-session`. Root executes those
   two skill protocols in the root session: it reads the skill's `SKILL.md` and every reference
   that skill requires, follows the protocol as written, and authors the artifact at its natural
-  path directly. Everything else routes as `claude`. These two keys are routed rather than left to
+  path directly. Everything else routes as `opus`. These two keys are routed rather than left to
   the Skill tool because skill frontmatter does not resolve the `fable` alias — `impl-plan` and
   `architect-review` both pin `model: opus`, and the v1.14.1 removal of the Fable implementation
   preference kept those pins for exactly that reason. Routing the key to the active session is the
   only way a Fable session stays the author of the plan and the architecture verdict.
 - **`mixed`** — `plan: active-session`, and `review: codex-relay`, `verify: codex-relay`, and
-  `architect-review: codex-relay`. Everything else routes as `claude`. Planning stays in the root
+  `architect-review: codex-relay`. Everything else routes as `opus`. Planning stays in the root
   session for the same reason as `fable`; the three judgment phases move to Codex so their
   verdicts come from a different model family than the one that authored the work.
 
@@ -34,15 +34,15 @@ produced the plan or the diff.
 
 Model-route bookkeeping follows the key's routing: an `active-session` key records the literal
 `active-session` in `model_routes`, a `codex-relay` key records the literal `codex-relay`, and
-every remaining key records the `claude` pin listed above.
+every remaining key records the `opus` pin listed above.
 
 ## Mode resolution
 
-Resolution precedence is a `mode=claude`, `mode=fable`, or `mode=mixed` token in the invocation, then a `build-mode:` line in the effective `AGENTS.md`, then a fresh-workflow AskUserQuestion; the recorded `workflow_mode` is authoritative on resume and is never re-asked.
+Resolution precedence is a `mode=opus`, `mode=fable`, or `mode=mixed` token in the invocation, then a `build-mode:` line in the effective `AGENTS.md`, then a fresh-workflow AskUserQuestion; the recorded `workflow_mode` is authoritative on resume and is never re-asked.
 
 On Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists.
 
-The grammar is deterministic, and every applicable source is validated before any mutation. The invocation may contain at most one token matching `\bmode=(claude|fable|mixed)\b` and the effective `AGENTS.md` at most one line matching `^build-mode:[ \t]*(claude|fable|mixed)[ \t]*$`; a duplicate or unrecognized value rejects that entire source by name and resolution falls to the next source.
+The grammar is deterministic, and every applicable source is validated before any mutation. The invocation may contain at most one token matching `\bmode=(opus|fable|mixed)\b` and the effective `AGENTS.md` at most one line matching `^build-mode:[ \t]*(opus|fable|mixed)[ \t]*$`; a duplicate or unrecognized value rejects that entire source by name and resolution falls to the next source.
 Rejecting a source is not a halt. Report the source name and the offending text, then continue at
 the next source in precedence order — a rejected invocation token does not suppress an otherwise
 valid `build-mode:` line, and a rejected `AGENTS.md` line does not suppress the ask.
@@ -50,12 +50,12 @@ valid `build-mode:` line, and a rejected `AGENTS.md` line does not suppress the 
 The AskUserQuestion is reached only when neither source supplies a mode, and only on a fresh
 workflow. Ask one question with exactly three options, in this order:
 
-1. `claude` — current pinned routing. Recommended, and listed first.
+1. `opus` — current pinned routing. Recommended, and listed first.
 2. `fable` — the root session plans and architect-reviews.
 3. `mixed` — fable planning plus Codex judgment relays.
 
 Never ask on resume: a state that already records `workflow_mode` uses it as written, whatever the
-current invocation or `AGENTS.md` now says. If the mode ask cannot be presented, resolve to `claude` and record it in history.
+current invocation or `AGENTS.md` now says. If the mode ask cannot be presented, resolve to `opus` and record it in history.
 Record the resolved mode and its source in state and in `history` before the first dispatch.
 
 ## Relay stops (mixed mode)

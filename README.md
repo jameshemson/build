@@ -140,11 +140,11 @@ See [ROADMAP.md](ROADMAP.md) for the deterministic evidence and transition-autho
 
 ### Workflow modes
 
-The Claude orchestrator supports three named workflow modes: `claude` (the default), `fable`, and `mixed`. Selection resolves from an optional `mode=claude` / `mode=fable` / `mode=mixed` invocation token, a `build-mode:` line in the effective `AGENTS.md`, or an option screen asked once on a fresh workflow — no memorized syntax required.
+The Claude orchestrator supports three named workflow modes: `opus` (the default), `fable`, and `mixed`. Selection resolves from an optional `mode=opus` / `mode=fable` / `mode=mixed` invocation token, a `build-mode:` line in the effective `AGENTS.md`, or an option screen asked once on a fresh workflow — no memorized syntax required.
 
 Four tracks:
 
-- **Sole Claude** — `/build` as-is; the `claude` default, today's pinned routing.
+- **Sole Claude** — `/build` as-is; the `opus` default, today's pinned routing.
 - **Sole Codex** — run `$build:build` in a Codex session; nothing new to install.
 - **`fable`** — the root session executes the plan and architect-review protocols itself; review and verify remain independent fresh-context agents.
 - **`mixed`** — fable planning plus cross-model adversarial judgment: plan review, verify, and architect review run on Codex via a supervised `codex exec` invocation, with a manual relay stop as fallback.

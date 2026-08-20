@@ -316,7 +316,7 @@ test('workflow-mode docs scope modes to Claude and routing to both orchestrators
   const readme = readFileSync(readmePath, 'utf8');
   const harnesses = readFileSync(harnessesPath, 'utf8');
   assert.match(readme, /### Workflow modes/);
-  assert.match(readme, /mode=(claude|fable|mixed)/);
+  assert.match(readme, /mode=(opus|fable|mixed)/);
   assert.match(readme, /Codex and Claude Code users may add/);
   assert.match(harnesses, /named workflow modes are Claude-orchestrator-only today/);
 });
