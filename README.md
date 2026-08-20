@@ -146,7 +146,7 @@ Four tracks:
 
 - **Sole Claude** — `/build` as-is; the `opus` default, today's pinned routing.
 - **Sole Codex** — run `$build:build` in a Codex session; nothing new to install.
-- **`fable`** — the root session executes the plan and architect-review protocols itself; review and verify remain independent fresh-context agents.
+- **`fable`** — the fable model plans and architect-reviews: inline when the invoking session is already fable, via a fable-model agent otherwise, with any unavailable override recorded as a visible `model_fallback`; review and verify remain independent fresh-context agents.
 - **`mixed`** — fable planning plus cross-model adversarial judgment: plan review, verify, and architect review run on Codex via a supervised `codex exec` invocation, with a manual relay stop as fallback.
 
 See `reference/workflow-modes.md` in the build skill for the full contract.
