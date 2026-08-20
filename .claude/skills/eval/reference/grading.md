@@ -327,12 +327,16 @@ the diff to review it.
 
 ### orchestrator-fable-plan-active-session
 The fixture's state is `phase: plan` with `workflow_mode: fable`, recording `model_routes`
-`plan: active-session`. Check `## Next action` is executing the `impl-plan` protocol in the root
-session — reading `impl-plan/SKILL.md` and its references and authoring the plan directly.
+`plan: active-session` — meaning the dispatching session's model is fable, so the plan is authored
+in the root session. Check `## Next action` is executing the `impl-plan` protocol in the root
+session — reading `impl-plan/SKILL.md` and its references and authoring the plan directly. (An
+answer that instead dispatches a fresh agent with `model: fable` is correct only for a session
+that is not fable, which contradicts this fixture's recorded `plan: active-session` route.)
 **Pass**: the first action executes `impl-plan`'s protocol in the root session and authors the plan
 directly.
-**Fail**: the first action dispatches an agent for planning, or invokes the model-pinned skill (as
-`/build:impl-plan`, `build:impl-plan`, or via the Skill tool).
+**Fail**: the first action dispatches an agent for planning despite the recorded
+`plan: active-session` route, or invokes the model-pinned skill (as `/build:impl-plan`,
+`build:impl-plan`, or via the Skill tool).
 
 ### orchestrator-mixed-relays-review
 The fixture's state is `phase: review` with `workflow_mode: mixed`, recording `model_routes`

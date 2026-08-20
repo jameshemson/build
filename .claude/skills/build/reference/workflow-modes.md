@@ -15,26 +15,32 @@ The three modes are `opus`, `fable`, and `mixed`; a missing `workflow_mode` reso
   `context: fork`, and every other key inherited from the dispatching session. This mode is
   exactly current behavior; a workflow that resolves to `opus` must be indistinguishable from
   one that never read this file.
-- **`fable`** — `plan: active-session` and `architect-review: active-session`. Root executes those
-  two skill protocols in the root session: it reads the skill's `SKILL.md` and every reference
-  that skill requires, follows the protocol as written, and authors the artifact at its natural
-  path directly. Everything else routes as `opus`. These two keys are routed rather than left to
-  the Skill tool because skill frontmatter does not resolve the `fable` alias — `impl-plan` and
-  `architect-review` both pin `model: opus`, and the v1.14.1 removal of the Fable implementation
-  preference kept those pins for exactly that reason. Routing the key to the active session is the
-  only way a Fable session stays the author of the plan and the architecture verdict.
-- **`mixed`** — `plan: active-session`, and `review: codex-relay`, `verify: codex-relay`, and
-  `architect-review: codex-relay`. Everything else routes as `opus`. Planning stays in the root
-  session for the same reason as `fable`; the three judgment phases move to Codex so their
-  verdicts come from a different model family than the one that authored the work.
+- **`fable`** — `plan` and `architect-review` route to the fable model, always. When the
+  dispatching session's model is already fable, root executes the skill protocol in the root
+  session — it reads the skill's `SKILL.md` and every reference that skill requires, follows the
+  protocol as written, and authors the artifact at its natural path directly — and records the
+  key as `active-session`. When the session is any other model, root instead dispatches a fresh
+  agent through the Agent tool with `model: fable`, inlines every input the protocol needs into
+  the dispatch, and records the key as `fable`. If that override is unavailable or rejected, root
+  appends `model_fallback`, executes in the root session instead, and discloses the substitution
+  in `history` and the final summary — the fallback is visible, never silent. Everything else
+  routes as `opus`. These two keys are routed rather than left to the Skill tool because skill
+  frontmatter does not resolve the `fable` alias — `impl-plan` and `architect-review` both pin
+  `model: opus`, and the v1.14.1 removal of the Fable implementation preference kept those pins
+  for exactly that reason.
+- **`mixed`** — `plan` routes to the fable model exactly as in `fable` mode, and
+  `review: codex-relay`, `verify: codex-relay`, and `architect-review: codex-relay`. Everything
+  else routes as `opus`. The three judgment phases move to Codex so their verdicts come from a
+  different model family than the one that authored the work.
 
 `review` and `verify` are never routed `active-session`; independent fresh-context judgment is mode-invariant.
 A mode may move those keys to a fresh context in another harness, but never into the session that
 produced the plan or the diff.
 
-Model-route bookkeeping follows the key's routing: an `active-session` key records the literal
-`active-session` in `model_routes`, a `codex-relay` key records the literal `codex-relay`, and
-every remaining key records the `opus` pin listed above.
+Model-route bookkeeping follows the key's routing: a fable-routed key records `active-session`
+when root executed it in a fable session and `fable` when it dispatched a fable-model agent, a
+`codex-relay` key records the literal `codex-relay`, and every remaining key records the `opus`
+pin listed above.
 
 ## Mode resolution
 
@@ -51,7 +57,7 @@ The AskUserQuestion is reached only when neither source supplies a mode, and onl
 workflow. Ask one question with exactly three options, in this order:
 
 1. `opus` — current pinned routing. Recommended, and listed first.
-2. `fable` — the root session plans and architect-reviews.
+2. `fable` — the fable model plans and architect-reviews.
 3. `mixed` — fable planning plus Codex judgment relays.
 
 Never ask on resume: a state that already records `workflow_mode` uses it as written, whatever the
