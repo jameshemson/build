@@ -287,10 +287,10 @@ const BUILDCTL_ORCHESTRATION_CONTRACTS = {
 // harmless but a deleted rule is not.
 const WORKFLOW_MODE_CONTRACTS = {
   'source/skills/build/reference/workflow-modes.md': [
-    'The three modes are `claude`, `fable`, and `mixed`; a missing `workflow_mode` resolves to `claude` and preserves current behavior.',
-    'Resolution precedence is a `mode=claude`, `mode=fable`, or `mode=mixed` token in the invocation, then a `build-mode:` line in the effective `AGENTS.md`, then a fresh-workflow AskUserQuestion; the recorded `workflow_mode` is authoritative on resume and is never re-asked.',
+    'The three modes are `opus`, `fable`, and `mixed`; a missing `workflow_mode` resolves to `opus` and preserves current behavior.',
+    'Resolution precedence is a `mode=opus`, `mode=fable`, or `mode=mixed` token in the invocation, then a `build-mode:` line in the effective `AGENTS.md`, then a fresh-workflow AskUserQuestion; the recorded `workflow_mode` is authoritative on resume and is never re-asked.',
     'On Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists.',
-    'The invocation may contain at most one token matching `\\bmode=(claude|fable|mixed)\\b` and the effective `AGENTS.md` at most one line matching `^build-mode:[ \\t]*(claude|fable|mixed)[ \\t]*$`; a duplicate or unrecognized value rejects that entire source by name and resolution falls to the next source.',
+    'The invocation may contain at most one token matching `\\bmode=(opus|fable|mixed)\\b` and the effective `AGENTS.md` at most one line matching `^build-mode:[ \\t]*(opus|fable|mixed)[ \\t]*$`; a duplicate or unrecognized value rejects that entire source by name and resolution falls to the next source.',
     'In `mixed` mode root first runs the relay command itself via `codex exec -s workspace-write` under a 20-minute deadline; a discarded, artifactless, or receipt-rejected run is retried once, and a second failure selects the manual relay stop.',
     '`review` and `verify` are never routed `active-session`; independent fresh-context judgment is mode-invariant.',
     'A relay stop pauses a live workflow for the user to run one named standalone skill in Codex; it is not a session-switch stop, root remains the sole workflow-state and git writer, and Codex runs only the standalone portable skills.',
@@ -300,7 +300,7 @@ const WORKFLOW_MODE_CONTRACTS = {
   ],
   'source/skills/build/SKILL.md': [
     'Resolve `workflow_mode` before the git preflight: an explicit `mode=` token in $ARGUMENTS wins, then a `build-mode:` line in the effective `AGENTS.md` (on Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists), then — on a fresh workflow only — ask with AskUserQuestion; this mode ask is the third allowed pre-start stop.',
-    'The recorded `workflow_mode` is authoritative on resume and is never re-asked; a missing `workflow_mode` resolves to `claude`.',
+    'The recorded `workflow_mode` is authoritative on resume and is never re-asked; a missing `workflow_mode` resolves to `opus`.',
     'Snapshot `workflow_mode`, `agent_routes`, and `model_routes` in state before any dispatch, following the six-key routing contract in [workflow modes](reference/workflow-modes.md).',
     '`review` and `verify` are never routed `active-session`.',
     'The fresh-workflow mode ask and a `mixed`-mode relay stop are the only mode-licensed stops; each is a pause of a live workflow, not a session-switch stop, and every other never-stop rule stands.',

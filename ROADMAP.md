@@ -114,7 +114,7 @@ rather than from semantic review quality.
   a universal production-readiness checklist.
 - End-to-end trajectory benchmarks and scored model routing.
 - Broad write-agent parallelism or provider routing changes without measured evidence.
-- Codex-side named mode presets (`claude`/`fable`/`mixed`) expanding into the existing routing
+- Codex-side named mode presets (`opus`/`fable`/`mixed`) expanding into the existing routing
   contract, for parity with the Claude orchestrator.
 - Graded eval fixtures for relay failure paths (artifact-absent resume, `no_progress` halt/reset
   sequences) and fresh-workflow mode resolution (invocation > file > ask precedence, malformed
