@@ -32,3 +32,4 @@ history:
   - [2026-08-19 09:00] Fresh workflow: no mode= token in the invocation and no build-mode: line in CLAUDE.md; presented the fresh-workflow mode ask
   - [2026-08-19 09:01] User selected fable; workflow_mode recorded as fable (source: fresh-workflow ask); plan and architect-review routed to active-session
   - [2026-08-19 09:02] Git preflight clean; base_ref captured; branch build/fable-mode created
+  - [2026-08-19 09:11] Parallel codebase exploration complete: three Explore agents returned (architecture and server conventions; HTTP endpoint surface and routing; existing test patterns and CI). Findings are in session context
