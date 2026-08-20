@@ -1,5 +1,68 @@
 # Changelog
 
+## 1.16.0 - 2026-08-20
+
+### Added
+
+- Named workflow modes for the Claude orchestrator: `opus` (the default — today's pinned routing,
+  and what a state with no recorded `workflow_mode` resolves to), `fable` (the fable model plans
+  and architect-reviews: inline when the invoking session is already fable, via an Agent-tool
+  `model: fable` dispatch otherwise, with an unavailable override recorded as a visible
+  `model_fallback` rather than the silent frontmatter-alias failure that motivated the v1.14.1
+  removal), and `mixed` (fable planning plus cross-model adversarial judgment — plan review,
+  verify, and architect review run on Codex). Modes are presets over the existing six-key routing
+  contract, never a seventh key. Selection needs no memorized syntax: a `mode=` token wins, then a
+  `build-mode:` line in the effective `AGENTS.md` (`CLAUDE.md` serves as the effective `AGENTS.md`
+  on Claude Code when no `AGENTS.md` exists), then a fresh-workflow AskUserQuestion; the recorded
+  mode is authoritative on resume and never re-asked. The full contract lives in
+  `source/skills/build/reference/workflow-modes.md` with a 200-line ceiling.
+- The six-key `## Build agent routing` block now works for the Claude orchestrator (previously
+  Codex-only), with the same grammar, whole-source rejection, snapshot, and fallback rules; a
+  non-null route dispatches through the Agent tool's `subagent_type` and records `profile-owned`.
+- Mixed-mode relays run codex-exec-first: root drives `codex exec -s workspace-write` itself under
+  a 20-minute deadline with an artifact-scoped acceptance gate (no change outside the expected
+  artifact, state file byte-identical to its pre-run hash, `compile-result` receipt required), one
+  retry, then a manual relay stop recorded in a new `relay` state field with per-resume
+  `no_progress` increments and reset-on-acceptance. Relay commands enumerate each phase's complete
+  `compile-result` subject set — including the root-passed repository fingerprint and, for
+  architect review, the Verify receipt hash — with a PHASES-derived test pinning templates to
+  buildctl's subject sets. A `[relay]` clause in the standalone artifact rules makes relayed runs
+  save receipt-complete artifacts even when a live Build state matches; the GPT adversarial review
+  of this feature's own plan demonstrated the failure it closes.
+- Three graded orchestrator eval cases exercise the modes behaviorally (fable plan-phase
+  active-session authorship; mixed review-phase relay composition; relay-pending resume that
+  validates, clears, and does not re-run), all passing 10/10 with the two pre-existing
+  orchestrator cases as no-mode-field regression proof.
+
+### Changed
+
+- `workflow_mode` and `relay` rows join the state schema; `model_routes` gains the `codex-relay`
+  literal and Claude `active-session`/`fable` recording. Legacy states are untouched — a missing
+  `workflow_mode` resolves to `opus` and must be indistinguishable from a workflow that never read
+  the modes file.
+- The Claude orchestrator's three never-stop sentences are now phrase-pinned, alongside 22+ new
+  workflow-mode contract pins with generated negative-mutation tests; the fresh-workflow mode ask
+  joins the dirty-tree and multiple-workflow stops as the third allowed pre-start stop, and a
+  `no_progress` circuit-breaker bullet documents the halt `counters.js` already enforced.
+
+### Documentation
+
+- README gains a Workflow modes section naming the four tracks (sole Claude, sole Codex, fable,
+  mixed) and reworks the routing-block section to cover both harnesses; HARNESSES notes named
+  modes are Claude-orchestrator-only today. pmdecisions records that the 2026-07-28 dogfood kill
+  criterion fired: this is a second mechanism release before the instrumented Codex-native run, so
+  the dogfood gate stops being called a gate, and `mixed` mode is the consolidation direction
+  shipped in preset form. ROADMAP defers Codex-side named presets and the relay failure-path /
+  fresh-resolution eval fixtures.
+
+### Scope
+
+- `source/skills/build/SKILL.codex.md` is byte-identical to its pre-release state (verified in the
+  compiled evidence chain); the Codex orchestrator gains no mode surface this release. The four
+  portable skills' pins are unchanged. The plan document for this feature carries one disposed
+  erratum (two summary tables corrected post-completion) and the `PHASES` constant remains
+  unexported, both recorded follow-ups.
+
 ## 1.15.0 - 2026-07-28
 
 ### Added
