@@ -106,6 +106,15 @@ rather than from semantic review quality.
 - State the literal-substring evidence rule where plans are authored, not only where they are
   verified.
 
+## v1.16.0 — workflow modes (shipped)
+
+- Named modes `opus`/`fable`/`mixed` as presets over the six-key routing contract, with the
+  no-memorized-syntax resolution chain (token, `build-mode:` line, fresh-workflow ask).
+- The routing block ported to the Claude orchestrator; `workflow_mode` and `relay` state rows.
+- codex-exec-primary mixed-mode relays with full-subject command templates, the `[relay]`
+  standalone-artifact clause, and a PHASES-derived drift test; manual relay stop as fallback.
+- Three graded mode eval cases plus contract phrase pins with negative-mutation coverage.
+
 ## Deferred
 
 - Full leases beyond rejecting expired handoffs.
