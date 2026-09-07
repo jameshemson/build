@@ -126,6 +126,14 @@ workflow is the acceptance test.
 
 ## Deferred
 
+- Extract `compilePhaseResult` and the other long functions in `source/skills/build/buildctl/phase-results.js`:
+  the changed-path shape scan for the implement-relay workflow reported 20 functions over 80 lines and
+  7 over 150 (maximum 213), with `compilePhaseResult` itself at 156. Architect Review AR-003.
+- Give Wave 0 and root-owned work a valid non-slice completion and judgment path in
+  `source/skills/build/buildctl/coverage.js`, and stop counting root-authored gitignored workflow
+  artifacts as planned file changes. Today a plan whose Wave 0 task carries structural evidence can
+  never reach a VERIFIED receipt: the task belongs to no slice, so it has no completion receipt, and a
+  structural binding's judgment can only ride on one. Architect Review AR-002.
 - Full leases beyond rejecting expired handoffs.
 - Repository-authored domain metadata and triggered invariant catalogs for concerns such as
   secrets, authorization boundaries, payments, backups, telemetry, and smoke paths. Do not add

@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-09-07: implement-relay accepted on the human verdict after Architect Review FAIL
+`status: accepted` · `confidence: medium` · `revisit: when the coordinator-mode wave lands`
+
+**Decision:** Close the `implement-relay` workflow on James's verdict with the Architect Review FAIL recorded rather than reworked. The branch is tested and complete on its own terms — `npm test` 553 pass / 0 fail, `check-sync` in sync, both slices checkpointed with `complete-slice` receipts, a standalone execution on Sol, and a 10/10 graded eval run — and none of the three findings names a task in the compiled contract.
+
+**The three findings, and why each is deferred:**
+
+- **AR-001 (Important)** — `implement-slice` writes one separator newline before its section heading, which the pinned "every byte outside the active slice section" invariant forbids. Fixing it means editing a sentence pinned verbatim by `WORKFLOW_MODE_CONTRACTS` and by T-009's evidence command, so it is a plan change, not an implementation fix. Deferred to the coordinator-mode wave (`plans/coordinator-mode-plan.md`).
+- **AR-002 (Important)** — four mechanical coverage gaps leave Verify at PARTIAL: `binding:B-001:judgment`, `task:T-001:slice`, `slice:unknown:completion-receipt`, and `planned-unchanged:.build/plans/implement-relay-implementation-summary.md`. The first three are a shipped `coverage.js` defect: `impl-plan` requires Wave 0 to be global and excluded from every slice, but the coverage evaluator still demands slice completion for it, and a structural binding's judgment can only ride on a completion receipt — so any plan whose Wave 0 task carries structural evidence can never reach VERIFIED. The fourth is a plan-authoring error (T-017 and T-018 declared a gitignored `.build/` path as `files_modified`) that cannot change after review. Deferred to the coordinator-mode wave.
+- **AR-003 (Important)** — the changed-path shape scan reports 20 functions over 80 lines and 7 over 150, including a 156-line `compilePhaseResult` this change touches by one expression. An extraction refactor is outside the reviewed scope. Deferred to the roadmap.
+
+**What the seven plan-review rounds cost and found:** findings per round were 12, 8, 7, 3, 1, 1, 0. Two rounds paid for themselves by exposing shipped defects rather than plan defects. Rounds 1 and 2 surfaced the fingerprint directory mismatch — `compile-result` captured repository identity against `.build/evidence` while reading the ledger from `.build/evidence/{slug}`, so every receipt in this workflow needed an explicit `--evidence-dir`; that is fixed in this branch by the `repository-identity` subcommand and the per-slug `compile-result` default, and round 7 compiled with no `--evidence-dir` on either side, which is the live proof. The Wave 0 coverage gap surfaced only at the Verify gate and is deferred.
+
+**Lesson:** rounds 5, 6, and 7 returned one, one, and zero findings on progressively smaller deltas, and round 7 existed only because the compiler requires a `proceed` receipt matching the current plan hash — a `proceed_with_fixes` verdict plus an applied fix is not compilable. A Proceed-with-fixes verdict on a small delta needs the threshold rule the next wave adds, instead of an unbounded fresh-review requirement.
+
+**Accepting:** the branch ships with a recorded FAIL and a PARTIAL Verify. It is not merged; publishing stays James's decision.
+
+---
+
 ## 2026-09-07: mixed mode relays implementation to Codex
 `status: accepted` · `confidence: medium` · `revisit: after the first real mixed-mode workflow completes an implement relay`
 
