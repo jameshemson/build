@@ -177,9 +177,10 @@ delivery_slices:
     must_haves: ["the outcome is usable at this boundary"]
     verify: ["npm test -- tests/example.test.ts"]
     done: "REQ-001 has exact boundary evidence"
+    relay_deadline_minutes: 45
 ```
 
-Each `S-###` entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`. `depends_on` names only earlier slices. Every task prerequisite must be Wave 0, in the same slice, or in a declared predecessor slice. Each slice must be integrated and working at its boundary, preferably as a vertical outcome, with exact evidence for its requirements and must-haves.
+Each `S-###` entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`. `depends_on` names only earlier slices. Every task prerequisite must be Wave 0, in the same slice, or in a declared predecessor slice. Each slice must be integrated and working at its boundary, preferably as a vertical outcome, with exact evidence for its requirements and must-haves. An optional ninth key `relay_deadline_minutes`, an integer from 1 to 1440, declares how long a `mixed`-mode implement relay may run for that slice; omit it outside `mixed` mode.
 
 Ordinary work uses one slice. Split only for dependency-ordered independently acceptable outcomes, materially distinct risk/recovery boundaries, or an integration checkpoint too broad to verify or recover coherently. Task count, multiple workstreams, or one writer's runtime alone never force a split. A foundation-only slice is allowed only when the plan explains why a vertical slice is impossible, names the first consuming slice, and gives exact compatibility evidence at the foundation boundary.
 
