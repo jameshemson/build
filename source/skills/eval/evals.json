@@ -163,6 +163,41 @@
       "state_fixture": "fixtures/orchestrator-review-phase-mixed-mode-relay-pending",
       "state_slug": "relay-pending",
       "assertions": ["orchestrator-mixed-resume-validates-relay"]
+    },
+    {
+      "id": "build-implement-phase-mixed-mode",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-implement-phase-mixed-mode",
+      "state_slug": "implement-mode",
+      "assertions": ["orchestrator-mixed-relays-implement"]
+    },
+    {
+      "id": "build-implement-phase-mixed-mode-decision-pending",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-implement-phase-mixed-mode-decision-pending",
+      "state_slug": "decision-pending",
+      "assertions": ["orchestrator-mixed-resume-resolves-decision"]
+    },
+    {
+      "id": "build-implement-phase-mixed-mode-relay-done",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-implement-phase-mixed-mode-relay-done",
+      "state_slug": "relay-done",
+      "assertions": ["orchestrator-mixed-validates-relay-done"]
+    },
+    {
+      "id": "build-implement-phase-mixed-mode-repair-pending",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-implement-phase-mixed-mode-repair-pending",
+      "state_slug": "repair-pending",
+      "assertions": ["orchestrator-mixed-redispatches-repair"]
+    },
+    {
+      "id": "build-implement-phase-mixed-mode-pre-review-crash",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-implement-phase-mixed-mode-pre-review-crash",
+      "state_slug": "pre-review-crash",
+      "assertions": ["orchestrator-mixed-reviews-before-checkpoint"]
     }
   ]
 }

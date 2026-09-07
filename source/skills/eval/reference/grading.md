@@ -363,3 +363,56 @@ and proceeding to `compile-result` on that artifact.
 `relay`, and proceeds to `compile-result`.
 **Fail**: the output re-runs the review, issues a new relay stop, or treats the relay as still
 pending.
+
+### orchestrator-mixed-relays-implement
+The fixture's state is `phase: implement` with `workflow_mode: mixed`, `model_routes` recording
+`implement: codex-relay`, a Build-default `implement` agent route, `active_slice: "S-001"`, and no
+`agent_progress`, `decision`, or implementation summary. Check `## Next action` begins the implement
+relay attempt sequence for S-001 — the `agent_progress` bookkeeping, the pre-launch snapshot, the
+`buildctl repository-identity` capture, or the `codex exec` launch naming the implement-slice skill
+in any established form with the plan, contract, requirements, and context paths plus `slice=S-001`,
+`evidence-dir=`, and `repository=`.
+**Pass**: the first action begins that attempt sequence and `## Next phase` is `unchanged`.
+**Fail**: the output dispatches a worktree workstream agent, edits source files, invokes the
+implement-slice skill locally in this session, or moves the phase.
+
+### orchestrator-mixed-resume-resolves-decision
+The fixture's state is `phase: implement` with a pending `decision` field raised by relay attempt 1,
+whose question asks whether malformed CSV rows abort the import or are skipped with a report. The
+fixture's own requirements (`D-001`), plan, and context already require malformed rows to be skipped
+and counted, so the supplied artifacts determine the answer. Check `## Next action` resolves the
+decision from those artifacts rather than escalating.
+**Pass**: the first action resolves the decision itself as skip-and-count, recording the resolution
+as the next `D-###` in `.build/plans/decision-pending-requirements.md`.
+**Fail**: the output asks the user with AskUserQuestion, re-dispatches the relay without resolving,
+implements the slice itself, edits the plan to hold the decision, or moves to verify.
+
+### orchestrator-mixed-validates-relay-done
+The fixture's state is `phase: implement` with `completed_tasks: []`, no `checkpoint_commits`, an
+`agent_progress` relay entry for attempt 1 whose `terminal_status` is `exited`, and an implementation
+summary whose S-001 relay section reports `status: done`. Check `## Next action` is the ordered
+acceptance validation of that relay result — shape, scope, and state before status.
+**Pass**: the first action validates the relay result, and no `completed_tasks` append, mid-review
+dispatch, or checkpoint happens before it.
+**Fail**: the output checkpoints, runs `complete-slice`, appends `completed_tasks` before validating,
+re-dispatches the relay, edits source files, or moves to verify.
+
+### orchestrator-mixed-redispatches-repair
+The fixture's state is `phase: implement` with `fixes_needed` naming T-001, `completed_tasks: []`, an
+`agent_progress` relay entry for attempt 1 whose `terminal_status` is `exited`, and an implementation
+summary whose S-001 section already carries a `### Repair requested` subsection listing T-001. Check
+`## Next action` begins the repair re-dispatch attempt sequence for S-001 — the retained-work commit,
+the `agent_progress` bookkeeping, the snapshot, the identity capture, or the launch — with T-001
+reopened.
+**Pass**: the first action begins that re-dispatch with T-001 reopened.
+**Fail**: the output applies the fix inline, checkpoints, dispatches a worktree workstream agent, or
+moves to verify.
+
+### orchestrator-mixed-reviews-before-checkpoint
+The fixture's state is `phase: implement` with `completed_tasks: ["T-001"]` covering every task of the
+active slice, `checkpoint_commits: []`, an `agent_progress` relay entry for attempt 1 whose
+`terminal_status` is `exited`, and a history whose last line records the accepted `done` outcome and
+nothing after it. Check `## Next action` is the mid-review gate rather than the checkpoint.
+**Pass**: the first action dispatches the Sonnet mid-review agent for S-001.
+**Fail**: the output makes the checkpoint commit, runs post-checkpoint `run-evidence` or
+`complete-slice`, re-dispatches the relay, or moves to verify.

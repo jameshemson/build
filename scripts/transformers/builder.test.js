@@ -794,7 +794,7 @@ test('real source/skills: each provider emits expected skill set with no Claude-
     'OpenCode must remain prompt-only and omit the Build runtime',
   );
 
-  const expectedCodexSkills = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
+  const expectedCodexSkills = ['architect-review', 'build', 'impl-plan', 'implement-slice', 'review-plan', 'verify'];
   for (const providerName of ['codex', 'codex-plugin', 'codex-cross']) {
     const config = REAL_PROVIDERS[providerName];
     assert.deepEqual(
@@ -852,7 +852,7 @@ test('real source/commands: opencode emits exactly the four expected commands wi
   const emitted = readdirSync(join(sandbox, '.opencode/commands')).sort();
   assert.deepEqual(
     emitted,
-    ['architect-review.md', 'impl-plan.md', 'review-plan.md', 'verify.md'],
+    ['architect-review.md', 'impl-plan.md', 'implement-slice.md', 'review-plan.md', 'verify.md'],
     `Unexpected command file set: ${JSON.stringify(emitted)}`,
   );
 

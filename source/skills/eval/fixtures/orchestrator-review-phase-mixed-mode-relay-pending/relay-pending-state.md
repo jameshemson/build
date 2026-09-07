@@ -10,7 +10,7 @@ started: 2026-08-17
 last_updated: 2026-08-17
 workflow_mode: mixed
 agent_routes: [plan build-default; review build-default; explore build-default; implement build-default; verify build-default; architect-review build-default]
-model_routes: [plan active-session; review codex-relay; explore claude inherited; implement claude inherited; verify codex-relay; architect-review codex-relay]
+model_routes: [plan active-session; review codex-relay; explore claude inherited; implement codex-relay; verify codex-relay; architect-review codex-relay]
 evidence_mode: typed
 bindings: [B-001 behavior "a well-formed CSV row creates one customer record" T-001 MH-001]
 requirements: [REQ-001]

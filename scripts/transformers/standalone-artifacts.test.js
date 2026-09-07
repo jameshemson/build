@@ -13,6 +13,10 @@ const SKILLS = {
     path: 'source/skills/impl-plan/SKILL.md',
     artifact: '.build/plans/{slug}-plan.md',
   },
+  'implement-slice': {
+    path: 'source/skills/implement-slice/SKILL.md',
+    artifact: '.build/plans/{slug}-implementation-summary.md',
+  },
   'review-plan': {
     path: 'source/skills/review-plan/SKILL.md',
     artifact: '.build/plans/{slug}-review.md',
@@ -210,7 +214,7 @@ test('v1.14 standalone release preserves artifact continuity', () => {
     const json = JSON.parse(read(carrier.path));
     assert.equal(carrier.get(json), '1.16.0', carrier.path);
   }
-  assert.match(read('README.md'), /standalone[\s\S]*\.build\/plans\/\{slug\}-(?:plan|review|verify|architect-review)\.md/i);
+  assert.match(read('README.md'), /standalone[\s\S]*\.build\/plans\/\{slug\}-(?:plan|review|verify|architect-review|implementation-summary)\.md/i);
   assert.match(read('HARNESSES.md'), /standalone Plan[\s\S]*buildctl[\s\S]*OpenCode[\s\S]*fallback/i);
   assert.match(read('CHANGELOG.md'), /## 1\.12\.1 - 2026-07-21[\s\S]*standalone artifact/i);
 });
