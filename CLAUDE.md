@@ -10,10 +10,10 @@ Claude Code plugin providing a structured build workflow: plan, review, implemen
 
 ### Generated output (committed, do not edit directly)
 
-- `.claude/skills/` — Claude Code output. Identity transform; source is emitted as-is. Six skills, each described by its own SKILL.md frontmatter. Two have non-obvious scope: `build` is excluded from OpenCode, and the Codex trees build their orchestrator from `SKILL.codex.md` rather than this one; `eval` is the only genuinely Claude-only skill.
-- `.opencode/skills/` — OpenCode output. Contains only the 4 portable skills (impl-plan, review-plan, verify, architect-review). Claude-only fields stripped, $ARGUMENTS and /build: references rewritten.
-- `.opencode/commands/` — OpenCode slash commands. Four flat `.md` files, each a thin `@.opencode/skills/<name>/SKILL.md` include so users can invoke the portable skills as `/impl-plan`, `/review-plan`, `/verify`, `/architect-review`. Do not edit directly.
-- `.agents/skills/` — Codex output for repo-local discovery. Five skills: the 4 portable ones plus `build`, whose entrypoint is built from `SKILL.codex.md`. `buildctl` ships here too; OpenCode is the only tree without it.
+- `.claude/skills/` — Claude Code output. Identity transform; source is emitted as-is. Seven skills, each described by its own SKILL.md frontmatter. Two have non-obvious scope: `build` is excluded from OpenCode, and the Codex trees build their orchestrator from `SKILL.codex.md` rather than this one; `eval` is the only genuinely Claude-only skill.
+- `.opencode/skills/` — OpenCode output. Contains only the 5 portable skills (impl-plan, implement-slice, review-plan, verify, architect-review). Claude-only fields stripped, $ARGUMENTS and /build: references rewritten.
+- `.opencode/commands/` — OpenCode slash commands. Five flat `.md` files, each a thin `@.opencode/skills/<name>/SKILL.md` include so users can invoke the portable skills as `/impl-plan`, `/implement-slice`, `/review-plan`, `/verify`, `/architect-review`. Do not edit directly.
+- `.agents/skills/` — Codex output for repo-local discovery. Six skills: the 5 portable ones plus `build`, whose entrypoint is built from `SKILL.codex.md`. `buildctl` ships here too; OpenCode is the only tree without it.
 - `plugins/build/skills/` — Codex output for Plugins UI install packaging. Byte-identical to `.agents/skills/` (enforced by a 3-way sandbox test in `builder.test.js`). Do not edit directly.
 - `.codex/skills/` — Codex cross-harness bridge. Byte-identical to `.agents/skills/` via shared `codexRewrites` by reference. Exists so tools that cross-read `.codex/skills/` (notably Cursor) can discover our skills. Do not edit directly.
 
@@ -64,7 +64,7 @@ Size targets guide authoring; hard ceilings are enforced by `scripts/transformer
 
 Target ranges: simple skill 40-90 lines; review/verify skill 70-120; `impl-plan` 150-190; `build` 230-280; reference file 80-150.
 
-Hard ceilings: `build/SKILL.md` 320, `impl-plan/SKILL.md` 230, `review-plan/SKILL.md` 160, `verify/SKILL.md` 150, `architect-review/SKILL.md` 130, `impl-plan/reference/plan-quality.md` 220 (all under `source/skills/`).
+Hard ceilings: `build/SKILL.md` 320, `impl-plan/SKILL.md` 230, `implement-slice/SKILL.md` 150, `review-plan/SKILL.md` 160, `verify/SKILL.md` 150, `architect-review/SKILL.md` 130, `impl-plan/reference/plan-quality.md` 220, `build/reference/implement-relay.md` 150 (all under `source/skills/`).
 
 ## Build pipeline
 

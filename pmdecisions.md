@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-09-07: mixed mode relays implementation to Codex
+`status: accepted` · `confidence: medium` · `revisit: after the first real mixed-mode workflow completes an implement relay`
+
+**Decision:** `mixed` mode gains `implement: codex-relay`. Each active delivery slice is relayed to Codex (Sol at high effort) through a new portable `implement-slice` skill, while root keeps judgment, acceptance, state, and git (D-003, D-005). The relay gets no `compile-result` phase; `complete-slice` and `run-evidence --check-only` remain its deterministic authority (D-006).
+
+**What happened:** This workflow is the first live run of the shipped judgment relays, and it found a real defect twice: `compile-result` captured repository identity against `.build/evidence` while reading the ledger from `.build/evidence/{slug}`, so every review receipt in rounds 1 to 6 had to be compiled with an explicit `--evidence-dir`. D-017 fixes that by making both sides use the per-slug default and by adding `buildctl repository-identity` as the single fingerprint source.
+
+**Also decided:** After six plan-review rounds and three breaker waivers, James accepted the round-6 review ("Proceed with fixes", one Important finding, fix applied) without a seventh confirming review. The lesson: a Proceed-with-fixes verdict on a small delta needs a threshold rule rather than an unbounded fresh-review requirement.
+
+**Accepting:** The relay has never run end to end inside a workflow. A standalone execution on Sol and five first-action eval cases stand in; the first real mixed-mode workflow after this lands is still the acceptance test.
+
+---
+
 ## 2026-08-19: workflow modes ships; the v1.15 dogfood kill criterion fires
 `status: accepted` · `confidence: high` · `revisit: if the codex-exec primary relay fails its first real mixed-mode workflow, or if a third mechanism release lands before an instrumented dogfood run`
 

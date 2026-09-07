@@ -115,6 +115,15 @@ rather than from semantic review quality.
   standalone-artifact clause, and a PHASES-derived drift test; manual relay stop as fallback.
 - Three graded mode eval cases plus contract phrase pins with negative-mutation coverage.
 
+## v1.17.0 — implement relay
+
+`mixed` mode relays each delivery slice to Codex through the portable `implement-slice` skill:
+ordered acceptance (shape, scope, state, then status), retained-work commits as attempt baselines,
+a `needs-decision` escalation that comes back to root, a repair handoff for mid-review fixes, an
+optional per-slice `relay_deadline_minutes`, and an Opus coordinator fallback. Proven by a
+standalone execution on Sol and five graded first-action eval cases; the first real mixed-mode
+workflow is the acceptance test.
+
 ## Deferred
 
 - Full leases beyond rejecting expired handoffs.

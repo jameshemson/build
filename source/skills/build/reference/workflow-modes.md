@@ -29,9 +29,9 @@ The three modes are `opus`, `fable`, and `mixed`; a missing `workflow_mode` reso
   `model: opus`, and the v1.14.1 removal of the Fable implementation preference kept those pins
   for exactly that reason.
 - **`mixed`** — `plan` routes to the fable model exactly as in `fable` mode, and
-  `review: codex-relay`, `verify: codex-relay`, and `architect-review: codex-relay`. Everything
-  else routes as `opus`. The three judgment phases move to Codex so their verdicts come from a
-  different model family than the one that authored the work.
+  `implement: codex-relay`, `review: codex-relay`, `verify: codex-relay`, and `architect-review: codex-relay`. Everything else routes as `opus`.
+  The three judgment phases move to Codex so their verdicts come from a different model family
+  than the one that authored the work, and the implement phase moves to Codex so root's transcript carries judgment and acceptance rather than the edit-test loop.
 
 `review` and `verify` are never routed `active-session`; independent fresh-context judgment is mode-invariant.
 A mode may move those keys to a fresh context in another harness, but never into the session that
@@ -101,8 +101,9 @@ path, branch, and expected artifact path, append one scoped `no_progress` increm
 `check-counters` — authoritative halt at 2 events — and stop again.
 
 **Command templates.** Each is the full subject for its phase. Root substitutes `{slug}` and
-`{base_ref}` from state, `{repository_fingerprint}` — the `repository.fingerprint` value from the
-current evidence ledger, as emitted by `run-evidence` — and `{verify_receipt_hash}`, the
+`{base_ref}` from state, `{repository_fingerprint}` — the `fingerprint` printed by
+`buildctl repository-identity --contract .build/contracts/{slug}/contract.json` immediately before dispatch; it and `compile-result` both capture against the default evidence directory `.build/evidence/{slug}`, and the fingerprint hashes that path, so a token captured against any other directory is rejected
+— and `{verify_receipt_hash}`, the
 `receipt_hash` of the accepted Verify receipt. The `name=value` tokens carry subject values that
 are not files: neither the repository fingerprint nor the Verify receipt hash is derivable from any
 path, so root passes each one literally.
@@ -117,6 +118,19 @@ machine-result block without inferring a missing subject.
 
 Saved-artifact semantics for a `[relay]` run — where the skill writes and under what name — are
 owned by the relay clause in `../impl-plan/reference/standalone-artifacts.md`, not by this file.
+
+## Implement relay (mixed mode)
+
+In `mixed` mode with a Build-default `implement` route, each active slice is one implement relay
+run via `codex exec -s workspace-write -C {repo-root} -m gpt-5.6-sol -c model_reasoning_effort="high"`
+(Sol at high effort; the judgment relays keep the Codex default model). The sequence, acceptance,
+outcomes, retained-work baselines, repair handoff, resume, retry, and fallback are defined in
+[implement relay](implement-relay.md); the template is:
+
+- Implement — `[relay] $build:implement-slice .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-requirements.md .build/plans/{slug}-context.md slice={slice_id} evidence-dir={evidence_dir} repository={repository_fingerprint}`
+
+`{slice_id}` is the active slice, `{evidence_dir}` is `.build/evidence/{slug}/relay-{slice_id}-{attempt}`,
+and `{repository_fingerprint}` is captured after every other pre-launch write.
 
 ## Build agent routing (Claude port)
 

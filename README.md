@@ -1,6 +1,6 @@
 # build
 
-A structured build workflow for Claude Code and Codex, plus four portable standalone skills for OpenCode. Plan before you build, review before you ship, verify before you claim.
+A structured build workflow for Claude Code and Codex, plus five portable standalone skills for OpenCode. Plan before you build, review before you ship, verify before you claim.
 
 ## Skills
 
@@ -8,12 +8,13 @@ A structured build workflow for Claude Code and Codex, plus four portable standa
 |-------|-------------|
 | `/build` | Orchestrates the full workflow: plan, review, implement, verify, architect review |
 | `/build:impl-plan` | Creates and saves a detailed implementation plan, compiling its contract where buildctl runs |
+| `/build:implement-slice` | Implements one delivery slice from a compiled plan, runs its commands through buildctl, and saves the slice section of the implementation summary |
 | `/build:review-plan` | Reviews a plan against its own evidence and saves the severity-tagged report |
 | `/build:architect-review` | Runs a 10-lens architecture review and saves the structured verdict |
 | `/build:verify` | Judges compiled receipts or runs prompt checks, then saves the verification report |
 | `/build:eval` | Runs test cases against build skills, grades outputs against assertions |
 
-Every skill works standalone. Run `/build:impl-plan add user authentication` without the full pipeline; the four portable skills preserve their normal response and save `.build/plans/{slug}-{plan,review,verify,architect-review}.md`. Or run `/build add user authentication` to get the complete workflow.
+Every skill works standalone. Run `/build:impl-plan add user authentication` without the full pipeline; the five portable skills preserve their normal response and save `.build/plans/{slug}-{plan,review,verify,architect-review,implementation-summary}.md`. Or run `/build add user authentication` to get the complete workflow.
 
 ## Install
 
@@ -23,7 +24,7 @@ Every skill works standalone. Run `/build:impl-plan add user authentication` wit
 claude plugin add jameshemson/build
 ```
 
-**OpenCode** — copy the `.opencode/` directory (preserving the leading dot) into your project so the final layout is `<your-project>/.opencode/skills/<skill-name>/SKILL.md` and `<your-project>/.opencode/commands/<command-name>.md`. OpenCode discovers skills from those paths. Once copied, the four portable skills are invocable as flat slash commands: `/impl-plan`, `/review-plan`, `/verify`, `/architect-review`. Each command thin-wraps the matching bundled skill.
+**OpenCode** — copy the `.opencode/` directory (preserving the leading dot) into your project so the final layout is `<your-project>/.opencode/skills/<skill-name>/SKILL.md` and `<your-project>/.opencode/commands/<command-name>.md`. OpenCode discovers skills from those paths. Once copied, the five portable skills are invocable as flat slash commands: `/impl-plan`, `/implement-slice`, `/review-plan`, `/verify`, `/architect-review`. Each command thin-wraps the matching bundled skill.
 
 **Codex** (two paths, either works):
 
@@ -36,13 +37,13 @@ codex plugin install build/build
 
 Or via repo-local discovery: copy the `.agents/` directory into your project so the final layout is `<your-project>/.agents/skills/<skill-name>/SKILL.md`. Codex picks it up automatically.
 
-Codex installs five skills: `build`, `impl-plan`, `review-plan`, `verify`, and `architect-review`. Start the complete workflow with one invocation:
+Codex installs six skills: `build`, `impl-plan`, `implement-slice`, `review-plan`, `verify`, and `architect-review`. Start the complete workflow with one invocation:
 
 ```
 $build:build <feature>
 ```
 
-That one skill drives Plan, Plan Review, Implement, Verify, and Architect Review, including repair loops and resumable artifacts. The four phase skills remain directly invocable. OpenCode remains a four-skill standalone bundle, and `eval` remains Claude Code only.
+That one skill drives Plan, Plan Review, Implement, Verify, and Architect Review, including repair loops and resumable artifacts. The five phase skills remain directly invocable. OpenCode remains a five-skill standalone bundle, and `eval` remains Claude Code only.
 
 ## Compatibility
 
@@ -50,6 +51,7 @@ That one skill drives Plan, Plan Review, Implement, Verify, and Architect Review
 |-------|:-----------:|:--------:|:-----:|
 | `build` (orchestrator) | ✓ | — | ✓ |
 | `impl-plan` | ✓ | ✓ | ✓ |
+| `implement-slice` | ✓ | ✓ | ✓ |
 | `review-plan` | ✓ | ✓ | ✓ |
 | `verify` | ✓ | ✓ | ✓ |
 | `architect-review` | ✓ | ✓ | ✓ |
@@ -156,6 +158,7 @@ See `reference/workflow-modes.md` in the build skill for the full contract.
 Each skill is useful on its own:
 
 - `/build:impl-plan refactor the payment flow` - Save `.build/plans/{slug}-plan.md` and compile its generated contract when buildctl runs
+- `/build:implement-slice <plan path> <contract path> slice=S-001` - Implement one slice from the supplied plan and contract, run its commands through buildctl, and save the slice section to `.build/plans/{slug}-implementation-summary.md`
 - `/build:review-plan <plan path>` - Consume the supplied plan/contract/context directly and save `.build/plans/{slug}-review.md`
 - `/build:verify <artifacts or scope>` - Consume supplied plan/contract/ledger inputs or run prompt checks, then save `.build/plans/{slug}-verify.md`
 - `/build:architect-review <work and Verify result>` - Consume the supplied target/evidence and save `.build/plans/{slug}-architect-review.md`
@@ -169,6 +172,7 @@ In Claude Code, each skill sets its own model for standalone runs:
 | Skill | Model | Effort | Context |
 |-------|-------|--------|---------|
 | `/build:impl-plan` | Opus | High | inherited |
+| `/build:implement-slice` | Opus | High | inherited |
 | `/build:review-plan` | Sonnet | default | fork |
 | `/build:architect-review` | Opus | High | fork |
 | `/build:verify` | inherited | inherited | inherited |
