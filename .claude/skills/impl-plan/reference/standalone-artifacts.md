@@ -29,14 +29,17 @@ valid relay outcome. A relay invocation missing a subject input its phase's mach
 requires reports the named missing input as a blocking error in the artifact and the
 response.
 
+The machine-result requirement applies to Plan Review, Verify, and Architect Review, the three phases `compile-result` compiles; an `implement-slice` relay instead ends its slice section with one fenced `Slice result` YAML block, and a section without that block is not a valid relay outcome.
+
 ## Natural targets
 
 - Plan: `.build/plans/{slug}-plan.md`
 - Plan Review: `.build/plans/{slug}-review.md`
 - Verify: `.build/plans/{slug}-verify.md`
 - Architect Review: `.build/plans/{slug}-architect-review.md`
+- Implement slice: `.build/plans/{slug}-implementation-summary.md`
 
-These are authored Markdown artifacts. Plan's optional `contract.json` is generated.
+These are authored Markdown artifacts. Plan's optional `contract.json` is generated. The implementation summary is cumulative: an implement relay replaces or adds only its own `## Slice S-### relay result` section and applies the collision rule only in standalone use.
 
 ## Deterministic slug and collision rule
 
@@ -96,4 +99,7 @@ transitions or auto-continuation; no branches, commits, merges, archives, checkp
 tags, releases, or git mutation; and no synthetic context, requirements, implementation
 summaries, ledgers, contracts, or receipts. The only contract exception is buildctl output
 compiled from the authored standalone plan. Read-only git inspection remains allowed.
+
+`implement-slice` is the one standalone skill whose work is source: in every invocation mode it may edit files inside its slice's declared `files_modified` union, append its progress log, write its own slice section of the implementation summary, and write buildctl `run-evidence` receipts under its named evidence directory, and that narrow exception takes precedence over the output-only rule above; it still never creates or mutates `*-state.md` and never mutates git.
+
 The Build orchestrator remains the only workflow-state owner.
