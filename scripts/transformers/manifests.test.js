@@ -19,8 +19,8 @@ const harnessesPath = join(ROOT, 'HARNESSES.md');
 const roadmapPath = join(ROOT, 'ROADMAP.md');
 const changelogPath = join(ROOT, 'CHANGELOG.md');
 
-const OPENCODE_SKILLS = ['architect-review', 'impl-plan', 'review-plan', 'verify'];
-const CODEX_SKILLS = ['architect-review', 'build', 'impl-plan', 'review-plan', 'verify'];
+const OPENCODE_SKILLS = ['architect-review', 'impl-plan', 'implement-slice', 'review-plan', 'verify'];
+const CODEX_SKILLS = ['architect-review', 'build', 'impl-plan', 'implement-slice', 'review-plan', 'verify'];
 
 function assertExactSkillSet(actual, expected, label) {
   assert.deepEqual(
@@ -42,7 +42,7 @@ function assertNoObsoleteCodexClaims(content, label = 'Codex copy') {
     /\|\s*`build`[^|\n]*\|\s*(?:Yes|✓)\s*\|\s*(?:No|—)\s*\|\s*(?:No|—)\s*\|/i,
     /Four skills are available in OpenCode and Codex/i,
     /(?:Four|4) portable skills ship in the (?:Codex )?plugin/i,
-    /Codex (?:installs|ships|has|includes|exposes) (?:only )?(?:four|4) skills/i,
+    /Codex (?:installs|ships|has|includes|exposes) (?:only )?(?:four|4|five|5) skills/i,
   ];
   for (const pattern of obsoleteClaims) {
     assert.doesNotMatch(content, pattern, `${label} contains obsolete Codex capability wording`);
@@ -89,7 +89,7 @@ test('Codex plugin.json describes five skills and the end-to-end build workflow'
     plugin.interface?.shortDescription,
     plugin.interface?.longDescription,
   ].join('\n');
-  assert.match(copy, /(?:five|5)(?:[- ]Codex)?[- ]skills?/i);
+  assert.match(copy, /(?:six|6)(?:[- ]Codex)?[- ]skills?/i);
   assert.match(copy, /end-to-end/i);
   assert.match(copy, /\bplan\b[\s\S]*\breview\b[\s\S]*\bimplement\b[\s\S]*\bverify\b[\s\S]*architect/i);
   assertNoObsoleteCodexClaims(copy, 'Codex plugin.json');
@@ -354,7 +354,7 @@ test('v1.15 release documents in-plan test weakening and orchestrator agreement'
 test('negative fixture rejects four-skill Codex set', () => {
   assert.throws(
     () => assertCodexSkillSet(OPENCODE_SKILLS, 'four-skill fixture'),
-    /must contain exactly 5 skills/,
+    /must contain exactly 6 skills/,
   );
 });
 

@@ -145,11 +145,13 @@ const HARD_LINE_LIMITS = {
   'source/skills/build/SKILL.md': 320,
   'source/skills/build/SKILL.codex.md': 300,
   'source/skills/impl-plan/SKILL.md': 230,
+  'source/skills/implement-slice/SKILL.md': 150,
   'source/skills/review-plan/SKILL.md': 160,
   'source/skills/verify/SKILL.md': 150,
   'source/skills/architect-review/SKILL.md': 130,
   'source/skills/impl-plan/reference/plan-quality.md': 220,
   'source/skills/build/reference/workflow-modes.md': 200,
+  'source/skills/build/reference/implement-relay.md': 150,
 };
 
 const DELIVERY_SLICE_FIELDS = [
@@ -305,6 +307,8 @@ const WORKFLOW_MODE_CONTRACTS = {
     'The only public keys, in state order, are `plan`, `review`, `explore`, `implement`, `verify`, and `architect-review`; `review` also governs mid-review.',
     'Agent names are opaque.',
     'skill frontmatter does not resolve the `fable` alias',
+    "`implement: codex-relay`, `review: codex-relay`, `verify: codex-relay`, and `architect-review: codex-relay`",
+    "buildctl repository-identity --contract .build/contracts/{slug}/contract.json",
   ],
   'source/skills/build/SKILL.md': [
     'Resolve `workflow_mode` before the git preflight: an explicit `mode=` token in $ARGUMENTS wins, then a `build-mode:` line in the effective `AGENTS.md` (on Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists), then — on a fresh workflow only — ask with AskUserQuestion; this mode ask is the third allowed pre-start stop.',
@@ -317,10 +321,56 @@ const WORKFLOW_MODE_CONTRACTS = {
     'without stopping to ask the user to switch sessions or models',
     'Never stop and ask the user to start a new session.',
     'Never stop to ask the user to switch sessions.',
+    "the active slice is one implement relay",
+    "never implements a relayed slice inline",
+    "repair handoff",
+    "apply the resume identity check",
   ],
   'source/skills/impl-plan/reference/standalone-artifacts.md': [
     'An invocation beginning with the literal `[relay]` marker is a relay run: an external harness is executing this skill on behalf of a Build root that will validate the result.',
     'A relay run saves its natural artifact under the normal collision rules even when an active Build state matches the request — the state belongs to the root that issued the relay, not to this run — and never touches `*-state.md`.',
+    "a section without that block is not a valid relay outcome",
+    "takes precedence over the output-only rule",
+  ],
+  'source/skills/build/reference/implement-relay.md': [
+    "Root validates the result before it trusts it: shape, scope, and state first, then status; complete slice evidence is required only for `done`.",
+    "A valid `needs-decision` is accepted with partial or absent evidence, its question is persisted, and its work is retained.",
+    "Root appends the accepted `tasks_completed` to `completed_tasks` before the checkpoint.",
+    "Before any re-dispatch root commits retained work so that HEAD is the attempt baseline, and a discarded attempt is restored to that baseline.",
+    "Mid-review fixes reopen their task IDs and travel to the next attempt as a `### Repair requested` subsection; root never applies them inline.",
+    "Mid-review acceptance is not durable: on resume with every slice task complete and no checkpoint commit, root re-runs mid-review before the checkpoint.",
+    "git status --porcelain=v1 -z --untracked-files=all",
+    "Root records the pre-launch commit, branch, and index identity and rejects any outcome that changed them; a changed commit or branch halts with retained evidence instead of a silent restore.",
+    "Every byte of the summary outside the active slice's section must equal the pre-launch snapshot before any outcome is accepted.",
+    "`done` requires a receipt for every task `verify`, the slice `verify`, and every behavioral or command evidence ref, each carrying its literal observation.",
+    "A block naming an earlier attempt's `evidence_dir` is stale and fails shape.",
+    "A discarded attempt is restored with `git reset --hard` to the recorded pre-launch commit followed by `git clean -fd`, and no retry or fallback launches until the status is clean and the index identity matches the record.",
+    "Every attempt follows one order: root persists `active_slice`; commits retained work if the tree is dirty; runs `buildctl repository-identity` once and writes the `agent_progress` entry for the attempt with `supervision_mode: relay`, `attempt`, `command`, `log_path`, `evidence_dir`, `dispatched_at`, immutable `deadline_at` computed from the slice's `relay_deadline_minutes` (60 when absent, with a `history` line saying so), and the pre-launch identity `head_commit`, `branch` from `git branch --show-current`, and `index_sha256`; appends the counter event and runs `check-counters`; snapshots `{slug}-state.md` and `{slug}-implementation-summary.md` byte-for-byte under `.build/relay/{slug}/{slice_id}-{attempt}/`; captures `{repository_fingerprint}` with a second `buildctl repository-identity` call, writes it with the full command to `dispatch.json` in that same directory, and launches.",
+    "Nothing is written to state between the snapshot and the terminal comparison; the fingerprint enters `history` only after that comparison.",
+    "writes it with the full command to `dispatch.json` in that same directory",
+    "On resume with a relay attempt whose `terminal_status` is null, root compares the current branch and HEAD with that attempt's recorded identity before any branch checkout; a mismatch is the identity halt, never a silent restore.",
+    "resolves the question itself when the plan, requirements, or context already determine the answer and otherwise asks the user with AskUserQuestion",
+    "appends `model_fallback` and dispatches a fresh Claude agent with `model: opus`",
+    "immutable `deadline_at` computed from the slice's `relay_deadline_minutes` (60 when absent, with a `history` line saying so)",
+    "An implement relay never commits; root alone commits retained work, runs the slice's integration command once, makes the checkpoint commit, writes the completion marker, runs post-checkpoint `run-evidence` into `.build/evidence/{slug}/`, authors judgments, and applies the `complete-slice` receipt.",
+    "An implement relay never falls back to inline root.",
+    "During a relayed implement phase root edits no source file and runs no task-level command.",
+  ],
+  'source/skills/implement-slice/SKILL.md': [
+    "This run is non-interactive: nobody reads a question you ask",
+    "raise a material question only by writing `status: needs-decision` with the decision map",
+    "take precedence over any other workspace skill or guideline",
+    "Never ask the user anything; the root that dispatched this run owns every conversation.",
+    "Never edit a file outside the slice's declared `files_modified` union; a needed file outside it is a `needs-decision`, not a widening.",
+    "Never mutate the repository history: no commits, branches, merges, stashes, tags, or resets.",
+    "Never read, create, or change `*-state.md`",
+    "For `needs-decision`, `decision` is a map with a non-empty `question`, two or more `options`, an `evidence` list, and `completed_meanwhile` as a list of task IDs.",
+  ],
+  'source/skills/build/reference/state-schema.md': [
+    "17. **Decisions come back to root.**",
+    "18. **Attempt baselines are commits.**",
+    "19. **Mid-review acceptance is not durable.**",
+    "`completed_tasks` gains a relayed slice's task IDs only after root accepts a `done` outcome and validates them against the slice.",
   ],
 };
 
@@ -344,6 +394,16 @@ const RELAY_VALUE_SUBJECT_TOKENS = {
   repository: 'repository=',
   'verify-result': 'verify-result=',
 };
+
+const IMPLEMENT_RELAY_SUBJECT_FRAGMENTS = [
+  '{slug}-plan.md',
+  'contract.json',
+  '{slug}-requirements.md',
+  '{slug}-context.md',
+  'slice=',
+  'evidence-dir=',
+  'repository=',
+];
 
 const KEMET_EVIDENCE_ASSERTIONS = [
   'catches-unbound-approach-obligation',
@@ -752,6 +812,20 @@ function assertRelayTemplateSubjects(phases = readPhaseSubjects(), templates = r
   }
 }
 
+function assertImplementRelayTemplate(templates = relayCommandTemplates()) {
+  const template = templates['implement-slice'];
+  assert.ok(
+    template,
+    'workflow-modes.md must define a [relay] $build:implement-slice command template',
+  );
+  for (const fragment of IMPLEMENT_RELAY_SUBJECT_FRAGMENTS) {
+    assert.ok(
+      template.includes(fragment),
+      `the implement relay template must carry subject ${JSON.stringify(fragment)}`,
+    );
+  }
+}
+
 function fencedYaml(content, root) {
   const blocks = [...content.matchAll(/```yaml\n([\s\S]*?)```/g)].map((match) => match[1]);
   const block = blocks.find((candidate) => candidate.split('\n').some(
@@ -1104,6 +1178,25 @@ test('a relay template dropping a compile-result subject is rejected', () => {
         `dropping ${subject} from the ${skill} relay template must fail`,
       );
     }
+  }
+});
+
+test('the implement relay template names its full subject set', () => {
+  assertImplementRelayTemplate();
+});
+
+test('an implement relay template dropping a subject is rejected', () => {
+  const templates = relayCommandTemplates();
+  for (const fragment of IMPLEMENT_RELAY_SUBJECT_FRAGMENTS) {
+    const mutated = {
+      ...templates,
+      'implement-slice': templates['implement-slice'].replaceAll(fragment, ''),
+    };
+    assert.throws(
+      () => assertImplementRelayTemplate(mutated),
+      new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      `dropping ${fragment} from the implement relay template must fail`,
+    );
   }
 });
 

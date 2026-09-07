@@ -574,6 +574,7 @@ test('implementation Occam guard remains Codex-only', () => {
   for (const path of [
     'source/skills/build/SKILL.md',
     'source/skills/impl-plan/SKILL.md',
+    'source/skills/implement-slice/SKILL.md',
     'source/skills/review-plan/SKILL.md',
     'source/skills/verify/SKILL.md',
     'source/skills/architect-review/SKILL.md',
