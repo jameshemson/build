@@ -50,6 +50,26 @@ function semanticContract(contract) {
   return copy;
 }
 
+function compilePath(planPath, name = 'contract.json') {
+  const out = join(outputDir, name);
+  const result = run('validate-plan', '--plan', planPath, '--out', out);
+  return { result, out };
+}
+
+function withoutRelayDeadline(source) {
+  return source.replace(/^ *relay_deadline_minutes:.*\n/m, '');
+}
+
+function withSliceLine(source, line, name = 'sliced-plan.md') {
+  const slices = source.indexOf('delivery_slices:');
+  const doneIndex = source.indexOf('\n    done:', slices);
+  const eol = source.indexOf('\n', doneIndex + 1);
+  const patched = `${source.slice(0, eol)}\n${line}${source.slice(eol)}`;
+  const file = join(outputDir, name);
+  writeFileSync(file, patched, 'utf8');
+  return file;
+}
+
 test('validate-plan compiles Markdown deterministically with source and compiler hashes', () => {
   const first = compile('valid-plan.md', 'first.json');
   assert.equal(first.result.status, 0, first.result.stderr);
@@ -168,4 +188,42 @@ test('generated contract paths must stay inside the repository', () => {
   );
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /E_PATH_OUTSIDE_REPOSITORY/);
+});
+
+test('validate-plan carries an optional relay_deadline_minutes slice field into the contract', () => {
+  const { result, out } = compile('valid-plan.md', 'relay-deadline.json');
+  assert.equal(result.status, 0, result.stderr);
+  const contract = JSON.parse(readFileSync(out, 'utf8'));
+  assert.equal(contract.delivery_slices[0].relay_deadline_minutes, 45);
+});
+
+test('validate-plan rejects an invalid relay_deadline_minutes with E_SLICE_RELAY_DEADLINE', () => {
+  const base = withoutRelayDeadline(
+    readFileSync(join(FIXTURES, 'valid-plan.md'), 'utf8'),
+  );
+  const cases = [
+    '    relay_deadline_minutes: 0',
+    '    relay_deadline_minutes: "45"',
+    '    relay_deadline_minutes: 1441',
+  ];
+  for (const [index, line] of cases.entries()) {
+    const planPath = withSliceLine(base, line, `invalid-deadline-${index}.md`);
+    const { result, out } = compilePath(planPath, `invalid-deadline-${index}.json`);
+    assert.notEqual(result.status, 0, line);
+    assert.match(result.stderr, /E_SLICE_RELAY_DEADLINE/, line);
+    assert.match(result.stderr, /delivery_slices\[0\]\.relay_deadline_minutes/, line);
+    assert.equal(existsSync(out), false, line);
+  }
+});
+
+test('validate-plan still rejects an unknown slice key with E_SCHEMA_FIELDS', () => {
+  const base = withoutRelayDeadline(
+    readFileSync(join(FIXTURES, 'valid-plan.md'), 'utf8'),
+  );
+  const planPath = withSliceLine(base, '    relay_timeout: 5', 'unknown-slice-key.md');
+  const { result, out } = compilePath(planPath, 'unknown-slice-key.json');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /E_SCHEMA_FIELDS/);
+  assert.match(result.stderr, /delivery_slices\[0\]/);
+  assert.equal(existsSync(out), false);
 });

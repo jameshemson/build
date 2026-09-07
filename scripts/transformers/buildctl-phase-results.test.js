@@ -884,3 +884,42 @@ test('phase-result architect-review: stale Verify results and changed diffs bloc
   assert.equal(readFileSync(current.statePath, 'utf8'), stateBefore);
   assert.equal(git(current.repo, 'rev-parse', 'HEAD'), headBefore);
 });
+
+test('compile-result accepts a repository subject from repository-identity with default directories', async () => {
+  const setup = await makePlanReviewRepo();
+  const identity = run(
+    [process.execPath, CLI, 'repository-identity', '--contract', setup.contractPath],
+    setup.repo,
+  );
+  const fingerprint = JSON.parse(identity.stdout).fingerprint;
+  writeFileSync(
+    setup.artifactPath,
+    replaceAll(readFileSync(REVIEW_FIXTURE, 'utf8'), {
+      PLAN_SHA256: sha256(readFileSync(join(setup.repo, 'plan.yaml'))),
+      CONTRACT_SHA256: sha256(readFileSync(setup.contractPath)),
+      CONTEXT_SHA256: sha256(readFileSync(setup.contextPath)),
+      REQUIREMENTS_SHA256: sha256(
+        readFileSync(join(setup.repo, '.build/plans/receipt-fixture-requirements.md')),
+      ),
+      REPOSITORY_SHA256: fingerprint,
+    }),
+    'utf8',
+  );
+  const compiled = run(
+    [
+      process.execPath,
+      CLI,
+      'compile-result',
+      '--state',
+      setup.statePath,
+      '--contract',
+      setup.contractPath,
+      '--artifact',
+      setup.artifactPath,
+      '--receipts-dir',
+      '.build/result-receipts',
+    ],
+    setup.repo,
+  );
+  assert.equal(JSON.parse(compiled.stdout).status, 'compiled');
+});
