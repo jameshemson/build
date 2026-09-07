@@ -24,17 +24,18 @@ This table is the authoritative reference for transformer decisions. Any new ski
 | `build` | Yes | No | Yes | Provider-specific orchestrators: Claude uses subagents and isolated worktrees; Codex keeps root-continuity phases inline and fresh-context judgment phases delegated |
 | `eval` | Yes | No | No | Requires `Skill` tool dispatch |
 | `impl-plan` | Yes | Yes | Yes | Portable |
+| `implement-slice` | Yes | Yes | Yes | Portable |
 | `review-plan` | Yes | Yes | Yes | Portable |
 | `verify` | Yes | Yes | Yes | Portable |
 | `architect-review` | Yes | Yes | Yes | Portable |
 
 ## OpenCode install story
 
-OpenCode reads both `.opencode/skills/` and `.claude/skills/`. This means opening this repo root directly in OpenCode exposes the Claude-targeted `build` skill and Claude-only `eval` skill, and produces duplicate entries for the four portable skills.
+OpenCode reads both `.opencode/skills/` and `.claude/skills/`. This means opening this repo root directly in OpenCode exposes the Claude-targeted `build` skill and Claude-only `eval` skill, and produces duplicate entries for the five portable skills.
 
 **Supported OpenCode path**: copy this repo's `.opencode/` directory (including the leading dot) into the target project so the final layout is `<target-project>/.opencode/skills/<skill-name>/SKILL.md` and `<target-project>/.opencode/commands/<command-name>.md`. Do not flatten to `<target-project>/skills/` — OpenCode will not find skills there. Do not point OpenCode at this repo root directly (duplicate and provider-incompatible skills will appear).
 
-**Slash command bundle.** In addition to the four portable skills at `.opencode/skills/`, we ship four OpenCode slash commands at `.opencode/commands/` (`impl-plan.md`, `review-plan.md`, `verify.md`, `architect-review.md`). Each command's body is a single `@.opencode/skills/<name>/SKILL.md` line — OpenCode resolves `@<path>` against the project worktree and inlines the file content at invocation time (verified against OpenCode `packages/opencode/src/session/prompt.ts`). Users invoke as `/impl-plan <task>` etc.; pass-through arguments become the skill's task input. Commands use flat (non-namespaced) names: collision with an unrelated local command in the user's project is possible and requires renaming one of the two.
+**Slash command bundle.** In addition to the five portable skills at `.opencode/skills/`, we ship five OpenCode slash commands at `.opencode/commands/` (`impl-plan.md`, `implement-slice.md`, `review-plan.md`, `verify.md`, `architect-review.md`). Each command's body is a single `@.opencode/skills/<name>/SKILL.md` line — OpenCode resolves `@<path>` against the project worktree and inlines the file content at invocation time (verified against OpenCode `packages/opencode/src/session/prompt.ts`). Users invoke as `/impl-plan <task>` etc.; pass-through arguments become the skill's task input. Commands use flat (non-namespaced) names: collision with an unrelated local command in the user's project is possible and requires renaming one of the two.
 
 ## Codex install story
 
@@ -49,9 +50,9 @@ codex plugin marketplace add jameshemson/build
 codex plugin install build/build
 ```
 
-The marketplace manifest is at `.agents/plugins/marketplace.json`; the plugin manifest is at `plugins/build/.codex-plugin/plugin.json`. Both are hand-authored and committed. Five skills ship in the Codex plugin: the `build` orchestrator plus the standalone `impl-plan`, `review-plan`, `verify`, and `architect-review` skills. The `eval` runner remains Claude Code only.
+The marketplace manifest is at `.agents/plugins/marketplace.json`; the plugin manifest is at `plugins/build/.codex-plugin/plugin.json`. Both are hand-authored and committed. Six skills ship in the Codex plugin: the `build` orchestrator plus the standalone `impl-plan`, `implement-slice`, `review-plan`, `verify`, and `architect-review` skills. The `eval` runner remains Claude Code only.
 
-A user who both clones the repo AND installs the plugin will see duplicate entries for the five Codex skills. The two copies are byte-identical (enforced by a sandbox byte-equality test); behavior is the same, only the UI listing is noisier.
+A user who both clones the repo AND installs the plugin will see duplicate entries for the six Codex skills. The two copies are byte-identical (enforced by a sandbox byte-equality test); behavior is the same, only the UI listing is noisier.
 
 Note that named workflow modes are Claude-orchestrator-only today — the `mode=opus` / `mode=fable` / `mode=mixed` selection is read only by the Claude orchestrator. The six-key `## Build agent routing` block, by contrast, is supported by both orchestrators: Codex has had it since the custom-agent-routing release, and this release ports it to Claude. Codex preset parity for the new named modes is roadmap-deferred. `workflow-modes.md` ships in the Codex output trees but is unreferenced there.
 
@@ -69,7 +70,7 @@ Wave 0 uses targeted evidence, workers own scoped checks, and root runs each int
 
 Typed evidence is portable across all three harnesses. New plans declare `evidence_mode: typed`, bind each named Approach symbol, behavior, or invariant to one task and must-have ID, and give every must-have an exact evidence kind and reference. The four kinds are `behavioral-test`, `command-assertion`, `structural`, and `manual-receipt`. Changed files satisfy only structural claims; they cannot prove behavior. Missing modes are `legacy-untyped`, while reopened legacy tasks must upgrade. Missing or mismatched behavioral evidence yields `PARTIAL` unless the underlying command fails.
 
-All four portable skills save their natural standalone Markdown artifact under `.build/plans/` while preserving the report shown in the conversation. Known supplied artifact paths determine the family slug; request-derived slugs use deterministic bounded normalization and the lowest unused collision suffix. Supplied plan, contract, ledger, requirements, context, implementation-summary, and Verify artifacts are consumed directly. Missing siblings are never synthesized. Standalone skills do not own Build state, transitions, git mutation, checkpointing, or release operations.
+All five portable skills save their natural standalone Markdown artifact under `.build/plans/` while preserving the report shown in the conversation. Known supplied artifact paths determine the family slug; request-derived slugs use deterministic bounded normalization and the lowest unused collision suffix. Supplied plan, contract, ledger, requirements, context, implementation-summary, and Verify artifacts are consumed directly. Missing siblings are never synthesized. Standalone skills do not own Build state, transitions, git mutation, checkpointing, or release operations.
 
 Model routing is an auditable request, not a guaranteed pin. Inline phases inherit the active root session, so the recommended normal complex-build session is `gpt-5.6-sol` at high effort. Fresh Plan Review and Verify request Sol at `medium`, `high`, or `xhigh` for simple, standard, or complex work; exploration requests `gpt-5.6-luna` / `max`. If the active spawn surface cannot override a child model or effort, the workflow records `model_fallback` visibly in state and the final summary. Inline phases record `active-session` instead of claiming a downshift.
 

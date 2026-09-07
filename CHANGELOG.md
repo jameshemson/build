@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `implement-slice`, a fifth portable standalone skill that implements one delivery slice from a
+  compiled plan, runs the commands it executed through `buildctl run-evidence`, writes its slice
+  section of the implementation summary, and escalates through `needs-decision` instead of guessing.
+- The `mixed`-mode implement relay: each active slice runs on Sol at high effort under a per-slice
+  deadline, with ordered acceptance, retained-work baselines, decision and repair handoffs, a
+  resume identity check, one retry, and an Opus coordinator fallback. The contract is
+  `build/reference/implement-relay.md`.
+- An optional per-slice `relay_deadline_minutes` (an integer from 1 to 1440) in `validate-plan`,
+  rejected out of range with `E_SLICE_RELAY_DEADLINE`.
+- `buildctl repository-identity --contract <contract.json> [--evidence-dir <dir>]`, the one source
+  of the `repository=` relay token.
+- A two-slice standalone execution fixture repository under `scripts/fixtures/implement-slice/`.
+- Five graded orchestrator eval cases: relay dispatch, a pending decision, an accepted `done`, a
+  pending repair, and a crash before mid-review.
+
+### Fixed
+
+- `compile-result` captured repository identity against `.build/evidence` while reading the ledger
+  from `.build/evidence/{slug}`, so a relay's `repository=` token could never match without an
+  explicit `--evidence-dir`; both now use the per-slug default (found by the first live mixed-mode
+  workflow).
+
+### Changed
+
+- The `{repository_fingerprint}` recipe for all three judgment relays is now
+  `buildctl repository-identity`, not the ledger's `repository.fingerprint`.
+- The two shipped mixed-mode eval fixtures record `implement codex-relay`.
+- The "workstream agents never touch `.build/`" rule gains a carve-out for a fallback implement
+  coordinator.
+
 ## 1.16.0 - 2026-08-20
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "name": "build",
   "version": "1.16.0",
-  "description": "End-to-end structured build workflow with five Codex skills: build, impl-plan, review-plan, verify, architect-review.",
+  "description": "End-to-end structured build workflow with six Codex skills: build, impl-plan, implement-slice, review-plan, verify, architect-review.",
   "author": {
     "name": "James Hemson"
   },
@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "build",
     "shortDescription": "One end-to-end workflow from plan through architect review.",
-    "longDescription": "Five Codex skills for an end-to-end workflow: build drives plan, review, implement, verify, and architect review with repair loops; impl-plan, review-plan, verify, and architect-review also work standalone.",
+    "longDescription": "Six Codex skills for an end-to-end workflow: build drives plan, review, implement, verify, and architect review with repair loops; impl-plan, implement-slice, review-plan, verify, and architect-review also work standalone.",
     "developerName": "James Hemson",
     "category": "Developer Tools",
     "capabilities": ["Planning", "Code review", "Implementation", "Verification"],
