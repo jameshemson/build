@@ -163,6 +163,14 @@ const DELIVERY_SLICE_FIELDS = [
   'done',
 ];
 
+const DELIVERY_SLICE_OPTIONAL_FIELDS = ['relay_deadline_minutes'];
+
+function requiredSliceKeys(slice) {
+  return Object.keys(slice)
+    .filter((key) => !DELIVERY_SLICE_OPTIONAL_FIELDS.includes(key))
+    .sort();
+}
+
 const TYPED_EVIDENCE_CONTRACT_TERMS = {
   'source/skills/impl-plan/SKILL.md': [
     '`evidence_mode: typed`',
@@ -787,7 +795,7 @@ function assertDeliverySliceContractsContents(planner, quality, reviewer) {
   const slices = parseYamlEntries(planner, 'delivery_slices');
   assert.equal(slices.length, 1, 'impl-plan sample must contain exactly one ordinary slice');
   assert.equal(yamlScalar(slices[0].id), 'S-001');
-  assert.deepEqual(Object.keys(slices[0]).sort(), [...DELIVERY_SLICE_FIELDS].sort());
+  assert.deepEqual(requiredSliceKeys(slices[0]), [...DELIVERY_SLICE_FIELDS].sort());
 
   const manifestIds = new Set(manifest.map((task) => yamlScalar(task.id)));
   const sliceMembership = slices.flatMap((slice) => yamlList(slice.task_ids));
@@ -1344,7 +1352,7 @@ test('delivery-slice eval metadata and fixtures stay deterministic', () => {
   const cleanSlices = parseYamlEntries(clean, 'delivery_slices');
   assert.equal(cleanSlices.length, 1);
   assert.equal(yamlScalar(cleanSlices[0].id), 'S-001');
-  assert.deepEqual(Object.keys(cleanSlices[0]).sort(), [...DELIVERY_SLICE_FIELDS].sort());
+  assert.deepEqual(requiredSliceKeys(cleanSlices[0]), [...DELIVERY_SLICE_FIELDS].sort());
   assert.deepEqual(yamlList(cleanSlices[0].task_ids), ['T-002', 'T-003']);
   const cleanMembership = cleanSlices.flatMap((slice) => yamlList(slice.task_ids));
   const waveZeroIds = cleanTasks.filter((task) => Number(task.wave) === 0).map(
@@ -1641,4 +1649,15 @@ test('source skills stay below hard prompt-size ceilings', () => {
       `${path} has ${lines} lines, exceeding hard ceiling ${limit}`,
     );
   }
+});
+
+test('the impl-plan slice sample carries the optional relay deadline and the clean fixture does not', () => {
+  const planner = readRel('source/skills/impl-plan/SKILL.md');
+  const clean = readRel('source/skills/eval/fixtures/clean-plan.md');
+  const sampleSlices = parseYamlEntries(planner, 'delivery_slices');
+  const cleanSlices = parseYamlEntries(clean, 'delivery_slices');
+  assert.equal(yamlScalar(sampleSlices[0].relay_deadline_minutes), '45');
+  assert.equal(cleanSlices[0].relay_deadline_minutes, undefined);
+  assert.deepEqual(requiredSliceKeys(sampleSlices[0]), [...DELIVERY_SLICE_FIELDS].sort());
+  assert.deepEqual(requiredSliceKeys(cleanSlices[0]), [...DELIVERY_SLICE_FIELDS].sort());
 });
