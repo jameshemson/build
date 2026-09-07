@@ -387,3 +387,35 @@ test('failed exact commands produce failed fresh receipts without a pass claim',
   assert.equal(receipt.exit_code, 7);
   assert.equal(receipt.stderr.tail, 'broken');
 });
+
+test('repository-identity prints the identity run-evidence records for the same evidence directory', () => {
+  const { repo, contractPath } = makeRepo();
+  const exact = 'node --test test/legacy-pose.test.js';
+  const written = spawnSync(
+    process.execPath,
+    [CLI, 'run-evidence', '--contract', contractPath, '--command', exact],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.ok(written.stdout.includes('ledger_path'), written.stderr);
+  const ledger = JSON.parse(
+    readFileSync(join(repo, '.build/evidence/plan/ledger.json'), 'utf8'),
+  );
+
+  const identity = spawnSync(
+    process.execPath,
+    [CLI, 'repository-identity', '--contract', contractPath],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.equal(identity.status, 0, identity.stderr);
+  const parsed = JSON.parse(identity.stdout);
+  assert.equal(parsed.fingerprint, ledger.repository.fingerprint);
+  assert.equal(parsed.excluded_evidence_path, ledger.repository.excluded_evidence_path);
+
+  const other = spawnSync(
+    process.execPath,
+    [CLI, 'repository-identity', '--contract', contractPath, '--evidence-dir', '.build/evidence/other'],
+    { cwd: repo, encoding: 'utf8' },
+  );
+  assert.equal(other.status, 0, other.stderr);
+  assert.notEqual(JSON.parse(other.stdout).fingerprint, parsed.fingerprint);
+});
