@@ -84,7 +84,7 @@ Every `REQ-*` and `D-*` must appear in at least one task and at least one verifi
 
 ## Delivery Slice Rules
 
-Every plan must include a fenced YAML block named `delivery_slices`. Each entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`; IDs use `S-###`.
+Every plan must include a fenced YAML block named `delivery_slices`. Each entry has exactly `id`, `goal`, `depends_on`, `task_ids`, `requirements`, `must_haves`, `verify`, and `done`; IDs use `S-###`. `relay_deadline_minutes` is the only optional slice key: an integer from 1 to 1440 minutes, rejected by `validate-plan` as `E_SLICE_RELAY_DEADLINE` when present and out of range.
 
 Delivery slices preserve this hierarchy: delivery slice → dependency waves → disjoint workstreams → execution-manifest tasks. Wave 0 is global and must not appear in a slice. Every task in waves greater than 0 belongs to exactly one slice. Slice `depends_on` entries name existing earlier slices, and every task dependency must be in Wave 0, the same slice, or a declared predecessor slice.
 

@@ -783,7 +783,7 @@ export async function compilePhaseResult({
     state,
   });
   const repository = await captureRepositoryIdentity({
-    evidenceDir,
+    evidenceDir: evidenceDir || join('.build', 'evidence', loaded.contract.slug),
     repoRoot: state.repoRoot,
   });
   let subjects;

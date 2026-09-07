@@ -13,6 +13,7 @@ function usage() {
     `      [--evidence-dir <dir>] [--max-output-bytes <0..${MAX_OUTPUT_BYTES}>] [--force]`,
     '  buildctl run-evidence --contract <contract.json> [--evidence-dir <dir>] --check-only',
     '  buildctl check-counters --state <state.md>',
+    '  buildctl repository-identity --contract <contract.json> [--evidence-dir <dir>]',
     '  buildctl compile-result --state <state.md> --contract <contract.json>',
     '      --artifact <phase-report.md> [--evidence-dir <dir>] [--receipts-dir <dir>]',
     '  buildctl complete-slice --state <state.md> --contract <contract.json>',
@@ -127,6 +128,23 @@ async function main() {
     const result = evaluateCircuitEvents(state.values.counter_events);
     process.stdout.write(`${JSON.stringify(result)}\n`);
     if (result.status !== 'allow') process.exitCode = 1;
+    return;
+  }
+  if (command === 'repository-identity') {
+    const { loadContract } = await import('./plan-contract.js');
+    const { captureRepositoryIdentity } = await import('./repository.js');
+    const { join } = await import('node:path');
+    const loaded = loadContract({
+      contractPath: required(flags, 'contract'),
+      cwd: process.cwd(),
+    });
+    const evidenceDir = flags['evidence-dir']
+      || join('.build', 'evidence', loaded.contract.slug);
+    const identity = await captureRepositoryIdentity({
+      evidenceDir,
+      repoRoot: process.cwd(),
+    });
+    process.stdout.write(`${JSON.stringify(identity)}\n`);
     return;
   }
   if (command === 'compile-result') {
