@@ -39,4 +39,5 @@ delivery_slices:
     must_haves: ["the legacy pose is adopted"]
     verify: ["node --test test/legacy-pose.test.js"]
     done: "REQ-001 has direct behavioral evidence"
+    relay_deadline_minutes: 45
 ```

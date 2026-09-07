@@ -32,6 +32,7 @@ const SLICE_FIELDS = [
   'task_ids',
   'verify',
 ];
+const SLICE_OPTIONAL_FIELDS = ['relay_deadline_minutes'];
 const EVIDENCE_KINDS = new Set([
   'behavioral-test',
   'command-assertion',
@@ -57,6 +58,28 @@ function exactFields(value, fields, path, diagnostics) {
       'E_SCHEMA_FIELDS',
       path,
       `expected fields ${expected.join(', ')}; received ${actual.join(', ')}`,
+    );
+    return false;
+  }
+  return true;
+}
+
+function requiredFields(value, fields, optional, path, diagnostics) {
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    diagnostic(diagnostics, 'E_SCHEMA_TYPE', path, 'must be a map');
+    return false;
+  }
+  const actual = Object.keys(value).sort();
+  const missing = fields.filter((field) => !Object.hasOwn(value, field));
+  const unknown = actual.filter(
+    (key) => !fields.includes(key) && !optional.includes(key),
+  );
+  if (missing.length > 0 || unknown.length > 0) {
+    diagnostic(
+      diagnostics,
+      'E_SCHEMA_FIELDS',
+      path,
+      `expected fields ${[...fields].sort().join(', ')} plus optional ${[...optional].sort().join(', ')}; received ${actual.join(', ')}`,
     );
     return false;
   }
@@ -372,7 +395,7 @@ function validateTaskGraph(tasks, byTask, diagnostics) {
 
 function validateSlice(slice, index, context, diagnostics) {
   const path = `delivery_slices[${index}]`;
-  if (!exactFields(slice, SLICE_FIELDS, path, diagnostics)) return;
+  if (!requiredFields(slice, SLICE_FIELDS, SLICE_OPTIONAL_FIELDS, path, diagnostics)) return;
   if (!/^S-\d\d\d$/.test(slice.id)) diagnostic(diagnostics, 'E_ID_FORMAT', `${path}.id`, slice.id);
   if (context.sliceIds.has(slice.id)) diagnostic(diagnostics, 'E_ID_DUPLICATE', `${path}.id`, slice.id);
   context.sliceIds.add(slice.id);
@@ -384,6 +407,21 @@ function validateSlice(slice, index, context, diagnostics) {
   stringArray(slice.requirements, `${path}.requirements`, diagnostics, { nonEmpty: true });
   stringArray(slice.must_haves, `${path}.must_haves`, diagnostics, { nonEmpty: true });
   stringArray(slice.verify, `${path}.verify`, diagnostics, { nonEmpty: true });
+  if (
+    Object.hasOwn(slice, 'relay_deadline_minutes')
+    && !(
+      Number.isInteger(slice.relay_deadline_minutes)
+      && slice.relay_deadline_minutes >= 1
+      && slice.relay_deadline_minutes <= 1440
+    )
+  ) {
+    diagnostic(
+      diagnostics,
+      'E_SLICE_RELAY_DEADLINE',
+      `${path}.relay_deadline_minutes`,
+      'must be an integer from 1 to 1440',
+    );
+  }
   checkRefs(slice.requirements, context.requirementIds, `${path}.requirements`, diagnostics);
   for (const dependency of slice.depends_on || []) {
     const dependencyIndex = context.slices.findIndex((candidate) => candidate.id === dependency);
