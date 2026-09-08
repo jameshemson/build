@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.16.1 - 2026-09-08
+
+### Fixed
+
+- Phase-result compilation now uses the same slug-specific evidence directory for
+  repository identity, ledger lookup, and evidence validation, including omitted options.
+- Global Wave 0 tasks can satisfy verification without belonging to a delivery slice.
+  Their current passing command receipts, consumers, and expected observations remain required.
+- Newly completed slices retain valid completion receipts after unrelated replans through
+  a versioned hash of their relevant compiled semantics. Relevant changes, invalid checkpoints,
+  and tampered receipts still fail validation; legacy receipts require the original plan.
+
 ## 1.16.0 - 2026-08-20
 
 ### Added
