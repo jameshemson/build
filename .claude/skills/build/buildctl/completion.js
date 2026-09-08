@@ -98,6 +98,56 @@ function obligationHash(value) {
   return sha256(canonicalJson(value));
 }
 
+export function completionScopeHash(contract, sliceId) {
+  const slicesById = new Map(contract.delivery_slices.map((slice) => [slice.id, slice]));
+  const tasksById = new Map(contract.execution_manifest.map((task) => [task.id, task]));
+  const sliceIds = new Set();
+  const taskIds = new Set();
+  const visitedTasks = new Set();
+  const visitSlice = (id) => {
+    const slice = slicesById.get(id);
+    if (!slice) fail('E_COMPLETION_SCOPE', `Completion scope references unknown slice ${id}.`);
+    if (sliceIds.has(id)) return;
+    sliceIds.add(id);
+    for (const dependency of slice.depends_on) visitSlice(dependency);
+    for (const taskId of slice.task_ids) taskIds.add(taskId);
+  };
+  const visitTask = (id) => {
+    const task = tasksById.get(id);
+    if (!task) fail('E_COMPLETION_SCOPE', `Completion scope references unknown task ${id}.`);
+    if (visitedTasks.has(id)) return;
+    visitedTasks.add(id);
+    taskIds.add(id);
+    for (const dependency of task.depends_on) visitTask(dependency);
+  };
+  visitSlice(sliceId);
+  for (const id of [...taskIds]) visitTask(id);
+  const slices = [...sliceIds].map((id) => slicesById.get(id))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const tasks = [...taskIds].map((id) => tasksById.get(id))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const relevantRequirements = new Set(slices.flatMap((slice) => slice.requirements));
+  const relevantDecisions = new Set();
+  for (const task of tasks) {
+    for (const requirement of task.requirements) relevantRequirements.add(requirement);
+    for (const decision of task.decisions) relevantDecisions.add(decision);
+  }
+  const projection = {
+    assumptions: [...contract.assumptions].sort(),
+    bindings: contract.bindings.filter((binding) => taskIds.has(binding.task_id))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    contract_schema_version: contract.schema_version,
+    decisions: [...relevantDecisions].sort(),
+    evidence_mode: contract.evidence_mode,
+    proof_format_version: 1,
+    requirements: [...relevantRequirements].sort(),
+    slices,
+    tasks,
+    workflow_slug: contract.slug,
+  };
+  return sha256(canonicalJson(projection));
+}
+
 export function completionJudgmentRequirements(contract, sliceId) {
   const slice = contract.delivery_slices.find((entry) => entry.id === sliceId);
   if (!slice) fail('E_SLICE_UNKNOWN', `Contract does not declare slice ${sliceId}.`);
@@ -399,6 +449,7 @@ function emitCompletionProposal({
   const plan = file(root, loaded.planPath, 'source plan');
   const subjects = [
     { name: 'state', sha256: state.sha256 },
+    { name: 'completion-scope-v1', sha256: completionScopeHash(contract, slice.id) },
     subject('plan', plan),
     subject('contract', contractArtifact),
     subject('implementation-summary', summary),

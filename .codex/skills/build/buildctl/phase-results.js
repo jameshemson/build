@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { completionScopeHash } from './completion.js';
 import { checkEvidence } from './evidence.js';
 import { evaluateWorkflowCoverage, receiptIndex } from './coverage.js';
 import { writeImmutableJson } from './immutable-json.js';
@@ -14,6 +15,7 @@ import {
 } from './plan-contract.js';
 import {
   captureRepositoryIdentity,
+  repositoryCommitIsAncestor,
   repositoryCleanStatus,
   repositoryFileScope,
   repositoryTestShrink,
@@ -336,7 +338,51 @@ export function verifyPhaseResultReceipt(receipt) {
   return receipt.receipt_hash;
 }
 
-function completionReceipts({ contract, repoRoot, state }) {
+function validateCompletionReceipt({ contract, path, receipt, repository, repoRoot, state }) {
+  const plan = receipt.subjects.find((subject) => subject.name === 'plan');
+  if (!plan) fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt has no plan subject.');
+  const scope = receipt.subjects.find((subject) => subject.name === 'completion-scope-v1');
+  const sliceId = receipt.authorized_decision?.slice_id;
+  const slice = contract.delivery_slices.find((entry) => entry.id === sliceId);
+  if (!slice || receipt.transition_kind !== 'complete_slice'
+    || receipt.authorized_decision?.authorization !== 'allowed') {
+    fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt decision is not allowed.');
+  }
+  if (receipt.compiler_version !== contract.compiler.version) {
+    fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt compiler version is stale.');
+  }
+  const expectedScope = completionScopeHash(contract, sliceId);
+  if (scope ? scope.sha256 !== expectedScope : plan.sha256 !== contract.source.sha256) {
+    fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt scope is stale or missing.');
+  }
+  const checkpoint = receipt.authorized_decision.checkpoint_commit;
+  const checkpoints = (Array.isArray(state.values.checkpoint_commits)
+    ? state.values.checkpoint_commits : [])
+    .filter((entry) => entry?.slice_id === sliceId);
+  const before = receipt.repository_before;
+  const after = receipt.repository_after;
+  if (checkpoints.length !== 1
+    || checkpoints[0]?.commit !== checkpoint
+    || before?.head_commit !== checkpoint
+    || after?.head_commit !== checkpoint
+    || before?.repository_root_sha256 !== repository.repository_root_sha256
+    || after?.repository_root_sha256 !== repository.repository_root_sha256
+    || receipt.authorized_decision.expected_repository_fingerprint !== before?.fingerprint
+    || receipt.authorized_decision.expected_repository_fingerprint !== after?.fingerprint) {
+    fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt checkpoint identity is invalid.');
+  }
+  try {
+    if (!repositoryCommitIsAncestor({ repoRoot, commit: checkpoint })) {
+      fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion checkpoint is not an ancestor of HEAD.');
+    }
+  } catch (error) {
+    if (error.code === 'E_RESULT_COMPLETION_RECEIPT') throw error;
+    fail('E_RESULT_COMPLETION_RECEIPT', path, error.message);
+  }
+  return sliceId;
+}
+
+function completionReceipts({ contract, repoRoot, repository, state }) {
   const references = Array.isArray(state.values.transition_references)
     ? state.values.transition_references
     : [];
@@ -371,11 +417,9 @@ function completionReceipts({ contract, repoRoot, state }) {
     if (receipt.receipt_id !== reference.receipt_id) {
       fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt ID does not match state.');
     }
-    const plan = receipt.subjects.find((subject) => subject.name === 'plan');
-    if (plan?.sha256 !== contract.source.sha256) {
-      fail('E_RESULT_COMPLETION_RECEIPT', path, 'Completion receipt plan subject is stale.');
-    }
-    const sliceId = receipt.authorized_decision?.slice_id;
+    const sliceId = validateCompletionReceipt({
+      contract, path, receipt, repository, repoRoot, state,
+    });
     if (receipts.has(sliceId)) {
       fail('E_RESULT_COMPLETION_RECEIPT', path, `Duplicate completion receipt for ${sliceId}.`);
     }
@@ -621,7 +665,12 @@ async function verifyFacts({
       })),
     });
   }
-  const completions = completionReceipts({ contract, repoRoot: state.repoRoot, state });
+  const completions = completionReceipts({
+    contract,
+    repository,
+    repoRoot: state.repoRoot,
+    state,
+  });
   const coverage = evaluateWorkflowCoverage({
     completionReceipts: completions,
     contract,
@@ -761,6 +810,11 @@ export async function compilePhaseResult({
   if (!BASE_REF.test(state.values.base_ref)) {
     fail('E_RESULT_STATE', 'state.base_ref', 'base_ref must be a full lowercase Git SHA.');
   }
+  const directory = resolveInsideRepo(
+    evidenceDir || join('.build', 'evidence', loaded.contract.slug),
+    state.repoRoot,
+    'evidence directory',
+  );
   const artifactFile = resolveInsideRepo(
     artifactPath,
     state.repoRoot,
@@ -783,7 +837,7 @@ export async function compilePhaseResult({
     state,
   });
   const repository = await captureRepositoryIdentity({
-    evidenceDir,
+    evidenceDir: directory,
     repoRoot: state.repoRoot,
   });
   let subjects;
@@ -826,7 +880,7 @@ export async function compilePhaseResult({
       { mustExist: true },
     );
     const ledger = resolveInsideRepo(
-      join(evidenceDir || join('.build', 'evidence', loaded.contract.slug), 'ledger.json'),
+      join(directory, 'ledger.json'),
       state.repoRoot,
       'evidence ledger',
       { mustExist: true },
@@ -842,7 +896,7 @@ export async function compilePhaseResult({
     mechanicalFacts = await verifyFacts({
       authored,
       contract: loaded.contract,
-      evidenceDir,
+      evidenceDir: directory,
       loaded,
       paths,
       repository,
@@ -873,12 +927,12 @@ export async function compilePhaseResult({
     ...withId,
     receipt_hash: sha256(canonicalJson(withId)),
   };
-  const directory = resolveInsideRepo(
+  const receiptDirectory = resolveInsideRepo(
     receiptsDir || join('.build', 'result-receipts'),
     state.repoRoot,
     'result receipts directory',
   );
-  const receiptPath = join(directory, `${receiptId}.json`);
+  const receiptPath = join(receiptDirectory, `${receiptId}.json`);
   writeImmutableJson(receiptPath, receipt, {
     collisionCode: 'E_RESULT_RECEIPT_COLLISION',
     collisionMessage: `Immutable phase-result receipt collision at ${receiptPath}.`,

@@ -227,6 +227,23 @@ export function repositoryCleanStatus({ repoRoot = process.cwd() } = {}) {
   return { clean: status.length === 0, status_sha256: sha256(status) };
 }
 
+export function repositoryCommitIsAncestor({ repoRoot = process.cwd(), commit } = {}) {
+  const root = findGitRoot(repoRoot);
+  if (typeof commit !== 'string' || !/^[a-f0-9]{40}$/.test(commit)) {
+    throw new BuildctlError('E_RESULT_CHECKPOINT', 'Checkpoint must be a full lowercase Git SHA.');
+  }
+  const result = git(root, ['merge-base', '--is-ancestor', commit, 'HEAD'], {
+    allowFailure: true,
+  });
+  if (result.status === 0) return true;
+  if (result.status === 1) return false;
+  const stderr = result.stderr || '';
+  throw new BuildctlError(
+    'E_GIT',
+    `git merge-base --is-ancestor failed in ${root}: ${stderr.trim()}`,
+  );
+}
+
 // Paths this check reads. Reported verbatim as test_shrink.bounds so a narrow
 // scan never reads as a clean whole-repository result.
 const TEST_PATH_PATTERN = /(^|\/)(__tests__|tests?|spec|fixtures?|seeds?)\/|\.(test|spec)\.[A-Za-z0-9]+$|_test\.[A-Za-z0-9]+$|(^|\/)conftest\.py$/;
