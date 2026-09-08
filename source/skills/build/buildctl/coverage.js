@@ -166,14 +166,15 @@ export function evaluateWorkflowCoverage({
     .map(([command]) => command)
     .sort();
   for (const task of contract.execution_manifest) {
+    const global = task.wave === 0;
     const slice = contract.delivery_slices.find((entry) => entry.task_ids.includes(task.id));
     const completion = slice ? completionReceipts.get(slice.id) : null;
     const judgments = new Set(completion?.authorized_decision?.judgment_ids || []);
     const binding = contract.bindings.find((entry) => entry.task_id === task.id);
     const mustHave = task.must_haves.find((entry) => entry.id === binding?.must_have_id);
-    let resolved = Boolean(slice && completion && binding && mustHave);
-    if (!slice) gaps.add(`task:${task.id}:slice`);
-    if (!completion) gaps.add(`slice:${slice?.id || 'unknown'}:completion-receipt`);
+    let resolved = Boolean((global || (slice && completion)) && binding && mustHave);
+    if (!global && !slice) gaps.add(`task:${task.id}:slice`);
+    if (!global && !completion) gaps.add(`slice:${slice?.id || 'unknown'}:completion-receipt`);
     if (!binding || !mustHave) gaps.add(`task:${task.id}:binding`);
     requiredCommands.add(task.verify);
     const taskReceipt = receipts.get(task.verify);
@@ -216,7 +217,7 @@ export function evaluateWorkflowCoverage({
           gaps.add(`task:${task.id}:must-have-consumer`);
         }
       }
-    } else if (binding && mustHave && !judgments.has(`binding:${binding.id}`)) {
+    } else if (!global && binding && mustHave && !judgments.has(`binding:${binding.id}`)) {
       resolved = false;
       gaps.add(`binding:${binding.id}:judgment`);
     }
