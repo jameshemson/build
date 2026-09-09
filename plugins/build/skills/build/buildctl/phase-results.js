@@ -212,7 +212,10 @@ function proseVerdict(source, phase) {
       [/^Proceed with fixes$/, 'proceed_with_fixes'],
       ];
   const matches = [];
-  for (const line of source.split(/\r?\n/).map((value) => value.trim().replace(/\.$/, ''))) {
+  for (const value of source.split(/\r?\n/)) {
+    let line = value.trim().replace(/\.$/, '');
+    const bold = line.match(/^\*\*([^*]+)\*\*$/);
+    if (bold) line = bold[1].trim().replace(/\.$/, '');
     for (const [pattern, verdict] of mappings) {
       if (pattern.test(line)) matches.push(verdict);
     }

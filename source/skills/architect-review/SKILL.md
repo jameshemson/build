@@ -67,6 +67,8 @@ If the diff exceeds roughly 2,000 lines, review it in passes — grouped by the 
 
 ## Output
 
+Write exactly one unformatted verdict line: `PASS`, `PASS_WITH_NOTES`, or `FAIL`.
+
 ```
 ## Architect Review
 

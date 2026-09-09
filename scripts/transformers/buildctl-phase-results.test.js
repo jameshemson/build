@@ -884,3 +884,71 @@ test('phase-result architect-review: stale Verify results and changed diffs bloc
   assert.equal(readFileSync(current.statePath, 'utf8'), stateBefore);
   assert.equal(git(current.repo, 'rev-parse', 'HEAD'), headBefore);
 });
+
+for (const [phase, makeRepo, args, verdictLine, verdict, otherLine] of [
+  ['plan-review', makePlanReviewRepo, compileArgs, 'Proceed to implementation', 'proceed', 'Proceed with fixes'],
+  ['verify', makeVerifyRepo, compileVerifyArgs, 'VERIFIED - all available checks pass', 'verified', 'FAILED - checks failed'],
+  ['architect-review', makeArchitectRepo, compileArchitectArgs, 'PASS', 'pass', 'FAIL'],
+]) {
+  test(`phase-result ${phase}: whole-line bold verdicts retain exact artifact and subject authority`, async () => {
+    const setup = await makeRepo();
+    const stateBefore = readFileSync(setup.statePath);
+    const headBefore = git(setup.repo, 'rev-parse', 'HEAD');
+    const statusBefore = git(setup.repo, 'status', '--porcelain=v1', '--untracked-files=all');
+    for (const line of [
+      verdictLine,
+      `  ${verdictLine}.  `,
+      `**${verdictLine}**`,
+      `  **${verdictLine}**  `,
+      `**${verdictLine}.**`,
+      `**${verdictLine}**.`,
+    ]) {
+      const report = setup.report.replace(verdictLine, line);
+      writeFileSync(setup.artifactPath, report);
+      const result = JSON.parse(run(args(setup), setup.repo).stdout);
+      assert.equal(result.verdict, verdict);
+      const receipt = JSON.parse(readFileSync(join(setup.repo, result.receipt_path), 'utf8'));
+      assert.equal(receipt.artifact.sha256, sha256(report));
+      assert.equal(readFileSync(setup.artifactPath, 'utf8'), report);
+    }
+    for (const line of [
+      '',
+      `*${verdictLine}*`,
+      `_${verdictLine}_`,
+      `__${verdictLine}__`,
+      '`' + verdictLine + '`',
+      `# ${verdictLine}`,
+      `**${verdictLine}`,
+      `**${verdictLine}*`,
+      `***${verdictLine}***`,
+      `****${verdictLine}****`,
+      `Result: **${verdictLine}**`,
+      `**${verdictLine}** extra`,
+      `**${verdictLine}**\n**${verdictLine}**`,
+      `${verdictLine}\n**${verdictLine}**`,
+      `**${verdictLine}**\n**${otherLine}**`,
+      `**${otherLine}**`,
+    ]) {
+      const report = setup.report.replace(verdictLine, line);
+      writeFileSync(setup.artifactPath, report);
+      assert.match(run(args(setup), setup.repo, 1).stderr, /E_RESULT_VERDICT_MISMATCH/, line);
+      assert.equal(readFileSync(setup.artifactPath, 'utf8'), report);
+    }
+    const boldReport = setup.report.replace(verdictLine, `**${verdictLine}**`);
+    const forgedReport = boldReport.replace(/(name: plan, sha256: ")[a-f0-9]{64}/, '$1' + '0'.repeat(64));
+    assert.notEqual(forgedReport, boldReport);
+    writeFileSync(setup.artifactPath, forgedReport);
+    assert.match(run(args(setup), setup.repo, 1).stderr, /E_RESULT_SUBJECT/);
+    assert.equal(readFileSync(setup.artifactPath, 'utf8'), forgedReport);
+    writeFileSync(setup.artifactPath, boldReport);
+    const planPath = join(setup.repo, 'plan.yaml');
+    const planBefore = readFileSync(planPath);
+    writeFileSync(planPath, Buffer.concat([planBefore, Buffer.from('\n# stale subject\n')]));
+    assert.match(run(args(setup), setup.repo, 1).stderr, /E_CONTRACT_STALE/);
+    writeFileSync(planPath, planBefore);
+    assert.equal(readFileSync(setup.artifactPath, 'utf8'), boldReport);
+    assert.deepEqual(readFileSync(setup.statePath), stateBefore);
+    assert.equal(git(setup.repo, 'rev-parse', 'HEAD'), headBefore);
+    assert.equal(git(setup.repo, 'status', '--porcelain=v1', '--untracked-files=all'), statusBefore);
+  });
+}

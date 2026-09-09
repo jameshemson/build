@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.17.0 - 2026-09-09
+
+### Changed
+
+- Fresh Codex builds use explicit role routes: Astra low for ordinary implementation
+  and receipt verification, Astra medium for planning/review and cross-file judgment,
+  Astra high for independent architect review, and Luna max for exploration. Root
+  planning inherits its active session; architect xhigh remains an explicit preference.
+  Saved workflows and opaque custom profiles retain their settings.
+- Plans specify implementable contracts without routine whole-file code appendices.
+  Bounded worker packets and role-specific reviewer indexes reduce redundant context
+  while preserving exact evidence, every required gate and whole-diff review coverage.
+- Documented fixed routing/planning/review acceptance exercises and a three-build
+  adoption comparison, without claiming measured cost savings.
+
+### Fixed
+
+- Phase-result compilation accepts a complete verdict line wrapped in Markdown bold,
+  avoiding a repeat model call for formatting alone. Missing, duplicate, conflicting
+  and prose-to-machine mismatched verdicts still fail; exact artifact identity and
+  stale-evidence checks remain required.
+- Architect output instructions request one plain verdict line. README now distinguishes
+  root ownership of the pinned Git target from independent inspection of its diff.
+
 ## 1.16.1 - 2026-09-08
 
 ### Fixed
