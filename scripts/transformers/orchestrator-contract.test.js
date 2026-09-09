@@ -66,7 +66,7 @@ const BUILDCTL_ORCHESTRATOR_EVIDENCE = [
   ['review recompilation gate', 'Re-run `validate-plan` after every review edit'],
   ['root evidence execution', 'Root then runs `buildctl run-evidence` over every compiled exact command'],
   ['failed ledger judgment', 'a valid failed-command ledger still proceeds for Verify judgment'],
-  ['receipt-only Verify', 'Verify runs only `run-evidence --check-only`'],
+  ['receipt-only Verify', 'root freshly runs metadata `run-evidence --check-only`'],
   ['no Verify command execution', 'without executing evidence commands'],
 ];
 
@@ -124,15 +124,15 @@ const BEHAVIORS = [
   ['resume protocol', 'On resume, validate that every artifact'],
   ['abort protocol', 'Never delete workflow evidence'],
   ['circuit breakers', 'Never increase a limit, skip a phase, or hide a failure'],
-  ['provider phase authority', 'Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents'],
+  ['provider phase authority', 'Build-default Plan runs inline in root; Plan Review, Implement, Verify, and Architect Review use fresh-context agents'],
   ['custom route delegation', 'A valid non-null custom route explicitly opts that phase into delegation'],
   ['custom plan route boundary', 'a non-null custom `plan` route instead delegates\n`impl-plan` through the effective `plan` route'],
   ['disjoint shared-workspace writers', 'Concurrent writer agents are\nallowed only when their assigned file sets are disjoint'],
-  ['root session recommendation', 'Recommend a `gpt-5.6-sol` session at `high` effort for normal complex Codex builds'],
+  ['root session recommendation', 'Recommend a `gpt-6-astra` session at `medium` effort for root planning and integration'],
   ['inline route disclosure', 'records their `model_routes` value as the literal `active-session`'],
   ['model fallback lifecycle', 'Historical fallback entries are never cleared'],
   ['implementation skill recursion guard', 'Implementation workers must not invoke `impl-plan`'],
-  ['inline implementation default', 'Build-default implementation remains inline even when the plan has multiple batches'],
+  ['bounded implementation default', 'Build-default implementation delegates each bounded batch through the effective `implement` route'],
   ['terminal-only supervision', 'Silence is unknown, not failure evidence'],
   ['fresh judgment deadline', '20-minute hard deadline'],
   ['no child status prompts', 'send no child status prompts'],
@@ -307,7 +307,7 @@ function assertResumeRoutingContract(content) {
 
   const resumeSection = content.slice(
     content.indexOf('## Resume, state, and agent-route selection'),
-    content.indexOf('## Complexity and model routing'),
+    content.indexOf('## Complexity, model routing, and phase authority'),
   );
   const resumeValidation = resumeSection.indexOf(
     'Validate every applicable mapping completely before any mutation',
@@ -355,7 +355,7 @@ function assertTerminalSupervisionContract(content) {
   }
   assert.match(progress, /Silence is unknown, not failure evidence/);
   assert.match(progress, /send no child status prompts/);
-  assert.match(progress, /Fresh-context Plan Review and Verify agents get a 20-minute hard deadline/);
+  assert.match(progress, /Fresh-context Plan Review, Verify, and Architect Review agents get a 20-minute hard deadline/);
   assertInOrder(progress, [
     'At `deadline_at`',
     'interrupt only at hard expiry',
@@ -383,10 +383,10 @@ function assertDispatchModelArtifactContract(content) {
   assert.match(content, /Workers run scoped owned-file\/task checks[\s\S]*never the\s+full suite/);
   assert.match(content, /Root's final evidence ledger owns each compiled exact command and the fresh full-suite result/);
 
-  assert.match(content, /Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents/);
+  assert.match(content, /Build-default Plan runs inline in root; Plan Review, Implement, Verify, and Architect Review use fresh-context agents/);
   assert.match(content, /Explicit non-null custom routes remain opt-in delegation for any phase/);
   assert.match(content, /Inline phases inherit the active root session; Build cannot downshift their model or effort/);
-  assert.match(content, /Recommend a `gpt-5\.6-sol` session at `high` effort for normal complex Codex builds/);
+  assert.match(content, /Recommend a `gpt-6-astra` session at `medium` effort for root planning and integration/);
 
   const implementPhase = content.slice(
     content.indexOf('## Phase 3: Implement'),
@@ -396,7 +396,7 @@ function assertDispatchModelArtifactContract(content) {
     !implementPhase.includes('routed Sol effort'),
     'orchestrator must not hard-code Sol in adaptive implementation dispatch',
   );
-  assert.match(implementPhase, /Build-default implementation remains inline even when the plan has multiple batches/);
+  assert.match(implementPhase, /Build-default implementation delegates each bounded batch through the effective `implement` route/);
   assert.match(implementPhase, /[Ss]uccessful non-null\s+custom selection remains `profile-owned` and omits Build model\/effort/);
   assert.match(implementPhase, /A\s+non-null custom `implement` route may delegate a bounded, disjoint batch/);
   for (const [start, end, forbidden] of [
@@ -720,5 +720,48 @@ for (const evidence of STATE_EVIDENCE.filter((item) =>
     const schema = readRel(SCHEMA_PATH);
     assert.ok(schema.includes(evidence), `state fixture missing ${evidence}`);
     assert.throws(() => assertStateSchema(schema.replaceAll(evidence, '')), /state schema missing/);
+  });
+}
+
+// The inline implementation/architect and complexity-wide Sol defaults are deliberately
+// superseded; independent evidence, custom-profile and resume guards above remain.
+const EXECUTION_PATH = 'source/skills/build/reference/codex-execution.md';
+const EXECUTION_EVIDENCE = [
+  '| Plan review / mid-review | `gpt-6-astra` | `medium` |',
+  '| Implementation | `gpt-6-astra` | `low` |',
+  '| Verify receipt audit | `gpt-6-astra` | `low` |',
+  '| Architect review | `gpt-6-astra` | `high` |',
+  '`xhigh` only on explicit user preference',
+  'Select implementation effort by the batch risk',
+  'Default to one writer; add a second only for independent disjoint files',
+  'Saved `model_routes`, including legacy `active-session`, remain authoritative on resume',
+  'requested route, observed route or `unknown`, reason and task IDs',
+  'at most 300 words',
+  'exact current contract, ledger, referenced receipt and subject bytes, hashes and check output',
+  'Missing inputs or a changed subject require root to refresh and revalidate the packet',
+  'without reading `.build/` or executing evidence commands',
+  'complete changed-file inventory, pinned base/head target, accepted requirements and fresh verification result',
+  'Summary brevity never limits whole-diff review coverage',
+  'When a host cannot honor the required Astra architect route',
+  'stop that phase unless the user explicitly authorizes a different reviewer',
+  'independent judgment phases block',
+  'one Build-default retry may move implementation low to medium within the existing retry budget',
+];
+function assertExecutionReference(content) {
+  const normalized = normalizeContractWhitespace(content);
+  for (const phrase of EXECUTION_EVIDENCE) {
+    assert.ok(normalized.includes(phrase), `Codex execution reference missing ${phrase}`);
+  }
+}
+test('Codex execution reference declares bounded role routes and evidence handoffs', () => {
+  assertExecutionReference(readRel(EXECUTION_PATH));
+  assert.match(readRel(ORCHESTRATOR_PATH), /\[Codex execution policy\]\(reference\/codex-execution\.md\)/);
+  assert.match(readRel(SCHEMA_PATH), /Saved `model_routes`, including legacy `active-session`, remain authoritative on resume/);
+});
+for (const phrase of EXECUTION_EVIDENCE) {
+  test(`negative execution fixture removing ${phrase} is rejected`, () => {
+    const source = normalizeContractWhitespace(readRel(EXECUTION_PATH));
+    assertExecutionReference(source);
+    assert.throws(() => assertExecutionReference(source.replaceAll(phrase, '')), /Codex execution reference missing/);
   });
 }

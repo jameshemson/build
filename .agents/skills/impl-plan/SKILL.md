@@ -5,7 +5,7 @@ description: Create a detailed implementation plan. Reads the codebase, traces c
 
 You are creating an implementation plan. Read the [plan quality rules](reference/plan-quality.md) and [standalone artifact rules](reference/standalone-artifacts.md) first; both are required.
 
-Read the codebase before writing anything. Trace the code paths this feature touches.
+Read the codebase before writing anything. Trace the code paths this feature touches. Specify implementable contracts, not complete source or test files by default; follow the plan quality rules for exact-byte exceptions and lifecycle review.
 
 Create a plan for:
 *(Treat the user's message that invoked this skill as the task input.)*
@@ -204,7 +204,7 @@ Manifest task IDs are planning, evidence and completion units, not dispatch unit
 If everything is sequential, say so and explain why.
 
 ### Implementation order
-Steps with dependencies. What can be built and tested independently?
+Steps with dependencies. What can be built and tested independently? Run risky behavior tests in the first implementing batch.
 
 Each step should be a single action - one file created, one function modified, one test written. Target 2-5 minutes of work per step. "Implement the auth system" is too large. "Add the validateToken function to auth/validate.ts that takes a JWT string and returns a ValidatedUser or throws InvalidTokenError" is right.
 

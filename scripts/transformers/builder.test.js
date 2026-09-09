@@ -377,9 +377,9 @@ function assertGeneratedTypedEvidence(config, providerName) {
 }
 
 function assertGeneratedCodexExecutionProfile(content, providerName) {
-  assert.match(content, /Build-default Plan, Implement, and Architect Review run inline in root/,
-    `${providerName}: generated Build missing inline phase authority`);
-  assert.match(content, /Plan Review and Verify use fresh-context agents/,
+  assert.match(content, /Build-default Plan runs inline in root/,
+    `${providerName}: generated Build missing root planning authority`);
+  assert.match(content, /Plan Review, Implement, Verify, and Architect Review use fresh-context agents/,
     `${providerName}: generated Build missing fresh-context boundaries`);
   assert.match(content, /Silence is unknown, not failure evidence/,
     `${providerName}: generated Build missing terminal-only supervision`);
@@ -762,7 +762,16 @@ test('real source/skills: each provider emits expected skill set with no Claude-
       const generatedBuild = readSandboxSkill(config, 'build');
       assertGeneratedBuildDeliverySlices(generatedBuild, name);
       assertGeneratedBuildBoundedEvidence(generatedBuild, name);
-      if (name.startsWith('codex')) assertGeneratedCodexExecutionProfile(generatedBuild, name);
+      if (name.startsWith('codex')) {
+        assertGeneratedCodexExecutionProfile(generatedBuild, name);
+        const execution = readSandboxSkill(config, 'build', 'reference/codex-execution.md');
+        for (const phrase of ['| Implementation | `gpt-6-astra` | `low` |',
+          '| Architect review | `gpt-6-astra` | `high` |',
+          'Saved `model_routes`, including legacy `active-session`, remain authoritative on resume',
+          'without reading `.build/` or executing evidence commands']) {
+          assert.ok(execution.includes(phrase), `${name}: generated execution policy missing ${phrase}`);
+        }
+      }
     }
   }
 
