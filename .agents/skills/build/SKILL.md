@@ -15,7 +15,8 @@ materially change the result. Boundedness never skips required phases; worker, i
 root's exactly one fresh final ledger and Phase 4 receipt judgment; safety, security, or data rigor; scope changes; or user-only decisions.
 
 Read [the state schema](reference/state-schema.md) before starting. The schema owns
-field formats and lifecycle rules.
+field formats and lifecycle rules. Read [Codex execution policy](reference/codex-execution.md)
+for role defaults, bounded packets, availability and receipt handoffs; it is required before dispatch.
 
 ## Root-only mutation boundary
 
@@ -75,13 +76,12 @@ files, risks, dependencies, and workstreams, set final `complexity` to `simple`,
 or `complex`. Risk overrides file count upward; auth, security, destructive, or high-risk data
 work is always `complex`.
 
-Build-default Plan, Implement, and Architect Review run inline in root; Plan Review and Verify use fresh-context agents. Inline phases inherit the active root session; Build cannot downshift their model or effort, and records their `model_routes` value as the literal `active-session`. Recommend a `gpt-5.6-sol` session at `high` effort for normal complex Codex builds. This is cost guidance, not a host-enforced route.
+Build-default Plan runs inline in root; Plan Review, Implement, Verify, and Architect Review use fresh-context agents. Tiny mechanical implementation may run inline only when classified simple and wholly contained in one existing pattern. Inline phases inherit the active root session; Build cannot downshift their model or effort, and records their `model_routes` value as the literal `active-session`. Recommend a `gpt-6-astra` session at `medium` effort for root planning and integration.
 
-Build-default fresh judgment routes are `gpt-5.6-sol`/`medium` for simple,
-`gpt-5.6-sol`/`high` for standard, and `gpt-5.6-sol`/`xhigh` for complex. Read-only
-exploration uses `gpt-5.6-luna`/`max`: simple uses no explorer, standard uses at most two,
+Fresh defaults use explicit `gpt-6-astra` routes: review `medium` (high for the reference's lifecycle/security risks), implementation `low` (medium for the batch's design risks), Verify `low` (medium for semantic coverage/debt judgment), architect `high` (`xhigh` only on explicit user preference). Read-only exploration uses `gpt-5.6-luna`/`max`: simple uses
+no explorer, standard uses at most two,
 and complex uses at most three. Every explorer has the default five-minute runtime; use
-partial evidence when it expires.
+partial evidence when it expires. Saved model routes remain authoritative on resume; resolve only missing roles once under the reference's rules.
 
 Explicit non-null custom routes remain opt-in delegation for any phase. A valid non-null
 custom route explicitly opts that phase into delegation. Every delegated explorer,
@@ -105,12 +105,12 @@ agent-selection fallback.
 
 ## Codex execution and supervision
 
-Under Build-default, root invokes the documented `impl-plan` and `architect-review` contracts
-inline. Explicit custom routes may delegate them as their phase clauses specify. Root dispatches
-`review-plan` and `verify` as fresh-context judgments. Root saves every artifact and updates state.
+Under Build-default, root invokes the documented `impl-plan` contract inline and delegates
+independent judgment and bounded implementation through their effective routes. Root saves every artifact and updates state.
 Implementation workers must not invoke `impl-plan`, `review-plan`, `verify`, `architect-review`,
-or another workflow skill; a custom-routed writer returns only a terminal `DONE`,
+or another workflow skill; every writer returns only a terminal `DONE`,
 `DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, `BLOCKED`, or `SCOPE_CHANGE` handoff.
+Use the execution reference's current-workstream packets, bounded reads, route audit and availability rules for every dispatch.
 
 Every dispatch names an agent label, task IDs, owned files, current command, and runtime. Record
 `agent_progress` with `supervision_mode: terminal-only`, `dispatched_at`, immutable `deadline_at`,
@@ -118,9 +118,9 @@ Every dispatch names an agent label, task IDs, owned files, current command, and
 terminal events and send no child status prompts; user-facing progress comes from root-owned work
 and host-observed terminal state, not child milestone bookkeeping.
 
-Fresh-context Plan Review and Verify agents get a 20-minute hard deadline. At `deadline_at`,
+Fresh-context Plan Review, Verify, and Architect Review agents get a 20-minute hard deadline. At `deadline_at`,
 interrupt only at hard expiry, record `handoff-timeout`, then allow at most one fresh retry. A
-second Plan Review failure blocks implementation; never replace independent review with inline
+second fresh judgment failure blocks its successor; never replace independent review with inline
 self-review unless the user explicitly overrides that boundary. A named slow command may declare
 a longer deadline before dispatch, never after it starts.
 
@@ -197,10 +197,11 @@ workstream's ready frontier into the fewest bounded batches. Give each batch one
 internal topological order, and the union of owned files. Manifest IDs remain planning, evidence,
 and completion units, not dispatch units. Never spawn one writer per manifest task.
 Split only for external dependency, overlap, or runtime; concurrent unions must be disjoint.
-Build-default implementation remains inline even when the plan has multiple batches. A
-non-null custom `implement` route may delegate a bounded, disjoint batch. Dispatch it through the
-effective `implement` route. A successful non-null
-custom selection remains `profile-owned` and omits Build model/effort. Serialize dependencies
+Build-default implementation delegates each bounded batch through the effective `implement` route,
+except the tiny mechanical inline case or a saved inline route on resume.
+A non-null custom `implement` route may delegate a bounded, disjoint batch. A successful non-null
+custom selection remains `profile-owned` and omits Build model/effort. Default to one writer;
+a second requires independent disjoint files and available host slots. Serialize dependencies
 and overlap; root owns shared files, git operations, commits, and integration.
 
 For inline work and every delegated implementation prompt, apply Occam's Razor within the accepted
@@ -241,7 +242,7 @@ directly.
 ## Phase 4: Verify
 
 Read state, requirements, plan, and implementation summary. Only after every slice is completed,
-run `verify` in a fresh-context agent as the fresh whole-workflow authority. With compiled evidence, Verify runs only `run-evidence --check-only` and judges receipt freshness, exact-command consumers, expected observations, requirement/must-have coverage, and debt without executing evidence commands. Prompt fallback retains the prior exact-command protocol. Root's final evidence ledger owns each compiled exact command and the fresh full-suite result; Phase 4 owns receipt coverage and the debt scan.
+run `verify` in a fresh-context agent as the fresh whole-workflow authority. With compiled evidence, root freshly runs metadata `run-evidence --check-only`, exports the exact validated packet required by the execution reference, and Verify judges receipt freshness, exact-command consumers, expected observations, requirement/must-have coverage, and debt without executing evidence commands or reading `.build/`. Root refreshes and revalidates missing inputs or a changed subject before acceptance; this Codex handoff adapts the portable Verify protocol. Prompt fallback retains the prior exact-command protocol. Root's final evidence ledger owns each compiled exact command and the fresh full-suite result; Phase 4 owns receipt coverage and the debt scan.
 Save `{slug}-verify.md` before changing state.
 
 When runnable, run `compile-result` against the saved report and current state/contract/evidence; buildctl owns whole-workflow coverage and file scope while Verify authors semantic judgment without re-executing evidence commands. A runnable diagnostic blocks and never selects fallback. Require the current immutable result, then root appends `{phase,receipt_id}` to `phase_result_references`, records verdict and gaps/failures plus history, and applies only its allowed next phase: transition to `architect-review` for VERIFIED/PARTIAL or `implement` for FAILED. Recorded runtime absence uses the authored mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
@@ -250,8 +251,10 @@ When runnable, run `compile-result` against the saved report and current state/c
 
 Read all artifacts. Architect Review remains the whole-diff authority: root computes the
 review target from `base_ref` and owns the git diff; slice evidence never substitutes.
-Run the `architect-review` contract inline with the target and verify verdict. A non-null
-custom `architect-review` route may explicitly delegate it.
+Run the `architect-review` contract in a fresh-context agent through its effective route (preserving
+a saved legacy inline route on resume) with the
+complete changed-file inventory, pinned base/head target, accepted requirements and fresh Verify result.
+The reference requires whole-diff coverage and explicit authorization for an unavailable default architect route.
 Save `{slug}-architect-review.md` before changing state.
 
 When runnable, run `compile-result` against the saved review; it requires the current accepted Verify result and exact final diff, and a runnable diagnostic blocks without fallback. Root validates the immutable receipt, appends `{phase,receipt_id}` to `phase_result_references`, records verdict/findings and history, and applies only its allowed next phase: transition to terminal `complete` for PASS/PASS_WITH_NOTES, or `implement` with `architect_fixes` for FAIL and fresh Verify. Recorded runtime absence uses the authored mapping and disclosure; missing verdict applies the phase-agent circuit breaker.

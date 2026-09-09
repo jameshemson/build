@@ -75,13 +75,13 @@ const REQUIRED_TERMS = {
     'Build agent routing',
     'profile-owned',
     'fork_turns: "none"',
-    'gpt-5.6-sol',
+    'gpt-6-astra',
     'gpt-5.6-luna',
     '`xhigh`',
     '`max`',
     'Codex execution and supervision',
-    'Build-default Plan, Implement, and Architect Review run inline in root',
-    'Plan Review and Verify use fresh-context agents',
+    'Build-default Plan runs inline in root',
+    'Plan Review, Implement, Verify, and Architect Review use fresh-context agents',
     'Concurrent writer agents',
     'agent_progress',
     'Silence is unknown, not failure evidence',
@@ -142,6 +142,8 @@ const REQUIRED_TERMS = {
 };
 
 const HARD_LINE_LIMITS = {
+  'source/skills/build/reference/codex-execution.md': 150,
+  'source/skills/build/reference/codex-default-eval.md': 150,
   'source/skills/build/SKILL.md': 320,
   'source/skills/build/SKILL.codex.md': 300,
   'source/skills/impl-plan/SKILL.md': 230,
@@ -1641,4 +1643,40 @@ test('source skills stay below hard prompt-size ceilings', () => {
       `${path} has ${lines} lines, exceeding hard ceiling ${limit}`,
     );
   }
+});
+
+const PLANNING_SPECIFICITY = [
+  'exact file scope, interfaces, data shapes, migrations, lifecycle ordering and direct acceptance evidence',
+  'Full source/test replacements are exceptional',
+  'exact-byte artifact requirement',
+  'Small signature, SQL or difficult integration examples remain valid',
+  'Do not shrink requirements, bindings or necessary cross-harness safeguards to meet an arbitrary word limit',
+  'ownership, cancellation, sign-out/deletion, restart and failure ordering',
+  'Repair affected contracts and tasks rather than repeatedly regenerating entire implementations',
+  'Run risky behavior tests in the first implementing batch',
+  'runnable shell command, including Wave 0; never prose inspection instructions',
+];
+function assertPlanningSpecificity(content) {
+  for (const phrase of PLANNING_SPECIFICITY) {
+    assert.ok(content.includes(phrase), `planning specificity missing ${phrase}`);
+  }
+}
+for (const path of ['source/skills/impl-plan/reference/plan-quality.md']) {
+  test(`${path} specifies contracts without routine whole-file implementations`, () => {
+    assertPlanningSpecificity(readRel(path));
+  });
+  for (const phrase of PLANNING_SPECIFICITY) {
+    test(`negative planning specificity fixture ${path} removing ${phrase} is rejected`, () => {
+      const source = readRel(path);
+      assertPlanningSpecificity(source);
+      assert.throws(() => assertPlanningSpecificity(source.replaceAll(phrase, '')), /planning specificity missing/);
+    });
+  }
+}
+
+test('planner points to contract specificity and schedules risky behavior evidence early', () => {
+  const planner = readRel('source/skills/impl-plan/SKILL.md');
+  assert.ok(planner.includes('Specify implementable contracts, not complete source or test files by default'));
+  assert.ok(planner.includes('follow the plan quality rules for exact-byte exceptions and lifecycle review'));
+  assert.ok(planner.includes('Run risky behavior tests in the first implementing batch'));
 });

@@ -233,14 +233,14 @@ test('Codex documentation describes provider phase authority, custom routing, sh
   const copy = [readFileSync(readmePath, 'utf8'), readFileSync(harnessesPath, 'utf8')].join('\n');
   assert.match(copy, /\$build:build <feature>/);
   assert.match(copy, /Claude[\s\S]*subagents[\s\S]*worktrees/i);
-  assert.match(copy, /Codex[\s\S]*Plan, Implement, and Architect Review[\s\S]*inline/i);
-  assert.match(copy, /Plan Review and Verify[\s\S]*fresh-context/i);
+  assert.match(copy, /Codex[\s\S]*Build-default Plan runs inline in root/i);
+  assert.match(copy, /Plan Review, Implement, Verify, and Architect Review use fresh-context agents/i);
   assert.match(copy, /silence is unknown, not failure evidence/i);
   assert.match(copy, /20-minute hard deadline/i);
-  assert.match(copy, /Sol[\s\S]*high effort/i);
-  assert.match(copy, /shared workspace/i);
+  assert.match(copy, /Start a fresh Build in `gpt-6-astra` at `medium`/i);
+  assert.match(copy, /share one workspace/i);
   assert.match(copy, /disjoint/i);
-  assert.match(copy, /gpt-5\.6-sol/i);
+  assert.match(copy, /Architect Review uses `xhigh` only when the user explicitly requests it/i);
   assert.match(copy, /model_fallback/);
 
   assert.match(copy, /`evidence_mode: typed`/);

@@ -30,6 +30,12 @@ The following patterns are NEVER acceptable in a plan. Each is a plan failure - 
 - Any step a developer would need to "figure out" to execute
 - References to types, functions, or methods not defined anywhere in the plan
 
+## Contract specificity and lifecycle review
+
+Require exact file scope, interfaces, data shapes, migrations, lifecycle ordering and direct acceptance evidence. A self-contained plan supplies the implementable contract without routinely containing complete source or test files. Full source/test replacements are exceptional: justify each by an exact-byte artifact requirement. Small signature, SQL or difficult integration examples remain valid when exact syntax resolves ambiguity. Do not shrink requirements, bindings or necessary cross-harness safeguards to meet an arbitrary word limit.
+
+Before reviewing lifecycle-heavy plans, identify ownership, cancellation, sign-out/deletion, restart and failure ordering. State the responsible owner, invalidation/cancellation trigger, ordering guarantees and observable outcome for each applicable path, including races and partial failure. Repair affected contracts and tasks rather than repeatedly regenerating entire implementations. Run risky behavior tests in the first implementing batch. Review edits still follow the existing review/recompile rules.
+
 ## Good vs Bad Steps
 
 **BAD:** "Add error handling to the API endpoint"
@@ -77,7 +83,7 @@ Plans must include a fenced YAML block named `execution_manifest`. Every task en
 - `requirements`: `REQ-*` IDs the task satisfies
 - `decisions`: `D-*` IDs the task implements
 - `must_haves`: typed, observable acceptance criteria, not advice
-- `verify`: exact command or inspection that proves the task
+- `verify`: exact runnable shell command, including Wave 0; never prose inspection instructions. Put manual inspections in typed evidence refs and implementation steps, outside executable command fields.
 - `done`: observable completion statement
 
 Every `REQ-*` and `D-*` must appear in at least one task and at least one verification path. Same-wave tasks must not share `files_modified`; put shared files in a later dependent task or merge the workstreams.
