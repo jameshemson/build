@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `peer` workflow mode (Claude orchestrator): the opus pin plans and fresh fable-model agents
+  run plan review, mid-review, Verify and Architect Review, even when the session itself is
+  fable. An opus-led session gets cross-model judgment without relay stops. An unavailable
+  fable override falls back to a fresh agent on the session's model, never the root session,
+  and is recorded as a visible `model_fallback`. The fresh-workflow mode ask now offers four
+  options. Fable and Opus share
+  a vendor, so `mixed` remains the more independent check.
+
 ## 1.17.0 - 2026-09-09
 
 ### Changed

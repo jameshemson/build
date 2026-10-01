@@ -7,7 +7,7 @@ as `workflow_mode` in state, with the source it came from, before its first disp
 
 ## Modes
 
-The three modes are `opus`, `fable`, and `mixed`; a missing `workflow_mode` resolves to `opus` and preserves current behavior.
+The four modes are `opus`, `fable`, `mixed`, and `peer`; a missing `workflow_mode` resolves to `opus` and preserves current behavior.
 
 - **`opus`** — all six agent-route keys take the Build default, and `model_routes` records the
   documented pins: `plan` opus at `high` effort through the ``impl-plan` (via `$skill impl-plan` or `/skills`)` Skill invocation,
@@ -32,33 +32,49 @@ The three modes are `opus`, `fable`, and `mixed`; a missing `workflow_mode` reso
   `review: codex-relay`, `verify: codex-relay`, and `architect-review: codex-relay`. Everything
   else routes as `opus`. The three judgment phases move to Codex so their verdicts come from a
   different model family than the one that authored the work.
+- **`peer`** — `review`, `verify`, and `architect-review` route to the fable model, and `review`
+  also governs mid-review. Each of these phases runs in a fresh agent that root dispatches through
+  the Agent tool with `model: fable`, whatever the session's model, even a fable session. The
+  agent reads the phase skill's `SKILL.md` and every reference that skill requires, receives the
+  same explicit inputs the Skill invocation would carry, follows the protocol as written, and
+  returns the artifact body; root saves it at its natural path, exactly as for the Skill
+  invocation. Root records each key as `fable`. Everything else routes as `opus`, so the opus pin
+  plans and fable models judge. If the override is unavailable or rejected, root appends
+  `model_fallback`, dispatches the same fresh agent without the `model: fable` override so it runs
+  on the session's model, and discloses the substitution in `history` and the final summary; the
+  fallback never moves a judgment phase into the root session. This mode gives an opus-led
+  session cross-model judgment without relay stops. Fable and Opus share a vendor, so `mixed`
+  still gives the more independent verdict.
 
 `review` and `verify` are never routed `active-session`; independent fresh-context judgment is mode-invariant.
 A mode may move those keys to a fresh context in another harness, but never into the session that
 produced the plan or the diff.
 
-Model-route bookkeeping follows the key's routing: a fable-routed key records `active-session`
-when root executed it in a fable session and `fable` when it dispatched a fable-model agent, a
-`codex-relay` key records the literal `codex-relay`, and every remaining key records the `opus`
-pin listed above.
+Model-route bookkeeping follows the key's routing: a key that `fable` or `mixed` routes to the
+fable model records `active-session` when root executed it in a fable session and `fable` when it
+dispatched a fable-model agent, a `peer`-routed key always records `fable`, a `codex-relay` key
+records the literal `codex-relay`, and every remaining key records the `opus` pin listed above.
 
 ## Mode resolution
 
-Resolution precedence is a `mode=opus`, `mode=fable`, or `mode=mixed` token in the invocation, then a `build-mode:` line in the effective `AGENTS.md`, then a fresh-workflow AskUserQuestion; the recorded `workflow_mode` is authoritative on resume and is never re-asked.
+Resolution precedence is a `mode=opus`, `mode=fable`, `mode=mixed`, or `mode=peer` token in the invocation, then a `build-mode:` line in the effective `AGENTS.md`, then a fresh-workflow AskUserQuestion; the recorded `workflow_mode` is authoritative on resume and is never re-asked.
 
 On Claude Code, `CLAUDE.md` serves as the effective `AGENTS.md` when no `AGENTS.md` file exists.
 
-The grammar is deterministic, and every applicable source is validated before any mutation. The invocation may contain at most one token matching `\bmode=(opus|fable|mixed)\b` and the effective `AGENTS.md` at most one line matching `^build-mode:[ \t]*(opus|fable|mixed)[ \t]*$`; a duplicate or unrecognized value rejects that entire source by name and resolution falls to the next source.
+The grammar is deterministic, and every applicable source is validated before any mutation. The invocation may contain at most one token matching `\bmode=(opus|fable|mixed|peer)\b` and the effective `AGENTS.md` at most one line matching `^build-mode:[ \t]*(opus|fable|mixed|peer)[ \t]*$`; a duplicate or unrecognized value rejects that entire source by name and resolution falls to the next source.
 Rejecting a source is not a halt. Report the source name and the offending text, then continue at
 the next source in precedence order — a rejected invocation token does not suppress an otherwise
 valid `build-mode:` line, and a rejected `AGENTS.md` line does not suppress the ask.
 
 The AskUserQuestion is reached only when neither source supplies a mode, and only on a fresh
-workflow. Ask one question with exactly three options, in this order:
+workflow. Ask one question with exactly four options, in this order:
 
 1. `opus` — current pinned routing. Recommended, and listed first.
 2. `fable` — the fable model plans and architect-reviews.
 3. `mixed` — fable planning plus Codex judgment relays.
+4. `peer` — opus planning plus fable-model judgment agents.
+
+Four is the AskUserQuestion option limit, so a fifth mode needs a different ask.
 
 Never ask on resume: a state that already records `workflow_mode` uses it as written, whatever the
 current invocation or `AGENTS.md` now says. If the mode ask cannot be presented, resolve to `opus` and record it in history.
