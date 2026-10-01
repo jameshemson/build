@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import { ROOT } from './utils.js';
 import {
+  BuildctlError,
   parseYaml,
   parseMarkdownYamlSection,
 } from '../../source/skills/build/buildctl/plan-contract.js';
@@ -116,4 +125,144 @@ test('yaml golden: fixture documents parse unchanged', () => {
     assert.deepEqual(parsed, golden[key], `parse result changed for golden key: ${key}`);
   }
   console.log('yaml golden complete');
+});
+
+const CLI = join(ROOT, 'source/skills/build/buildctl/cli.js');
+const VALID_PLAN_MD = join(ROOT, 'scripts/fixtures/buildctl/kemet-lite/valid-plan.md');
+
+const MACHINE_RESULT = {
+  schema_version: 1,
+  phase: 'verify',
+  verdict: 'partial',
+  subjects: [{ name: 'plan', sha256: 'abc' }],
+  findings: [
+    { id: 'VR-001', severity: 'minor', summary: 'The build passes, but X' },
+  ],
+};
+
+const MACHINE_RESULT_YAML = [
+  'schema_version: 1',
+  'phase: verify',
+  'verdict: partial',
+  'subjects:',
+  '  - { name: plan, sha256: "abc" }',
+  'findings:',
+  '  - id: VR-001',
+  '    severity: minor',
+  '    summary: The build passes, but X',
+].join('\n');
+
+const FENCE = '```';
+
+function machineResultMarkdown(language, body) {
+  return `# Verify\n\nPartial.\n\n## Machine result\n\n${FENCE}${language}\n${body}\n${FENCE}\n`;
+}
+
+// Compile a rewritten copy of valid-plan.md in a throwaway Git repository and
+// return the CLI result.
+function validateRewrittenPlan(rewrite) {
+  const repo = mkdtempSync(join(tmpdir(), 'buildctl-yaml-'));
+  try {
+    const init = spawnSync('git', ['init', '-q'], { cwd: repo, encoding: 'utf8' });
+    assert.equal(init.status, 0, init.stderr);
+    const original = readFileSync(VALID_PLAN_MD, 'utf8');
+    const rewritten = rewrite(original);
+    assert.notEqual(rewritten, original, 'plan rewrite must change the fixture');
+    writeFileSync(join(repo, 'plan.md'), rewritten, 'utf8');
+    return spawnSync(process.execPath, [
+      CLI,
+      'validate-plan',
+      '--plan', 'plan.md',
+      '--out', join(repo, '.build/contracts/plan/contract.json'),
+    ], { cwd: repo, encoding: 'utf8' });
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+}
+
+test('yaml block scalars: a block map value keeps its comma', () => {
+  assert.deepEqual(parseYaml('summary: The build passes, but X'), {
+    summary: 'The build passes, but X',
+  });
+});
+
+test('yaml block scalars: a block sequence item keeps its comma', () => {
+  assert.deepEqual(parseYaml('- a, b'), ['a, b']);
+});
+
+test('yaml block scalars: flow collections still split on commas', () => {
+  assert.deepEqual(parseYaml('key: [a, b]'), { key: ['a', 'b'] });
+  assert.deepEqual(parseYaml('key: { name: x, sha256: "abc" }'), {
+    key: { name: 'x', sha256: 'abc' },
+  });
+});
+
+test('yaml block scalars: quoted scalars keep their commas', () => {
+  assert.deepEqual(parseYaml('a: "x, y"'), { a: 'x, y' });
+  assert.deepEqual(parseYaml("a: 'x, y'"), { a: 'x, y' });
+});
+
+test('yaml block scalars: plain scalar coercion is unchanged', () => {
+  assert.deepEqual(parseYaml('a: true'), { a: true });
+  assert.deepEqual(parseYaml('a: 3'), { a: 3 });
+  assert.deepEqual(parseYaml('a: 1.5'), { a: 1.5 });
+  assert.deepEqual(parseYaml('a: ~'), { a: null });
+  assert.deepEqual(parseYaml('a: null'), { a: null });
+  assert.deepEqual(parseYaml('a: 1, 2'), { a: '1, 2' });
+});
+
+test('yaml block scalars: a JSON object in a yaml Machine result fence parses like its YAML form', () => {
+  const fromYaml = parseMarkdownYamlSection(
+    machineResultMarkdown('yaml', MACHINE_RESULT_YAML),
+    'Machine result',
+  );
+  const fromJson = parseMarkdownYamlSection(
+    machineResultMarkdown('yaml', JSON.stringify(MACHINE_RESULT, null, 2)),
+    'Machine result',
+  );
+  assert.deepEqual(fromYaml, MACHINE_RESULT);
+  assert.deepEqual(fromJson, fromYaml);
+});
+
+test('yaml block scalars: invalid JSON in a Machine result fence reports E_YAML_PARSE', () => {
+  assert.throws(
+    () => parseMarkdownYamlSection(machineResultMarkdown('yaml', '{ "a": 1,'), 'Machine result'),
+    (error) => error instanceof BuildctlError && error.code === 'E_YAML_PARSE',
+  );
+});
+
+test('yaml block scalars: an unbracketed depends_on reports only a schema type error', () => {
+  const result = validateRewrittenPlan((source) => source.replace(
+    '    depends_on: []\n    workstream: legacy-pose',
+    '    depends_on: T-001, T-002\n    workstream: legacy-pose',
+  ));
+  assert.equal(result.status, 1, result.stderr);
+  assert.ok(result.stderr.includes('E_SCHEMA_TYPE'), result.stderr);
+  assert.ok(result.stderr.includes('depends_on: must be an array'), result.stderr);
+  assert.ok(!result.stderr.includes('E_TASK_DAG_REFERENCE'), result.stderr);
+});
+
+test('yaml block scalars: json fences are accepted for Machine result but not plan sections', () => {
+  const fromJson = parseMarkdownYamlSection(
+    machineResultMarkdown('json', JSON.stringify(MACHINE_RESULT, null, 2)),
+    'Machine result',
+  );
+  const fromYaml = parseMarkdownYamlSection(
+    machineResultMarkdown('yaml', MACHINE_RESULT_YAML),
+    'Machine result',
+  );
+  assert.deepEqual(fromJson, fromYaml);
+
+  // A valid JSON manifest in a json fence is still not a YAML fence.
+  const result = validateRewrittenPlan((source) => {
+    const manifest = parseMarkdownYamlSection(source, 'Execution manifest');
+    const [before, after] = source.split('## Delivery slices');
+    const jsonFence = `${FENCE}json\n${JSON.stringify(manifest, null, 2)}\n${FENCE}`;
+    const rewritten = before.replace(/```yaml\n[\s\S]*?```/, () => jsonFence);
+    return `${rewritten}## Delivery slices${after}`;
+  });
+  assert.equal(result.status, 1, result.stderr);
+  assert.ok(result.stderr.includes('E_MARKDOWN_SECTION'), result.stderr);
+  assert.ok(result.stderr.includes('## Execution manifest'), result.stderr);
+  console.log('yaml block scalars complete');
 });
