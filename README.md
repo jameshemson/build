@@ -154,14 +154,15 @@ See [ROADMAP.md](ROADMAP.md) for the deterministic evidence and transition-autho
 
 ### Workflow modes
 
-The Claude orchestrator supports three named workflow modes: `opus` (the default), `fable`, and `mixed`. Selection resolves from an optional `mode=opus` / `mode=fable` / `mode=mixed` invocation token, a `build-mode:` line in the effective `AGENTS.md`, or an option screen asked once on a fresh workflow — no memorized syntax required.
+The Claude orchestrator supports four named workflow modes: `opus` (the default), `fable`, `mixed`, and `peer`. Selection resolves from an optional `mode=opus` / `mode=fable` / `mode=mixed` / `mode=peer` invocation token, a `build-mode:` line in the effective `AGENTS.md`, or an option screen asked once on a fresh workflow — no memorized syntax required.
 
-Four tracks:
+Five tracks:
 
 - **Sole Claude** — `/build` as-is; the `opus` default, today's pinned routing.
 - **Sole Codex** — run `$build:build` in a Codex session; nothing new to install.
 - **`fable`** — the fable model plans and architect-reviews: inline when the invoking session is already fable, via a fable-model agent otherwise, with any unavailable override recorded as a visible `model_fallback`; review and verify remain independent fresh-context agents.
 - **`mixed`** — fable planning plus cross-model adversarial judgment: plan review, verify, and architect review run on Codex via a supervised `codex exec` invocation, with a manual relay stop as fallback.
+- **`peer`** — opus planning plus fable-model judgment: plan review, mid-review, verify, and architect review each run in a fresh fable-model agent, even when the session is fable. It gives an opus-led session cross-model judgment without relay stops; an unavailable override falls back to a fresh agent on the session's model, never the root session, and is recorded as a visible `model_fallback`. Fable and Opus share a vendor, so `mixed` remains the more independent check.
 
 See `reference/workflow-modes.md` in the build skill for the full contract.
 
