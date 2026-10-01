@@ -127,7 +127,8 @@ function taskCycle(tasks, byId, diagnostics) {
     }
     if (visited.has(id) || !byId.has(id)) return;
     visiting.add(id);
-    for (const dependency of byId.get(id).depends_on || []) visit(dependency);
+    const dependencies = byId.get(id).depends_on;
+    for (const dependency of Array.isArray(dependencies) ? dependencies : []) visit(dependency);
     visiting.delete(id);
     visited.add(id);
   }
@@ -138,7 +139,8 @@ function sliceClosure(sliceId, slicesById, memo = new Map()) {
   if (memo.has(sliceId)) return memo.get(sliceId);
   const closure = new Set();
   memo.set(sliceId, closure);
-  for (const dependency of slicesById.get(sliceId)?.depends_on || []) {
+  const dependencies = slicesById.get(sliceId)?.depends_on;
+  for (const dependency of Array.isArray(dependencies) ? dependencies : []) {
     closure.add(dependency);
     for (const inherited of sliceClosure(dependency, slicesById, memo)) closure.add(inherited);
   }
@@ -339,7 +341,7 @@ function validateBindingOwnership(bindings, taskData, diagnostics) {
 
 function validateTaskGraph(tasks, byTask, diagnostics) {
   for (const task of tasks) {
-    for (const dependency of task.depends_on || []) {
+    for (const dependency of Array.isArray(task.depends_on) ? task.depends_on : []) {
       if (!byTask.has(dependency)) {
         diagnostic(diagnostics, 'E_TASK_DAG_REFERENCE', `execution_manifest.${task.id}.depends_on`, dependency);
       } else if (byTask.get(dependency).wave >= task.wave) {
@@ -385,7 +387,7 @@ function validateSlice(slice, index, context, diagnostics) {
   stringArray(slice.must_haves, `${path}.must_haves`, diagnostics, { nonEmpty: true });
   stringArray(slice.verify, `${path}.verify`, diagnostics, { nonEmpty: true });
   checkRefs(slice.requirements, context.requirementIds, `${path}.requirements`, diagnostics);
-  for (const dependency of slice.depends_on || []) {
+  for (const dependency of Array.isArray(slice.depends_on) ? slice.depends_on : []) {
     const dependencyIndex = context.slices.findIndex((candidate) => candidate.id === dependency);
     if (dependencyIndex < 0 || dependencyIndex >= index) {
       diagnostic(diagnostics, 'E_SLICE_DAG', `${path}.depends_on`, dependency);
@@ -432,7 +434,7 @@ function validateSlices(document, taskData, requirementIds, diagnostics) {
     const closure = sliceClosure(slice.id, context.slicesById);
     for (const taskId of slice.task_ids || []) {
       const task = taskData.byTask.get(taskId);
-      for (const dependency of task?.depends_on || []) {
+      for (const dependency of Array.isArray(task?.depends_on) ? task.depends_on : []) {
         const dependencyTask = taskData.byTask.get(dependency);
         if (!dependencyTask || dependencyTask.wave === 0 || (slice.task_ids || []).includes(dependency)) continue;
         const owner = (context.taskMembership.get(dependency) || [])[0];

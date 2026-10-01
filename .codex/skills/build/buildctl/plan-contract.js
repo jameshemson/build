@@ -185,6 +185,18 @@ function unsupportedYaml(text) {
   return /(^|[\s:[\x7b,])(?:&[A-Za-z0-9_-]+|\*[A-Za-z0-9_-]+|![A-Za-z0-9_-]+)|(^|\s)<<\s*:/.test(outside);
 }
 
+// Coerce one plain (unquoted) scalar. `fail(message)` must throw.
+function coercePlain(raw, fail) {
+  const text = raw.trim();
+  if (!text) fail('empty scalar');
+  if (text === 'null' || text === '~') return null;
+  if (text === 'true') return true;
+  if (text === 'false') return false;
+  if (/^-?(?:0|(?!0)\d+)$/.test(text)) return Number(text);
+  if (/^-?(?:0|(?!0)\d+)\.\d+$/.test(text)) return Number(text);
+  return text;
+}
+
 class FlowParser {
   constructor(text, line) {
     this.text = text;
@@ -258,14 +270,7 @@ class FlowParser {
     while (this.index < this.text.length && !stops.includes(this.text[this.index])) {
       this.index += 1;
     }
-    const raw = this.text.slice(start, this.index).trim();
-    if (!raw) this.error('empty scalar');
-    if (raw === 'null' || raw === '~') return null;
-    if (raw === 'true') return true;
-    if (raw === 'false') return false;
-    if (/^-?(?:0|(?!0)\d+)$/.test(raw)) return Number(raw);
-    if (/^-?(?:0|(?!0)\d+)\.\d+$/.test(raw)) return Number(raw);
-    return raw;
+    return coercePlain(this.text.slice(start, this.index), (message) => this.error(message));
   }
 
   array() {
@@ -360,6 +365,16 @@ function scalar(text, line) {
   return new FlowParser(text, line).parse();
 }
 
+// A block-context value: flow collections and quoted scalars go through the
+// flow parser; anything else is a plain scalar that may contain , ] and }.
+function blockScalar(text, line) {
+  const trimmed = text.trim();
+  if (/^["'[{]/.test(trimmed)) return scalar(trimmed, line);
+  return coercePlain(trimmed, (message) => {
+    throw new BuildctlError('E_YAML_PARSE', `YAML line ${line}: ${message}`);
+  });
+}
+
 function yamlLines(source) {
   const lines = [];
   const rawLines = source.replace(/\r\n?/g, '\n').split('\n');
@@ -408,12 +423,12 @@ function parseBlock(lines, start, indent) {
         continue;
       }
       if (!rest.includes(':')) {
-        output.push(scalar(rest, item.line));
+        output.push(blockScalar(rest, item.line));
         continue;
       }
       const [key, rawValue] = splitMapping(rest, item.line);
       const object = {};
-      object[key] = rawValue ? scalar(rawValue, item.line) : null;
+      object[key] = rawValue ? blockScalar(rawValue, item.line) : null;
       if (index < lines.length && lines[index].indent > indent) {
         const parsed = parseBlock(lines, index, lines[index].indent);
         if (!parsed.value || Array.isArray(parsed.value) || typeof parsed.value !== 'object') {
@@ -445,7 +460,7 @@ function parseBlock(lines, start, indent) {
       }
       output[key] = `${chunks.join(folded ? ' ' : '\n')}\n`;
     } else if (rawValue) {
-      output[key] = scalar(rawValue, item.line);
+      output[key] = blockScalar(rawValue, item.line);
     } else if (index < lines.length && lines[index].indent > indent) {
       const parsed = parseBlock(lines, index, lines[index].indent);
       output[key] = parsed.value;
@@ -486,19 +501,38 @@ function markdownSection(source, name) {
   return source.slice(start, endMatch ? endMatch.index : source.length).trim();
 }
 
-function yamlFence(section, name) {
-  const fences = [...section.matchAll(/```ya?ml[ \t]*\n([\s\S]*?)```/g)];
+function yamlFence(section, name, { allowJson = false } = {}) {
+  const pattern = allowJson
+    ? /```(?:ya?ml|json)[ \t]*\n([\s\S]*?)```/g
+    : /```ya?ml[ \t]*\n([\s\S]*?)```/g;
+  const fences = [...section.matchAll(pattern)];
   if (fences.length !== 1) {
+    const kind = allowJson ? 'YAML or JSON' : 'YAML';
     throw new BuildctlError(
       'E_MARKDOWN_SECTION',
-      `## ${name} requires exactly one YAML fence; found ${fences.length}.`,
+      `## ${name} requires exactly one ${kind} fence; found ${fences.length}.`,
     );
   }
   return fences[0][1];
 }
 
+// A JSON object, or null when the text is not one.
+function jsonObject(text) {
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function parseMarkdownYamlSection(source, name) {
-  return parseYaml(yamlFence(markdownSection(source, name), name));
+  const text = yamlFence(markdownSection(source, name), name, { allowJson: true });
+  if (text.trim().startsWith('{')) {
+    const parsed = jsonObject(text);
+    if (parsed) return parsed;
+  }
+  return parseYaml(text);
 }
 
 function approachBindings(approach) {
