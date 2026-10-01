@@ -38,7 +38,7 @@ The state file (`.build/plans/{slug}-state.md`) is the source of truth for the w
 | `transition_history` | one-line JSON array of structured history templates | root, only from an allowed `complete-slice` patch | affected slice plus dependents when reopened |
 | `phase_result_references` | append-only one-line JSON array of `{phase,receipt_id}` generated result references; the newest reference for a phase is current and older references remain audit history | root, after validating `compile-result`, in the same edit as its allowed transition | never (audit trail) |
 | `phase_result_bootstrap` | append-only one-line JSON array; only a precompiler Plan Review may record its review/revised-plan hashes and explicit override | root during the v1.14 pre-S-001 bootstrap | never (audit trail) |
-| `counter_events` | append-only one-line JSON array of typed `{id,kind,scope,action}` occurrences | root, before a dispatch or transition | never; only `no_progress` supports a typed reset event |
+| `counter_events` | append-only one-line JSON array of typed `{id,kind,scope,action}` occurrences; `extend` events also carry a non-empty `authorization` quoting the user's answer | root, before a dispatch or transition | never; only `no_progress` supports a typed reset event; only `plan_review`, `phase_reentry`, and `fresh_judgment_retry` accept a user-authorized `extend` |
 | `rework_notes` | text; any task references use `T-###` | Phase 2 (Do not proceed), Phase 3 (SCOPE_CHANGE), Phase 3b (RETHINK) | Phase 1, once the revised plan addresses them (history records the clearing) |
 | `fixes_needed` | text with `T-###` references | Phase 3b | Phase 3, when fixes are applied and their wave verification passes |
 | `verification_failures` | failed command/requirement list with `T-###` references | Phase 3c (FAILED) | Phase 3c, on the next VERIFIED or PARTIAL verdict |
@@ -50,7 +50,7 @@ The state file (`.build/plans/{slug}-state.md`) is the source of truth for the w
 | `scope_changes` | agent-reported discoveries | Phase 3 | never (audit trail) |
 | `agent_progress` | map keyed by agent label with task IDs, owned files, current command, ISO-8601-with-timezone `dispatched_at`, and immutable `deadline_at`; Claude records `supervision_mode: milestone`, `STARTED`/`EDITING`/`VERIFYING` stage, `last_checked_at`, `last_evidence_at`, `evidence_free_checks`, and `deadline_status_requested_at`; Codex records literal `supervision_mode: terminal-only`, nullable `terminal_status`, and nullable `interrupt_outcome` | root; provider orchestrator initializes its complete variant and applies only that variant's lifecycle | root, after integration; terminal outcome is appended to `history` first |
 | `agent_failures` | failure reasons per workstream/phase agent | circuit breakers | never (audit trail) |
-| `halted` / `halt_reason` / `halt_context` | `true` + breaker name or `user-abort` + summary | circuit breakers, abort | removed by the user when resuming after fixing the root cause |
+| `halted` / `halt_reason` / `halt_context` | `true` + breaker name or `user-abort` + summary | circuit breakers, abort | removed by the user when resuming after fixing the root cause, or by root in the same edit that appends a user-authorized `extend` event |
 | `history` | `- [YYYY-MM-DD HH:MM] what happened` appended lines | every phase | never |
 
 ## Rules

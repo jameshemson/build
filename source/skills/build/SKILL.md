@@ -258,6 +258,8 @@ Before every dispatch or transition, root appends the typed occurrence to `count
 
 When any circuit breaker fires, update the state file with `halted: true`, `halt_reason: [which breaker]`, and `halt_context: [summary of failures/changes]`. The user can resume by updating the state file after addressing the root cause.
 
+When `check-counters` halts with `plan-review-limit`, `phase-loop-limit`, or `phase-agent-failure`, root asks one AskUserQuestion. The question names the breaker and lists each round's Critical and Important finding counts, counted from the severities in `authored_result.findings` of each of that phase's receipts referenced in `phase_result_references`; for `phase-agent-failure` it lists the `agent_failures` reasons instead. The options are "One more round" and "Stop here". On "One more round", root appends `{"id":"extend-<kind>-<scope>-<n>","kind":"<kind>","scope":"<scope>","action":"extend","authorization":"<the user's answer, quoted>"}` for the halted kind and scope, removes `halted`, `halt_reason` and `halt_context` in the same edit, appends a history line quoting the answer, and reruns `check-counters`, which must return `allow`. Root never appends `extend` without that answer in the current session. "Stop here" leaves the halt in place.
+
 ---
 
 ## Rules
@@ -274,7 +276,7 @@ When any circuit breaker fires, update the state file with `halted: true`, `halt
 - **Commit often.** Small, working commits > one big commit at the end.
 - **Keep history honest.** Every phase transition gets a timestamped entry. Include what happened, not just "phase changed".
 - **Idempotent state writes.** Never rewrite a state field to the value it already holds, and never append a history entry identical to the previous one. Rework loops must not accumulate state noise.
-- **Respect circuit breakers.** Retry limits exist to prevent runaway agents burning tokens on a broken approach. When a limit is hit, escalate to the user with full context of what failed and why - don't work around it or increase the limit.
+- **Respect circuit breakers.** Retry limits exist to prevent runaway agents burning tokens on a broken approach. When a limit is hit, escalate to the user with full context of what failed and why - don't work around it or increase the limit. The one exception is a user-authorized `extend` event, which adds one round only on the user's answer.
 - **The schema is the contract.** Field formats and who-writes/who-clears rules live in [state schema](reference/state-schema.md). Reconcile stale fields before acting on them.
 - **Never push or open PRs.** The workflow ends on the local `build/{slug}` branch; publishing is the user's decision.
 - **Workstream agents never touch `.build/`.** Artifacts are orchestrator-owned and invisible inside worktrees.
