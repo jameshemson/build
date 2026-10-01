@@ -115,6 +115,28 @@ rather than from semantic review quality.
   standalone-artifact clause, and a PHASES-derived drift test; manual relay stop as fallback.
 - Three graded mode eval cases plus contract phrase pins with negative-mutation coverage.
 
+## v1.18.0 — buildctl friction
+
+Cut `buildctl` friction without weakening any judgment gate. Reviewer runs were being discarded
+for formatting, and halted review loops needed hand edits to state.
+
+- Parse block YAML values that contain commas as one string and accept a JSON
+  `## Machine result`, while every previously valid document parses the same way.
+- Add `buildctl subjects`, so judges copy the subject hashes `compile-result` expects instead of
+  computing them; `compile-result` still recomputes and compares them.
+- Record mechanical gaps in the Verify receipt instead of making Verify restate them. Any gap
+  still forbids `verified`, and a failed evidence command still forces `failed`.
+- Count both paths of a move, report gitignored planned paths as `planned_ignored` for evidence
+  to prove, and keep submodule paths `planned_but_unchanged`.
+- Let a halted review loop continue only through a user-authorized `extend` event, which raises
+  that loop's limit by one.
+- Have implementer DONE reports cite each verification command, its exit code and the output
+  line that proves each must-have.
+- Reject piped `verify` commands in `validate-plan`, because a pipeline reports only its last
+  stage's exit status.
+- `peer` workflow mode: opus plans, and fresh fable-model agents run plan review, mid-review,
+  Verify and Architect Review.
+
 ## Deferred
 
 - Full leases beyond rejecting expired handoffs.

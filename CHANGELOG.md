@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.18.0 - 2026-10-01
 
 ### Added
 
@@ -9,8 +9,66 @@
   fable. An opus-led session gets cross-model judgment without relay stops. An unavailable
   fable override falls back to a fresh agent on the session's model, never the root session,
   and is recorded as a visible `model_fallback`. The fresh-workflow mode ask now offers four
-  options. Fable and Opus share
-  a vendor, so `mixed` remains the more independent check.
+  options. Fable and Opus share a vendor, so `mixed` remains the more independent check.
+- `buildctl subjects` prints the exact `subjects:` block that `compile-result` expects, using
+  the same computation and the same default evidence directory, `.build/evidence/{slug}`. It
+  takes `--phase` (`plan-review`, `verify` or `architect-review`), `--state` and `--contract`,
+  plus optional `--evidence-dir` and `--out`. Orchestrators run it immediately before each
+  Plan Review, Verify and Architect Review and hand the block to the judge. Claude passes
+  `.build/plans/{slug}-<phase>-subjects.yaml`; Codex inlines the block, because Codex judges
+  never read `.build/`. Judges copy the block and never compute a hash. `compile-result` still
+  checks that the subjects match, so a plan edited after review is still rejected. `mixed`
+  relay templates gain a `subjects=` token.
+- Counter events accept `action: "extend"` for `plan_review`, `phase_reentry` and
+  `fresh_judgment_retry`. An extend event must carry an `authorization` field quoting the
+  user's answer, and it raises that loop's limit by one. Default limits are unchanged.
+
+### Changed
+
+- Block YAML values that contain commas now parse as one string, so lines such as
+  `summary: The build passes, but X` and `- a, b` no longer fail. A value that starts with
+  `[`, `{`, `"` or `'` still parses as a flow or quoted value and must consume the whole text.
+  An unbracketed `depends_on: T-001, T-002` now reports only `E_SCHEMA_TYPE`. Every document
+  that parsed before parses the same way: a golden fixture test covers this, and a local
+  replay of 432 archived plan and result sections matched.
+- A `## Machine result` section may be a JSON object in a `yaml` or `json` fence. Plan
+  sections stay YAML-only.
+- Verify no longer has to restate every mechanical gap or failed command word for word. The
+  Verify receipt records gaps under `mechanical_facts.evidence.gaps`. Any mechanical gap still
+  forbids `verified`, and a failed evidence command still forces `failed`. `partial` now needs
+  no Critical finding plus either an Important finding or a recorded gap. `failed` needs a
+  Critical or Important finding, or a failed command. This also removes a deadlock where a gap
+  plus a Critical finding could not compile. When Verify is PARTIAL, completion summaries list
+  the receipt's mechanical gaps.
+- File scope counts both paths of a move (`--no-renames`). A gitignored planned path is
+  reported as `planned_ignored` instead of as a gap, and Verify's evidence reference requires a
+  must-have's evidence command to prove each such path before `verified`. Paths inside a
+  configured git submodule stay `planned_but_unchanged`. Plan rules now say to prove
+  gitignored outputs with evidence and to list both the old and new path of a move. This
+  changes behavior for in-flight workflows: a plan that lists only the new path of a move now
+  gets `E_RESULT_SCOPE` at Verify. Add the old path to `files_modified` to clear it.
+- When the `plan_review`, `phase_reentry` or `fresh_judgment_retry` limit halts a workflow,
+  the orchestrator asks the user "One more round" or "Stop here" instead of leaving them to
+  edit state by hand. "One more round" records an `extend` event quoting the answer.
+- Implementer DONE reports list each verification command, its exit code read directly rather
+  than through a pipe, and the output line that proves each must-have. This replaces the old
+  "check your work against the plan" self-check in the Claude dispatch text and the Codex
+  handoff contract.
+- `validate-plan` rejects a task or delivery-slice `verify` command that pipes output outside
+  quotes, with `E_EVIDENCE_PIPE`. A pipeline's exit status is its last stage's, so a failing
+  build piped into `grep` passes. To fix a rejected command, put the expected text after the
+  `::` separator, or wrap the pipeline as `bash -o pipefail -c '...'`. A `set -o pipefail;`
+  prefix is not accepted, because Ubuntu's dash `/bin/sh`, used by the CI runner image,
+  rejects it. This changes behavior: a plan that compiled before can now fail `validate-plan`
+  until its piped commands are rewritten.
+- Workflow archive and abort move every `{slug}-*` file, so subjects files are archived with
+  the rest of the workflow.
+
+### Deprecated
+
+- The `repository=` and `verify-result=` relay tokens are still sent and accepted in 1.18 so
+  older skill installs keep working. `subjects=` is now authoritative. Both tokens will be
+  removed after 1.18.
 
 ## 1.17.0 - 2026-09-09
 

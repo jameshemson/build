@@ -77,7 +77,7 @@ Full version-drift coverage requires BOTH commands to pass before push:
 - `npm run check-sync` — catches structural drift of generated output directories AND version drift via a pre-build parity assertion across all four version carriers listed in `scripts/transformers/version-carriers.js`.
 - `npm test` — cross-checks the same version parity in-process via `manifests.test.js` (reading the same `VERSION_CARRIERS` list), AND verifies the drift-detection mechanism itself by spawning `check-sync.js` with a mismatched version in `check-sync.test.js`.
 
-Neither command alone is a complete gate. There is no CI; the gate is self-enforced.
+Neither command alone is a complete gate. CI (`.github/workflows/ci.yml`) runs both on pull requests and pushes to `main`; still run them locally before pushing.
 
 ## Versioning
 

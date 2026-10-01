@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-10-01: Keep the Verify agent; cut receipt friction instead
+`status: accepted` · `confidence: high` · `revisit: if the next 10 workflows after v1.18 still discard reviewer runs for E_YAML_PARSE, E_RESULT_SCHEMA or E_RESULT_SUBJECT caused by formatting or hash authoring`
+
+**Decision:** Keep the Verify agent. The July 2026 question of whether to retire it (the 2026-07-24 entry) is answered "keep". v1.18 removes the friction around the judgment phases instead of removing a phase: comma-safe YAML parsing, `buildctl subjects` so judges copy hashes instead of computing them, mechanical gaps recorded in the Verify receipt, a user-authorized `extend` for halted review loops, and a `validate-plan` rejection of piped evidence commands.
+
+**What happened:** The evidence note `vault/notes/research/build-harness-opus-5-5-evidence-2026-10.md` in James's janet vault reviewed Build workflows run after Opus 5.5 became the default. Verify still caught real defects: PASS labels with no observation behind them, a final build whose exit code was masked by a `grep` pipe, and an exit path that no test exercised. In the same period, at least 12 reviewer runs across 8 workflows were discarded for formatting, hash or plumbing reasons rather than for their content. Each discarded run was a full fresh reviewer run, often 10 to 25 minutes of Codex relay.
+
+**Accepting:** Verify stays a separate fresh-context run, and every workflow keeps paying its time and token cost. The success measure is the revisit condition above: if the next 10 workflows after v1.18 still discard reviewer runs for formatting or hash authoring, the friction is not fixed and this decision is revisited.
+
+---
+
 ## 2026-08-19: workflow modes ships; the v1.15 dogfood kill criterion fires
 `status: accepted` · `confidence: high` · `revisit: if the codex-exec primary relay fails its first real mixed-mode workflow, or if a third mechanism release lands before an instrumented dogfood run`
 

@@ -407,10 +407,12 @@ const FRICTION_CONTRACTS = {
     'source/skills/build/SKILL.md': [
       'When `check-counters` halts with `plan-review-limit`, `phase-loop-limit`, or `phase-agent-failure`, root asks one AskUserQuestion.',
       'Root never appends `extend` without that answer in the current session.',
+      'once for each halted review-loop kind and scope that `check-counters` reported',
       'The one exception is a user-authorized `extend` event, which adds one round only on the user\'s answer.',
     ],
     'source/skills/build/SKILL.codex.md': [
       'the smallest decision is one more round',
+      'print the exact `extend` event for each halted kind and scope',
       'only after the user\'s reply in this session approves it',
     ],
     'source/skills/build/reference/state-schema.md': [
