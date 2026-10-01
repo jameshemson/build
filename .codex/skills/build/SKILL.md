@@ -172,7 +172,9 @@ model routes, evidence mode, typed binding summary, inventories, manifest summar
 ## Phase 2: Review
 
 Read state plus context, requirements, and plan. Run `review-plan` in a fresh-context agent
-with the effective `review` route. Save `{slug}-review.md` before state changes.
+with the effective `review` route. Immediately before dispatching Plan Review, Verify or Architect Review,
+root runs `buildctl subjects` and inlines its `subjects:` block in the judge packet; the judge copies
+it exactly and never computes a hash. Save `{slug}-review.md` before state changes.
 
 Before the first post-integration buildctl state read, normalize a legacy bare-hex `base_ref` and
 result fields through the schema. Run `compile-result` on the saved report; a runnable diagnostic

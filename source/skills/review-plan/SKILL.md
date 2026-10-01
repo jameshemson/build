@@ -90,7 +90,12 @@ When the complete orchestrated subject set is supplied, end the saved report wit
 `## Machine result` YAML fence after the prose verdict. Use `schema_version: 1`,
 `phase: plan-review`, and map the prose verdict to `verdict: proceed`,
 `proceed_with_fixes`, or `do_not_proceed`. List exactly one attested SHA-256 subject for each of
-`plan`, `contract`, `context`, `requirements`, and `repository`. Do not guess hashes.
+`plan`, `contract`, `context`, `requirements`, and `repository`. When a subjects file or an
+inlined `subjects:` block is supplied, copy that list into the machine result exactly. Never
+compute, reconstruct or guess a hash. In standalone use without one, when buildctl is runnable
+and a Build state exists for the supplied slug, run
+`buildctl subjects --phase plan-review --state .build/plans/{slug}-state.md --contract <contract>`
+and copy its output; otherwise end with the `Machine result: N/A` line.
 
 Encode every prose finding in the same order with a gap-free `PR-###` ID and exactly these fields:
 `id`, `severity`, `summary`, `evidence`, `consequence`, and `fix`; severity is `critical`,
