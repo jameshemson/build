@@ -1074,3 +1074,148 @@ test('phase subjects: an unknown --phase is an argument error', async () => {
   assert.equal(rejected.stdout, '');
   console.log('phase subjects complete');
 });
+
+function verifyReportWith(report, { line, verdict, severity, summary, evidence }) {
+  return report
+    .replace('VERIFIED - all available checks pass', line)
+    .replace('verdict: verified', `verdict: ${verdict}`)
+    .replace(
+      'findings: []',
+      [
+        'findings:',
+        '  - id: VR-001',
+        `    severity: ${severity}`,
+        `    summary: ${JSON.stringify(summary)}`,
+        `    evidence: ${JSON.stringify(evidence)}`,
+        '    consequence: "The reviewer records a judgment the receipt cannot derive."',
+        '    fix: "Address the finding before the next Verify pass."',
+      ].join('\n'),
+    );
+}
+
+function verifyReceipt(setup, compiled) {
+  return JSON.parse(readFileSync(join(setup.repo, compiled.receipt_path), 'utf8'));
+}
+
+test('verify gap rules: a partial verdict records a gap its minor finding never names', async () => {
+  const setup = await makeVerifyRepo({ plannedUnchanged: true });
+  const report = verifyReportWith(setup.report, {
+    line: 'PARTIAL - mechanical gap recorded by the receipt',
+    verdict: 'partial',
+    severity: 'minor',
+    summary: 'A wording note on the implementation summary.',
+    evidence: 'The summary paragraph is terse.',
+  });
+  assert.ok(!report.slice(report.indexOf('findings:')).includes('test/legacy-pose.test.js'));
+  writeFileSync(setup.artifactPath, report, 'utf8');
+  const compiled = JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout);
+  assert.equal(compiled.verdict, 'partial');
+  assert.equal(compiled.allowed_next_phase, 'architect-review');
+  assert.ok(
+    verifyReceipt(setup, compiled).mechanical_facts.evidence.gaps
+      .includes('planned-unchanged:test/legacy-pose.test.js'),
+  );
+});
+
+test('verify gap rules: a mechanical gap still forbids a verified verdict', async () => {
+  const setup = await makeVerifyRepo({ plannedUnchanged: true });
+  const blocked = run(compileVerifyArgs(setup), setup.repo, 1);
+  assert.match(blocked.stderr, /E_RESULT_VERDICT\b/);
+  assert.match(blocked.stderr, /forbid a verified verdict/);
+  assert.match(blocked.stderr, /planned-unchanged:test\/legacy-pose\.test\.js/);
+});
+
+test('verify gap rules: a failed evidence command requires failed without quoting the command', async () => {
+  const setup = await makeVerifyRepo({ failedEvidence: true });
+  const finding = {
+    severity: 'important',
+    summary: 'The final evidence run did not pass.',
+    evidence: 'The evidence ledger records a nonzero exit.',
+  };
+  const failedReport = verifyReportWith(setup.report, {
+    ...finding,
+    line: 'FAILED - evidence command failed',
+    verdict: 'failed',
+  });
+  assert.ok(!failedReport.includes(setup.evidenceCommand));
+  writeFileSync(setup.artifactPath, failedReport, 'utf8');
+  const failed = JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout);
+  assert.equal(failed.verdict, 'failed');
+  assert.equal(failed.allowed_next_phase, 'implement');
+  assert.deepEqual(
+    verifyReceipt(setup, failed).mechanical_facts.evidence.failed_commands,
+    [setup.evidenceCommand],
+  );
+
+  writeFileSync(
+    setup.artifactPath,
+    verifyReportWith(setup.report, {
+      ...finding,
+      line: 'PARTIAL - evidence command failed',
+      verdict: 'partial',
+    }),
+    'utf8',
+  );
+  const partial = run(compileVerifyArgs(setup), setup.repo, 1);
+  assert.match(partial.stderr, /E_RESULT_VERDICT\b/);
+  assert.match(partial.stderr, /require a failed verdict/);
+});
+
+test('verify gap rules: a failed evidence command lets failed compile with only a minor finding', async () => {
+  const setup = await makeVerifyRepo({ failedEvidence: true });
+  writeFileSync(
+    setup.artifactPath,
+    verifyReportWith(setup.report, {
+      line: 'FAILED - evidence command failed',
+      verdict: 'failed',
+      severity: 'minor',
+      summary: 'A wording note on the implementation summary.',
+      evidence: 'The summary paragraph is terse.',
+    }),
+    'utf8',
+  );
+  const failed = JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout);
+  assert.equal(failed.verdict, 'failed');
+  assert.equal(failed.allowed_next_phase, 'implement');
+});
+
+test('verify gap rules: partial without a gap or an important finding stays rejected', async () => {
+  const setup = await makeVerifyRepo();
+  writeFileSync(
+    setup.artifactPath,
+    verifyReportWith(setup.report, {
+      line: 'PARTIAL - only a minor note',
+      verdict: 'partial',
+      severity: 'minor',
+      summary: 'A wording note on the implementation summary.',
+      evidence: 'The summary paragraph is terse.',
+    }),
+    'utf8',
+  );
+  const blocked = run(compileVerifyArgs(setup), setup.repo, 1);
+  assert.match(blocked.stderr, /E_RESULT_VERDICT\b/);
+  assert.match(blocked.stderr, /Verdict partial is incompatible/);
+});
+
+test('verify gap rules: a critical finding alongside a mechanical gap compiles as failed', async () => {
+  const setup = await makeVerifyRepo({ plannedUnchanged: true });
+  writeFileSync(
+    setup.artifactPath,
+    verifyReportWith(setup.report, {
+      line: 'FAILED - critical defect found',
+      verdict: 'failed',
+      severity: 'critical',
+      summary: 'The adoption path corrupts the stored pose.',
+      evidence: 'Manual inspection of src/legacy-pose.js shows the defect.',
+    }),
+    'utf8',
+  );
+  const failed = JSON.parse(run(compileVerifyArgs(setup), setup.repo).stdout);
+  assert.equal(failed.verdict, 'failed');
+  assert.equal(failed.allowed_next_phase, 'implement');
+  assert.ok(
+    verifyReceipt(setup, failed).mechanical_facts.evidence.gaps
+      .includes('planned-unchanged:test/legacy-pose.test.js'),
+  );
+  console.log('verify gap rules complete');
+});

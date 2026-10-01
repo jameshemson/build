@@ -381,6 +381,28 @@ const FRICTION_CONTRACTS = {
       'root runs `buildctl subjects` and inlines its `subjects:` block in the judge packet',
     ],
   },
+  'gap recording': {
+    'source/skills/verify/reference/evidence-requirements.md': [
+      'recorded in the receipt; mention in findings where it changes the judgment',
+      '`partial` or `failed`; never `verified`',
+      'is a recorded gap that forbids `verified`',
+      '`verified` only when a must-have\'s evidence command proves every such path',
+    ],
+    'source/skills/build/SKILL.md': [
+      'every mechanical gap in the current Verify receipt\'s `mechanical_facts.evidence.gaps`',
+      'move the `{slug}-*` files',
+    ],
+    'source/skills/build/SKILL.codex.md': [
+      'including every mechanical gap in the current Verify receipt\'s `mechanical_facts.evidence.gaps`',
+    ],
+    'source/skills/impl-plan/reference/plan-quality.md': [
+      'A gitignored planned output must be proven through a must-have\'s evidence command, because file scope cannot see ignored paths.',
+      'A moved or renamed file lists both its old and its new path in `files_modified`.',
+    ],
+    'source/skills/review-plan/SKILL.md': [
+      'A gitignored planned output needs a must-have evidence command that proves it, and a moved file lists both its old and new paths in `files_modified`',
+    ],
+  },
 };
 
 const KEMET_EVIDENCE_ASSERTIONS = [
