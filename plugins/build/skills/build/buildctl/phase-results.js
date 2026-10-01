@@ -238,25 +238,22 @@ function checkVerdict(result, source) {
       'Machine verdict does not match the human-readable verdict.',
     );
   }
+  // Verify compatibility depends on mechanical gaps and failed evidence
+  // commands as well as severities, so verifyFacts checks it once those exist.
+  if (result.phase === 'verify') return;
   const severities = new Set(result.findings.map((finding) => finding.severity));
-  const compatible = result.phase === 'verify'
-    ? result.verdict === 'verified'
+  const compatible = result.phase === 'architect-review'
+    ? result.verdict === 'pass'
       ? !severities.has('critical') && !severities.has('important')
-      : result.verdict === 'partial'
-        ? !severities.has('critical') && severities.has('important')
+      : result.verdict === 'pass_with_notes'
+        ? !severities.has('critical') && !severities.has('important')
+          && severities.has('minor')
         : severities.has('critical') || severities.has('important')
-    : result.phase === 'architect-review'
-      ? result.verdict === 'pass'
-        ? !severities.has('critical') && !severities.has('important')
-        : result.verdict === 'pass_with_notes'
-          ? !severities.has('critical') && !severities.has('important')
-            && severities.has('minor')
-          : severities.has('critical') || severities.has('important')
-      : result.verdict === 'proceed'
-        ? !severities.has('critical') && !severities.has('important')
-        : result.verdict === 'proceed_with_fixes'
-          ? !severities.has('critical') && severities.has('important')
-          : severities.has('critical');
+    : result.verdict === 'proceed'
+      ? !severities.has('critical') && !severities.has('important')
+      : result.verdict === 'proceed_with_fixes'
+        ? !severities.has('critical') && severities.has('important')
+        : severities.has('critical');
   if (!compatible) {
     fail(
       'E_RESULT_VERDICT',
@@ -562,11 +559,6 @@ function priorVerifyResult({
   return receipt;
 }
 
-function findingsText(findings) {
-  return findings.map((finding) =>
-    [finding.summary, finding.evidence, finding.consequence, finding.fix].join('\n')).join('\n');
-}
-
 function architectFacts({
   contract,
   contractSha256,
@@ -693,12 +685,6 @@ async function verifyFacts({
     baseRef: state.values.base_ref,
     repoRoot: state.repoRoot,
   });
-  const requiredMentions = [...coverage.gaps];
-  if (!prior.receipt_id) {
-    requiredMentions.push(prior.bootstrap ? 'Plan Review receipt' : 'plan-review-result');
-  }
-  requiredMentions.push(...scope.planned_but_unchanged);
-  requiredMentions.push(...testShrink.shrunk.map((entry) => entry.path));
   const gaps = [...new Set([
     ...coverage.gaps,
     ...scope.planned_but_unchanged.map((path) => `planned-unchanged:${path}`),
@@ -707,25 +693,36 @@ async function verifyFacts({
       ? [prior.bootstrap ? 'prior:plan-review-receipt-bootstrap' : 'prior:plan-review-result']
       : []),
   ])].sort();
-  const text = findingsText(authored.findings);
-  if (coverage.failedCommands.length > 0) {
-    if (authored.verdict !== 'failed'
-      || coverage.failedCommands.some((command) => !text.includes(command))) {
-      fail(
-        'E_RESULT_VERDICT',
-        'artifact.machine_result.verdict',
-        'Failed evidence commands require failed verdict findings naming every command.',
-      );
-    }
-  } else if (gaps.length > 0) {
-    if (authored.verdict !== 'partial'
-      || requiredMentions.some((mention) => !text.includes(mention))) {
-      fail(
-        'E_RESULT_VERDICT',
-        'artifact.machine_result.verdict',
-        `Mechanical gaps require partial findings naming every gap: ${gaps.join(', ')}.`,
-      );
-    }
+  // The receipt records gaps and failed commands as mechanical facts, so the
+  // findings need not restate them; they bound the verdict instead.
+  if (coverage.failedCommands.length > 0 && authored.verdict !== 'failed') {
+    fail(
+      'E_RESULT_VERDICT',
+      'artifact.machine_result.verdict',
+      `Failed evidence commands require a failed verdict: ${coverage.failedCommands.join(', ')}.`,
+    );
+  } else if (gaps.length > 0 && authored.verdict === 'verified') {
+    fail(
+      'E_RESULT_VERDICT',
+      'artifact.machine_result.verdict',
+      `Mechanical gaps forbid a verified verdict: ${gaps.join(', ')}.`,
+    );
+  }
+  const severities = new Set(authored.findings.map((finding) => finding.severity));
+  const critical = severities.has('critical');
+  const important = severities.has('important');
+  const compatible = authored.verdict === 'verified'
+    ? !critical && !important
+    : authored.verdict === 'partial'
+      ? !critical && (important || gaps.length > 0)
+      : authored.verdict === 'failed'
+        && (critical || important || coverage.failedCommands.length > 0);
+  if (!compatible) {
+    fail(
+      'E_RESULT_VERDICT',
+      'artifact.machine_result.verdict',
+      `Verdict ${authored.verdict} is incompatible with finding severities and mechanical facts.`,
+    );
   }
   return {
     evidence: {

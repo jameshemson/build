@@ -219,8 +219,8 @@ Immediately before each Plan Review, Verify, or Architect Review dispatch — Sk
 
 **Trigger**: State says `phase: complete`
 
-1. Summarise: what was built, what was tested, key decisions made, the workflow branch name, and the merge command for the user (e.g. `git checkout main && git merge build/{slug}`). Do not merge or push yourself. If `verify_verdict:` is PARTIAL, the summary MUST include an "Uncovered requirements" heading listing every uncovered `REQ-*` and missing must-have — completion never hides gaps.
-2. Archive: move the `{slug}-*.md` files to `.build/plans/archive/[date]-{slug}/`
+1. Summarise: what was built, what was tested, key decisions made, the workflow branch name, and the merge command for the user (e.g. `git checkout main && git merge build/{slug}`). Do not merge or push yourself. If `verify_verdict:` is PARTIAL, the summary MUST include an "Uncovered requirements" heading listing every uncovered `REQ-*`, missing must-have, and every mechanical gap in the current Verify receipt's `mechanical_facts.evidence.gaps` — completion never hides gaps.
+2. Archive: move the `{slug}-*` files to `.build/plans/archive/[date]-{slug}/`
 
 **Say**: "Workflow complete. [summary]"
 
@@ -228,7 +228,7 @@ Immediately before each Plan Review, Verify, or Architect Review dispatch — Sk
 
 ## Aborting a workflow
 
-When the user asks to stop or abandon the workflow: set `phase: aborted` with `halted: true` and `halt_reason: user-abort`, append a history entry, move the `{slug}-*.md` files to `.build/plans/archive/[date]-{slug}-aborted/` (if the directory already exists from a same-day abort, append `-2`), and summarize what was completed, what branch/commits exist, and what was left undone. Never delete state — an aborted workflow must remain reconstructable.
+When the user asks to stop or abandon the workflow: set `phase: aborted` with `halted: true` and `halt_reason: user-abort`, append a history entry, move the `{slug}-*` files to `.build/plans/archive/[date]-{slug}-aborted/` (if the directory already exists from a same-day abort, append `-2`), and summarize what was completed, what branch/commits exist, and what was left undone. Never delete state — an aborted workflow must remain reconstructable.
 
 ---
 

@@ -262,9 +262,9 @@ Save `{slug}-architect-review.md` before changing state.
 When runnable, run `compile-result` against the saved review; it requires the current accepted Verify result and exact final diff, and a runnable diagnostic blocks without fallback. Root validates the immutable receipt, appends `{phase,receipt_id}` to `phase_result_references`, records verdict/findings and history, and applies only its allowed next phase: transition to terminal `complete` for PASS/PASS_WITH_NOTES, or `implement` with `architect_fixes` for FAIL and fresh Verify. Recorded runtime absence uses the authored mapping and disclosure; missing verdict applies the phase-agent circuit breaker.
 
 At `complete`, summarize delivered work, tests, decisions, branch, all six agent routes and sources, every `agent_selection_fallback` (or explicitly `none`), requested model routes and every `model_fallback` (or explicitly `none`), including literal `profile-owned` wherever selected, and the user's merge command.
-Surface all PARTIAL gaps under `Uncovered requirements`. Root archives all slug artifacts
-under `.build/plans/archive/{date}-{slug}/`. Never merge to the user's branch, push, or
-open a PR.
+Surface all PARTIAL gaps under `Uncovered requirements`, including every mechanical gap in the current Verify receipt's `mechanical_facts.evidence.gaps`.
+Root archives all slug artifacts under `.build/plans/archive/{date}-{slug}/`.
+Never merge to the user's branch, push, or open a PR.
 
 ## Abort
 

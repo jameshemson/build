@@ -80,6 +80,8 @@ Plans must include a fenced YAML block named `execution_manifest`. Every task en
 - `depends_on`: list of task IDs that must complete first
 - `workstream`: one declared workstream name
 - `files_modified`: exact files created or modified by the task
+- A gitignored planned output must be proven through a must-have's evidence command, because file scope cannot see ignored paths.
+- A moved or renamed file lists both its old and its new path in `files_modified`.
 - `requirements`: `REQ-*` IDs the task satisfies
 - `decisions`: `D-*` IDs the task implements
 - `must_haves`: typed, observable acceptance criteria, not advice
