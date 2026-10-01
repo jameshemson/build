@@ -403,6 +403,21 @@ const FRICTION_CONTRACTS = {
       'A gitignored planned output needs a must-have evidence command that proves it, and a moved file lists both its old and new paths in `files_modified`',
     ],
   },
+  'limit extension': {
+    'source/skills/build/SKILL.md': [
+      'When `check-counters` halts with `plan-review-limit`, `phase-loop-limit`, or `phase-agent-failure`, root asks one AskUserQuestion.',
+      'Root never appends `extend` without that answer in the current session.',
+      'The one exception is a user-authorized `extend` event, which adds one round only on the user\'s answer.',
+    ],
+    'source/skills/build/SKILL.codex.md': [
+      'the smallest decision is one more round',
+      'only after the user\'s reply in this session approves it',
+    ],
+    'source/skills/build/reference/state-schema.md': [
+      '`extend` events also carry a non-empty `authorization` quoting the user\'s answer',
+      'or by root in the same edit that appends a user-authorized `extend` event',
+    ],
+  },
 };
 
 const KEMET_EVIDENCE_ASSERTIONS = [

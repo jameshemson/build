@@ -293,4 +293,7 @@ runtime unavailability uses the prompt counts below:
 
 When a breaker fires, root writes `halted: true`, `halt_reason`, and `halt_context`, logs
 the evidence in `agent_failures` or history, and asks the user for the smallest decision
-needed. Never increase a limit, skip a phase, or hide a failure.
+needed. Never increase a limit, skip a phase, or hide a failure; for `plan-review-limit`,
+`phase-loop-limit`, or `phase-agent-failure` the smallest decision is one more round: show
+each round's Critical and Important counts, stop, and append the authorized `extend` event
+with the halt triplet removed only after the user's reply in this session approves it.
