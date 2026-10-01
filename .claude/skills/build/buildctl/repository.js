@@ -344,12 +344,18 @@ export function repositoryTestShrink({
 // apart from planned_but_unchanged. check-ignore is index-aware by default: a
 // tracked file is never reported as ignored, even under an ignored directory.
 function ignoredPaths(root, candidates) {
-  if (candidates.length === 0) return new Set();
+  // check-ignore exits 128 for a path inside a submodule; such a path is never
+  // ignored by this repository, so it stays planned_but_unchanged.
+  const modules = submodulePaths(root);
+  const checkable = candidates.filter((path) => !modules.some(
+    (module) => path === module || path.startsWith(`${module}/`),
+  ));
+  if (checkable.length === 0) return new Set();
   const result = git(root, ['check-ignore', '--stdin', '-z'], {
     allowFailure: true,
     encoding: 'buffer',
     // A string input would be encoded with `encoding`, which 'buffer' is not.
-    input: Buffer.from(candidates.map((path) => `${path}\0`).join(''), 'utf8'),
+    input: Buffer.from(checkable.map((path) => `${path}\0`).join(''), 'utf8'),
   });
   if (result.status === 0) return new Set(nulRecords(result.stdout));
   if (result.status === 1) return new Set();

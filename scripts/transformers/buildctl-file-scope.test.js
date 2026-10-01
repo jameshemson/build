@@ -117,6 +117,26 @@ test('file scope classification: a move with only the new path planned puts the 
   assert.ok(scope.out_of_plan.includes('old.js'), `out_of_plan: ${scope.out_of_plan.join(', ')}`);
 });
 
+test('file scope classification: a planned path inside a submodule stays unchanged instead of failing', () => {
+  const sub = sandbox();
+  write(sub, 'lib.js', 'export const lib = 1;\n');
+  commit(sub, 'submodule base');
+  const repo = sandbox();
+  write(repo, 'src/a.js', 'a\n');
+  run(['git', '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', sub, 'mod'], repo);
+  const baseRef = commit(repo, 'base');
+  write(repo, 'src/a.js', 'a2\n');
+  commit(repo, 'feature');
+
+  const scope = repositoryFileScope({
+    baseRef,
+    plannedPaths: ['mod/lib.js', 'src/a.js'],
+    repoRoot: repo,
+  });
+  assert.deepEqual(scope.planned_but_unchanged, ['mod/lib.js']);
+  assert.deepEqual(scope.planned_ignored, []);
+});
+
 test('file scope classification: result keys are reported in a fixed order', () => {
   const { baseRef, repo } = movedRepo();
 
