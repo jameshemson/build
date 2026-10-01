@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 
-import { compilePlan, BuildctlError, resolveCompilerVersion } from './plan-contract.js';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import {
+  compilePlan,
+  BuildctlError,
+  findGitRoot,
+  resolveCompilerVersion,
+  resolveInsideRepo,
+} from './plan-contract.js';
 
 const MINIMUM_NODE_MAJOR = 2 * 10;
 const MAX_OUTPUT_BYTES = 2 ** (2 * 10);
@@ -15,6 +23,7 @@ function usage() {
     '  buildctl check-counters --state <state.md>',
     '  buildctl compile-result --state <state.md> --contract <contract.json>',
     '      --artifact <phase-report.md> [--evidence-dir <dir>] [--receipts-dir <dir>]',
+    '  buildctl subjects --phase <plan-review|verify|architect-review> --state <state.md> --contract <contract.json> [--evidence-dir <dir>] [--out <subjects.yaml>]',
     '  buildctl complete-slice --state <state.md> --contract <contract.json>',
     '      --summary <implementation-summary.md> --judgments <judgments.yaml>',
     '      [--evidence-dir <dir>] [--receipts-dir <dir>]',
@@ -48,6 +57,23 @@ function parseArgs(args) {
 function required(flags, key) {
   if (!flags[key]) throw new BuildctlError('E_ARGUMENT', `--${key} is required.`);
   return flags[key];
+}
+
+async function writeSubjects(flags) {
+  const { computePhaseSubjects, formatSubjectsYaml } = await import('./phase-results.js');
+  const options = {
+    phase: required(flags, 'phase'),
+    statePath: required(flags, 'state'),
+    contractPath: required(flags, 'contract'),
+    evidenceDir: flags['evidence-dir'],
+  };
+  const yaml = formatSubjectsYaml((await computePhaseSubjects(options)).subjects);
+  if (flags.out) {
+    const outPath = resolveInsideRepo(flags.out, findGitRoot(), 'subjects output');
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, yaml, 'utf8');
+  }
+  process.stdout.write(yaml);
 }
 
 function printError(error) {
@@ -139,6 +165,10 @@ async function main() {
       statePath: required(flags, 'state'),
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
+  if (command === 'subjects') {
+    await writeSubjects(flags);
     return;
   }
   if (command === 'complete-slice') {

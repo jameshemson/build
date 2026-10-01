@@ -952,3 +952,125 @@ for (const [phase, makeRepo, args, verdictLine, verdict, otherLine] of [
     assert.equal(git(setup.repo, 'status', '--porcelain=v1', '--untracked-files=all'), statusBefore);
   });
 }
+
+const SUBJECTS_BLOCK = /^subjects:\n(?: {2}- .*\n)+/m;
+const PRINTED_SUBJECTS = /^subjects:\n(?: {2}- \{ name: [a-z-]+, sha256: "[a-f0-9]{64}" \}\n)+$/;
+
+function subjectsArgs(setup, phase, evidenceDir) {
+  return [
+    process.execPath,
+    CLI,
+    'subjects',
+    '--phase',
+    phase,
+    '--state',
+    setup.statePath,
+    '--contract',
+    setup.contractPath,
+    ...(evidenceDir ? ['--evidence-dir', evidenceDir] : []),
+  ];
+}
+
+function withSubjects(report, block) {
+  assert.match(report, SUBJECTS_BLOCK);
+  return report.replace(SUBJECTS_BLOCK, () => block);
+}
+
+for (const [phase, makeRepo, args, evidenceDir] of [
+  ['plan-review', makePlanReviewRepo, compileArgs, () => '.build/evidence/plan'],
+  ['verify', makeVerifyRepo, compileVerifyArgs, (setup) => setup.evidenceDir],
+  ['architect-review', makeArchitectRepo, compileArchitectArgs, (setup) => setup.evidenceDir],
+]) {
+  test(`phase subjects: ${phase} block printed by buildctl subjects compiles`, async () => {
+    const setup = await makeRepo();
+    const printed = run(subjectsArgs(setup, phase, evidenceDir(setup)), setup.repo).stdout;
+    assert.match(printed, PRINTED_SUBJECTS);
+    const names = [...printed.matchAll(/name: ([a-z-]+),/g)].map((match) => match[1]);
+    assert.deepEqual(names, [...names].sort());
+
+    const zeroed = printed.replace(/[a-f0-9]{64}/g, '0'.repeat(64));
+    writeFileSync(setup.artifactPath, withSubjects(setup.report, zeroed), 'utf8');
+    assert.match(run(args(setup), setup.repo, 1).stderr, /E_RESULT_SUBJECT/);
+
+    writeFileSync(setup.artifactPath, withSubjects(setup.report, printed), 'utf8');
+    const compiled = run(args(setup), setup.repo);
+    assert.match(compiled.stdout, /"status":"compiled"/);
+    assert.equal(JSON.parse(compiled.stdout).phase, phase);
+  });
+}
+
+test('phase subjects: plan-review subjects printed before a plan edit are stale', async () => {
+  const setup = await makePlanReviewRepo();
+  const printed = run(
+    subjectsArgs(setup, 'plan-review', '.build/evidence/plan'),
+    setup.repo,
+  ).stdout;
+  const planPath = join(setup.repo, 'plan.yaml');
+  const plan = readFileSync(planPath, 'utf8');
+  const edited = plan.replace(
+    'done: "the named adoption test passes"',
+    'done: "the named adoption test passes cleanly"',
+  );
+  assert.notEqual(edited, plan);
+  writeFileSync(planPath, edited, 'utf8');
+  run([
+    process.execPath,
+    CLI,
+    'validate-plan',
+    '--plan',
+    'plan.yaml',
+    '--out',
+    setup.contractPath,
+  ], setup.repo);
+
+  writeFileSync(setup.artifactPath, withSubjects(setup.report, printed), 'utf8');
+  const stale = run(compileArgs(setup), setup.repo, 1);
+  assert.match(stale.stderr, /E_RESULT_SUBJECT artifact\.machine_result\.subjects\.plan:/);
+
+  const refreshed = run(
+    subjectsArgs(setup, 'plan-review', '.build/evidence/plan'),
+    setup.repo,
+  ).stdout;
+  assert.notEqual(refreshed, printed);
+  writeFileSync(setup.artifactPath, withSubjects(setup.report, refreshed), 'utf8');
+  assert.match(run(compileArgs(setup), setup.repo).stdout, /"status":"compiled"/);
+});
+
+test('phase subjects: verify defaults to the contract slug evidence directory', async () => {
+  const setup = await makeVerifyRepo();
+  assert.equal(setup.evidenceDir, join(setup.repo, '.build/evidence/plan'));
+  assert.ok(readFileSync(join(setup.repo, '.build/evidence/plan/ledger.json')).length > 0);
+
+  const printed = run(subjectsArgs(setup, 'verify'), setup.repo).stdout;
+  const identity = await captureRepositoryIdentity({
+    evidenceDir: '.build/evidence/plan',
+    repoRoot: setup.repo,
+  });
+  const repositoryLine = printed.split('\n').find((line) => line.includes('name: repository,'));
+  assert.equal(repositoryLine, `  - { name: repository, sha256: "${identity.fingerprint}" }`);
+
+  const args = compileVerifyArgs(setup);
+  args.splice(args.indexOf('--evidence-dir'), 2);
+  assert.ok(!args.includes('--evidence-dir'));
+  writeFileSync(setup.artifactPath, withSubjects(setup.report, printed), 'utf8');
+  assert.match(run(args, setup.repo).stdout, /"status":"compiled"/);
+});
+
+test('phase subjects: --out writes the stdout bytes relative to the repository root', async () => {
+  const setup = await makePlanReviewRepo();
+  const outRelative = '.build/plans/receipt-fixture-subjects.yaml';
+  const printed = run(
+    [...subjectsArgs(setup, 'plan-review'), '--out', outRelative],
+    join(setup.repo, 'src'),
+  ).stdout;
+  assert.match(printed, PRINTED_SUBJECTS);
+  assert.deepEqual(readFileSync(join(setup.repo, outRelative)), Buffer.from(printed, 'utf8'));
+});
+
+test('phase subjects: an unknown --phase is an argument error', async () => {
+  const setup = await makePlanReviewRepo();
+  const rejected = run(subjectsArgs(setup, 'bogus'), setup.repo, 1);
+  assert.match(rejected.stderr, /E_ARGUMENT/);
+  assert.equal(rejected.stdout, '');
+  console.log('phase subjects complete');
+});
