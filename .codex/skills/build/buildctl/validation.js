@@ -117,6 +117,40 @@ function commandRef(ref) {
   return { command, assertion };
 }
 
+// True when the command has a pipe outside quotes. `||` is the or-operator, not
+// a pipe; `|&` is a pipe. A backslash escapes the next character outside single
+// quotes, matching how /bin/sh reads the command.
+function unquotedPipe(command) {
+  let quote = null;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (quote === "'") {
+      if (char === "'") quote = null;
+    } else if (char === '\\') {
+      index += 1;
+    } else if (quote === '"') {
+      if (char === '"') quote = null;
+    } else if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === '|') {
+      if (command[index + 1] !== '|') return true;
+      index += 1;
+    }
+  }
+  return false;
+}
+
+const PIPE_MESSAGE = 'evidence command pipes output, so its exit status is the last stage\'s; '
+  + 'put the expected text after " :: " instead of piping, or wrap the pipeline as bash -o pipefail -c \'...\'';
+
+// run-evidence records the exit status of the whole command, which for a
+// pipeline is the last stage's, so a failing build piped into grep would pass.
+function checkEvidencePipe(command, path, diagnostics) {
+  if (typeof command === 'string' && unquotedPipe(command)) {
+    diagnostic(diagnostics, 'E_EVIDENCE_PIPE', path, PIPE_MESSAGE);
+  }
+}
+
 function taskCycle(tasks, byId, diagnostics) {
   const visiting = new Set();
   const visited = new Set();
@@ -288,6 +322,7 @@ function validateTask(task, index, declared, collected, diagnostics) {
     });
   }
   nonEmptyString(task.verify, `${path}.verify`, diagnostics);
+  checkEvidencePipe(task.verify, `${path}.verify`, diagnostics);
   nonEmptyString(task.done, `${path}.done`, diagnostics);
   validateMustHaves(task, path, collected.mustHaveIds, diagnostics);
 }
@@ -386,6 +421,9 @@ function validateSlice(slice, index, context, diagnostics) {
   stringArray(slice.requirements, `${path}.requirements`, diagnostics, { nonEmpty: true });
   stringArray(slice.must_haves, `${path}.must_haves`, diagnostics, { nonEmpty: true });
   stringArray(slice.verify, `${path}.verify`, diagnostics, { nonEmpty: true });
+  for (const [verifyIndex, command] of (Array.isArray(slice.verify) ? slice.verify : []).entries()) {
+    checkEvidencePipe(command, `${path}.verify[${verifyIndex}]`, diagnostics);
+  }
   checkRefs(slice.requirements, context.requirementIds, `${path}.requirements`, diagnostics);
   for (const dependency of Array.isArray(slice.depends_on) ? slice.depends_on : []) {
     const dependencyIndex = context.slices.findIndex((candidate) => candidate.id === dependency);
