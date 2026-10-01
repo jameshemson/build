@@ -19,10 +19,11 @@ import {
 const KIBIBYTE = 2 ** 10;
 const GIT_BUFFER_LIMIT = 64 * KIBIBYTE * KIBIBYTE;
 
-function git(repoRoot, args, { allowFailure = false, encoding = 'utf8' } = {}) {
+function git(repoRoot, args, { allowFailure = false, encoding = 'utf8', input } = {}) {
   const result = spawnSync('git', args, {
     cwd: repoRoot,
     encoding,
+    input,
     maxBuffer: GIT_BUFFER_LIMIT,
   });
   if (result.error) {
@@ -339,6 +340,27 @@ export function repositoryTestShrink({
   };
 }
 
+// A gitignored planned output can never appear in the diff, so it is reported
+// apart from planned_but_unchanged. check-ignore is index-aware by default: a
+// tracked file is never reported as ignored, even under an ignored directory.
+function ignoredPaths(root, candidates) {
+  if (candidates.length === 0) return new Set();
+  const result = git(root, ['check-ignore', '--stdin', '-z'], {
+    allowFailure: true,
+    encoding: 'buffer',
+    // A string input would be encoded with `encoding`, which 'buffer' is not.
+    input: Buffer.from(candidates.map((path) => `${path}\0`).join(''), 'utf8'),
+  });
+  if (result.status === 0) return new Set(nulRecords(result.stdout));
+  if (result.status === 1) return new Set();
+  throw new BuildctlError(
+    'E_GIT',
+    `git check-ignore failed in ${root}: ${String(result.stderr || '').trim()}`,
+  );
+}
+
+// --no-renames lists a move as a delete plus an add, so a planned old path
+// reads as changed and an unplanned old path reads as out of plan.
 export function repositoryFileScope({
   repoRoot = process.cwd(),
   baseRef,
@@ -347,7 +369,9 @@ export function repositoryFileScope({
   const root = findGitRoot(repoRoot);
   requireBaseRef(root, baseRef);
   const changed = nulRecords(
-    git(root, ['diff', '--name-only', '-z', baseRef, 'HEAD'], { encoding: 'buffer' }).stdout,
+    git(root, ['diff', '--name-only', '--no-renames', '-z', baseRef, 'HEAD'], {
+      encoding: 'buffer',
+    }).stdout,
   ).sort();
   const planned = [...new Set(plannedPaths)].sort();
   if (planned.some((path) => typeof path !== 'string' || !path)) {
@@ -355,10 +379,13 @@ export function repositoryFileScope({
   }
   const changedSet = new Set(changed);
   const plannedSet = new Set(planned);
+  const unchanged = planned.filter((path) => !changedSet.has(path));
+  const ignored = ignoredPaths(root, unchanged);
   return {
     changed,
     out_of_plan: changed.filter((path) => !plannedSet.has(path)),
     planned,
-    planned_but_unchanged: planned.filter((path) => !changedSet.has(path)),
+    planned_but_unchanged: unchanged.filter((path) => !ignored.has(path)),
+    planned_ignored: unchanged.filter((path) => ignored.has(path)),
   };
 }
