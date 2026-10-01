@@ -10,7 +10,8 @@ export const CIRCUIT_LIMITS = Object.freeze({
 });
 
 const KINDS = Object.keys(CIRCUIT_LIMITS);
-const ACTIONS = new Set(['increment', 'reset']);
+const ACTIONS = new Set(['extend', 'increment', 'reset']);
+const EXTENDABLE = new Set(['plan_review', 'phase_reentry', 'fresh_judgment_retry']);
 
 function compareText(left, right) {
   if (left < right) return -1;
@@ -46,32 +47,76 @@ function normalizedLimits(value) {
   }));
 }
 
+function validatedEvent(value, index, exactLimits) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    fail('E_COUNTER_EVENT_SCHEMA', `events[${index}] must be an object.`);
+  }
+  const event = structuredClone(value);
+  if (typeof event.id !== 'string' || !event.id) {
+    fail('E_COUNTER_EVENT_SCHEMA', `events[${index}].id must be non-empty.`);
+  }
+  if (!Object.hasOwn(exactLimits, event.kind)) {
+    fail('E_COUNTER_KIND', `Unsupported counter event kind: ${JSON.stringify(event.kind)}.`);
+  }
+  if (!ACTIONS.has(event.action)) {
+    fail('E_COUNTER_EVENT_ACTION', `Unsupported counter event action: ${JSON.stringify(event.action)}.`);
+  }
+  if (event.action === 'reset' && event.kind !== 'no_progress') {
+    fail('E_COUNTER_EVENT_ACTION', 'Only no_progress events may reset a consecutive streak.');
+  }
+  if (event.action === 'extend') validateExtend(event, index);
+  if (typeof event.scope !== 'string' || !event.scope) {
+    fail('E_COUNTER_EVENT_SCHEMA', `events[${index}].scope must be non-empty.`);
+  }
+  return event;
+}
+
+function validateExtend(event, index) {
+  if (!EXTENDABLE.has(event.kind)) {
+    fail(
+      'E_COUNTER_EVENT_ACTION',
+      'Only plan_review, phase_reentry, and fresh_judgment_retry events may extend a limit.',
+    );
+  }
+  if (typeof event.authorization !== 'string' || !event.authorization) {
+    fail('E_COUNTER_EVENT_SCHEMA', `events[${index}].authorization must be non-empty for extend.`);
+  }
+}
+
+function applyEvent(event, counters, extensions) {
+  const table = event.action === 'extend' ? extensions : counters;
+  const current = table[event.kind].get(event.scope) || 0;
+  table[event.kind].set(event.scope, event.action === 'reset' ? 0 : current + 1);
+}
+
+function sortedEntries(map) {
+  return [...map.entries()].sort(([left], [right]) => compareText(left, right));
+}
+
+function limitDiagnostics(counters, extensions, exactLimits) {
+  const haltAt = (kind, scope) => exactLimits[kind].halt_at + (extensions[kind].get(scope) || 0);
+  return KINDS.flatMap((kind) => sortedEntries(counters[kind])
+    .map(([scope, count]) => [scope, count, haltAt(kind, scope)])
+    .filter(([, count, threshold]) => count >= threshold)
+    .map(([scope, count, threshold]) => ({
+      code: 'E_COUNTER_LIMIT',
+      count,
+      halt_at: threshold,
+      halt_reason: exactLimits[kind].halt_reason,
+      kind,
+      scope,
+    })));
+}
+
 export function evaluateCircuitEvents(events, { limits } = {}) {
   if (!Array.isArray(events)) fail('E_COUNTER_EVENT_SCHEMA', 'events must be an array.');
   const exactLimits = normalizedLimits(limits);
   const counters = Object.fromEntries(KINDS.map((kind) => [kind, new Map()]));
+  const extensions = Object.fromEntries(KINDS.map((kind) => [kind, new Map()]));
   const seen = new Map();
 
   for (const [index, value] of events.entries()) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      fail('E_COUNTER_EVENT_SCHEMA', `events[${index}] must be an object.`);
-    }
-    const event = structuredClone(value);
-    if (typeof event.id !== 'string' || !event.id) {
-      fail('E_COUNTER_EVENT_SCHEMA', `events[${index}].id must be non-empty.`);
-    }
-    if (!Object.hasOwn(exactLimits, event.kind)) {
-      fail('E_COUNTER_KIND', `Unsupported counter event kind: ${JSON.stringify(event.kind)}.`);
-    }
-    if (!ACTIONS.has(event.action)) {
-      fail('E_COUNTER_EVENT_ACTION', `Unsupported counter event action: ${JSON.stringify(event.action)}.`);
-    }
-    if (event.action === 'reset' && event.kind !== 'no_progress') {
-      fail('E_COUNTER_EVENT_ACTION', 'Only no_progress events may reset a consecutive streak.');
-    }
-    if (typeof event.scope !== 'string' || !event.scope) {
-      fail('E_COUNTER_EVENT_SCHEMA', `events[${index}].scope must be non-empty.`);
-    }
+    const event = validatedEvent(value, index, exactLimits);
     const content = canonicalJson(event);
     if (seen.has(event.id)) {
       if (seen.get(event.id) !== content) {
@@ -80,25 +125,13 @@ export function evaluateCircuitEvents(events, { limits } = {}) {
       continue;
     }
     seen.set(event.id, content);
-    const current = counters[event.kind].get(event.scope) || 0;
-    counters[event.kind].set(event.scope, event.action === 'reset' ? 0 : current + 1);
+    applyEvent(event, counters, extensions);
   }
 
-  const diagnostics = KINDS.flatMap((kind) => [...counters[kind].entries()]
-    .sort(([left], [right]) => compareText(left, right))
-    .filter(([, count]) => count >= exactLimits[kind].halt_at)
-    .map(([scope, count]) => ({
-      code: 'E_COUNTER_LIMIT',
-      count,
-      halt_at: exactLimits[kind].halt_at,
-      halt_reason: exactLimits[kind].halt_reason,
-      kind,
-      scope,
-    })));
+  const diagnostics = limitDiagnostics(counters, extensions, exactLimits);
   const serializedCounters = Object.fromEntries(KINDS.map((kind) => [
     kind,
-    Object.fromEntries([...counters[kind].entries()]
-      .sort(([left], [right]) => compareText(left, right))),
+    Object.fromEntries(sortedEntries(counters[kind])),
   ]));
   return {
     counters: serializedCounters,
