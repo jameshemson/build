@@ -418,6 +418,16 @@ const FRICTION_CONTRACTS = {
       'or by root in the same edit that appends a user-authorized `extend` event',
     ],
   },
+  'evidence-citing done': {
+    'source/skills/build/SKILL.md': [
+      'Before reporting DONE, list each verification command you ran for your tasks, its exit code read directly (not through a pipe), and the output line that shows each assigned must-have.',
+      'Report DONE only when every must-have has such a line; otherwise report DONE_WITH_CONCERNS or BLOCKED.',
+    ],
+    'source/skills/build/reference/codex-execution.md': [
+      'its exit code read directly (not through a pipe) and the output line that shows each assigned must-have',
+      'Report `DONE` only when every must-have has such a line.',
+    ],
+  },
 };
 
 const KEMET_EVIDENCE_ASSERTIONS = [
@@ -1597,6 +1607,14 @@ for (const [path, terms] of Object.entries(WORKFLOW_MODE_CONTRACTS)) {
     });
   }
 }
+
+test('friction contract: evidence-citing done drops the self-check wording', () => {
+  assert.ok(
+    !normalizeOrchestrationWhitespace(readRel('source/skills/build/SKILL.md'))
+      .includes('check your work against the plan\'s spec'),
+    'source/skills/build/SKILL.md must not tell implementers to check their work against the plan\'s spec',
+  );
+});
 
 for (const [group, files] of Object.entries(FRICTION_CONTRACTS)) {
   test(`friction contract: ${group} phrases present`, () => {
