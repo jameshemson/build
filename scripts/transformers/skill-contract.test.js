@@ -353,6 +353,36 @@ const RELAY_VALUE_SUBJECT_TOKENS = {
   'verify-result': 'verify-result=',
 };
 
+// Friction contracts pin prose that hands a judge an orchestrator-authored input instead of
+// letting the judge reconstruct it. Each group maps repo paths to phrases matched against
+// whitespace-normalized content; later groups extend this map and reuse the generic loop.
+const JUDGE_SUBJECTS_HANDOFF = [
+  'When a subjects file or an inlined `subjects:` block is supplied, copy that list into the machine result exactly. Never compute, reconstruct or guess a hash.',
+  'In standalone use without one, when buildctl is runnable and a Build state exists for the supplied slug, run `buildctl subjects',
+];
+
+const FRICTION_CONTRACTS = {
+  'subjects handoff': {
+    'source/skills/review-plan/SKILL.md': JUDGE_SUBJECTS_HANDOFF,
+    'source/skills/verify/SKILL.md': JUDGE_SUBJECTS_HANDOFF,
+    'source/skills/architect-review/SKILL.md': JUDGE_SUBJECTS_HANDOFF,
+    'source/skills/impl-plan/reference/standalone-artifacts.md': [
+      'When the relay supplies `subjects=`, copy that file\'s `subjects:` list exactly; never compute, reconstruct or guess a hash.',
+    ],
+    'source/skills/build/reference/workflow-modes.md': [
+      'the subjects file root wrote with `buildctl subjects` immediately before dispatch is byte-identical to its pre-run hash',
+    ],
+    'source/skills/build/SKILL.md': [
+      'Immediately before each Plan Review, Verify, or Architect Review dispatch',
+      'written immediately before this dispatch, to the judge.',
+    ],
+    'source/skills/build/SKILL.codex.md': [
+      'Run `review-plan` in a fresh-context agent with the effective `review` route',
+      'root runs `buildctl subjects` and inlines its `subjects:` block in the judge packet',
+    ],
+  },
+};
+
 const KEMET_EVIDENCE_ASSERTIONS = [
   'catches-unbound-approach-obligation',
   'catches-non-atomic-task',
@@ -757,6 +787,30 @@ function assertRelayTemplateSubjects(phases = readPhaseSubjects(), templates = r
         `the ${skill} relay template must carry ${phase} subject ${subject} as ${JSON.stringify(fragment)}`,
       );
     }
+    const subjectsToken = relaySubjectsToken(phase);
+    assert.ok(
+      template.includes(subjectsToken),
+      `the ${skill} relay template must carry its ${phase} subjects file as ${JSON.stringify(subjectsToken)}`,
+    );
+  }
+}
+
+function relaySubjectsToken(phase) {
+  return `subjects=.build/plans/{slug}-${phase}-subjects.yaml`;
+}
+
+function readFrictionGroup(group) {
+  return Object.fromEntries(
+    Object.keys(FRICTION_CONTRACTS[group]).map((path) => [
+      path,
+      normalizeOrchestrationWhitespace(readRel(path)),
+    ]),
+  );
+}
+
+function assertFrictionContract(group, contents = readFrictionGroup(group)) {
+  for (const [path, phrases] of Object.entries(FRICTION_CONTRACTS[group])) {
+    assertRequiredTerms(normalizeOrchestrationWhitespace(contents[path]), phrases, path);
   }
 }
 
@@ -1112,6 +1166,24 @@ test('a relay template dropping a compile-result subject is rejected', () => {
         `dropping ${subject} from the ${skill} relay template must fail`,
       );
     }
+  }
+});
+
+test('a relay template dropping its subjects= token is rejected', () => {
+  const phases = readPhaseSubjects();
+  const templates = relayCommandTemplates();
+  for (const [skill, phase] of Object.entries(RELAY_TEMPLATE_PHASES)) {
+    const token = relaySubjectsToken(phase);
+    assert.ok(templates[skill].includes(token), `relay fixture missing ${token}`);
+    const mutated = {
+      ...templates,
+      [skill]: templates[skill].replaceAll(token, ''),
+    };
+    assert.throws(
+      () => assertRelayTemplateSubjects(phases, mutated),
+      new RegExp(`its ${phase} subjects file`),
+      `dropping ${token} from the ${skill} relay template must fail`,
+    );
   }
 });
 
@@ -1486,6 +1558,23 @@ for (const [path, terms] of Object.entries(WORKFLOW_MODE_CONTRACTS)) {
       contents[path] = contents[path].replaceAll(phrase, '');
       assert.throws(() => assertWorkflowModeContracts(contents));
     });
+  }
+}
+
+for (const [group, files] of Object.entries(FRICTION_CONTRACTS)) {
+  test(`friction contract: ${group} phrases present`, () => {
+    assertFrictionContract(group);
+    console.log(`friction contract: ${group} complete`);
+  });
+  for (const [path, phrases] of Object.entries(files)) {
+    for (const phrase of phrases) {
+      test(`friction contract: ${group} rejects ${path} removal of ${phrase}`, () => {
+        const contents = readFrictionGroup(group);
+        assert.ok(contents[path].includes(phrase), `friction fixture missing ${phrase}`);
+        contents[path] = contents[path].replaceAll(phrase, '');
+        assert.throws(() => assertFrictionContract(group, contents));
+      });
+    }
   }
 }
 

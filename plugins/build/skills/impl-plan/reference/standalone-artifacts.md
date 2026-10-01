@@ -25,7 +25,11 @@ artifact under the normal collision rules even when an active Build state matche
 request — the state belongs to the root that issued the relay, not to this run — and never
 touches `*-state.md`. A relay run's artifact must end with the phase's complete fenced
 machine-result block built from the supplied subject inputs; `Machine result: N/A` is not a
-valid relay outcome. A relay invocation missing a subject input its phase's machine result
+valid relay outcome. When the relay supplies `subjects=`, copy that file's `subjects:` list
+exactly; never compute, reconstruct or guess a hash. A legacy relay without `subjects=` runs
+`buildctl subjects` for the relayed slug instead of hashing files; the deprecated
+`repository=` and `verify-result=` tokens are accepted and need no other handling.
+A relay invocation missing a subject input its phase's machine result
 requires reports the named missing input as a blocking error in the artifact and the
 response.
 

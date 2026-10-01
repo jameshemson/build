@@ -96,7 +96,9 @@ three of the following hold:
 
 1. No change outside the expected artifact: `git status --porcelain` shows no entry other than the
    expected artifact's path, and `{slug}-state.md` is byte-identical to its pre-run hash, which root
-   records before dispatch. Otherwise discard the run and revert the working tree to its pre-run state.
+   records before dispatch, and the subjects file root wrote with `buildctl subjects` immediately
+   before dispatch is byte-identical to its pre-run hash. Otherwise discard the run and revert the
+   working tree to its pre-run state.
 2. The expected artifact is present at its natural path.
 3. `compile-result` returns a successful receipt for that phase.
 
@@ -121,11 +123,14 @@ path, branch, and expected artifact path, append one scoped `no_progress` increm
 current evidence ledger, as emitted by `run-evidence` — and `{verify_receipt_hash}`, the
 `receipt_hash` of the accepted Verify receipt. The `name=value` tokens carry subject values that
 are not files: neither the repository fingerprint nor the Verify receipt hash is derivable from any
-path, so root passes each one literally.
+path, so root passes each one literally. The `subjects=` token is the exception: it names the file
+root wrote with `buildctl subjects` immediately before dispatch, and that file is authoritative —
+the relayed skill copies its `subjects:` list exactly. The `repository=` and `verify-result=`
+tokens are deprecated, kept for one release so older skill installs can still author their block.
 
-- Review — `[relay] $build:review-plan .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-context.md .build/plans/{slug}-requirements.md repository={repository_fingerprint}`
-- Verify — `[relay] $build:verify .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-requirements.md .build/plans/{slug}-implementation-summary.md .build/evidence/{slug}/ledger.json repository={repository_fingerprint}`
-- Architect review — `[relay] $build:architect-review .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-implementation-summary.md .build/plans/{slug}-verify.md verify-result={verify_receipt_hash} repository={repository_fingerprint} diff={base_ref}...HEAD`
+- Review — `[relay] $build:review-plan .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-context.md .build/plans/{slug}-requirements.md repository={repository_fingerprint} subjects=.build/plans/{slug}-plan-review-subjects.yaml`
+- Verify — `[relay] $build:verify .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-requirements.md .build/plans/{slug}-implementation-summary.md .build/evidence/{slug}/ledger.json repository={repository_fingerprint} subjects=.build/plans/{slug}-verify-subjects.yaml`
+- Architect review — `[relay] $build:architect-review .build/plans/{slug}-plan.md .build/contracts/{slug}/contract.json .build/plans/{slug}-implementation-summary.md .build/plans/{slug}-verify.md verify-result={verify_receipt_hash} repository={repository_fingerprint} diff={base_ref}...HEAD subjects=.build/plans/{slug}-architect-review-subjects.yaml`
 
 Each template names its phase's complete `compile-result` subject set — file subjects by path, value
 subjects by the `repository=` and `verify-result=` tokens — so a relayed skill can author the full
