@@ -789,14 +789,7 @@ function receiptCore({
   };
 }
 
-export async function compilePhaseResult({
-  artifactPath,
-  contractPath,
-  cwd = process.cwd(),
-  evidenceDir,
-  receiptsDir,
-  statePath,
-} = {}) {
+function loadResultContext({ contractPath, cwd, evidenceDir, statePath }) {
   const loaded = loadContract({ contractPath, cwd });
   const state = loadWorkflowState({
     cwd,
@@ -818,6 +811,191 @@ export async function compilePhaseResult({
     state.repoRoot,
     'evidence directory',
   );
+  return { directory, loaded, state };
+}
+
+function phaseReportPaths({ directory, phase, state }) {
+  const prefix = state.values.workflow_artifact_prefix || state.values.slug;
+  const plans = join('.build', 'plans');
+  const paths = {};
+  if (phase === 'architect-review' || phase === 'verify') {
+    paths.summary = resolveInsideRepo(
+      join(plans, `${prefix}-implementation-summary.md`),
+      state.repoRoot,
+      'implementation summary',
+      { mustExist: true },
+    );
+  }
+  if (phase === 'architect-review') {
+    paths.verify = resolveInsideRepo(
+      join(plans, `${prefix}-verify.md`),
+      state.repoRoot,
+      'Verify report',
+      { mustExist: true },
+    );
+  } else if (phase === 'verify') {
+    paths.ledger = resolveInsideRepo(
+      join(directory, 'ledger.json'),
+      state.repoRoot,
+      'evidence ledger',
+      { mustExist: true },
+    );
+  }
+  return paths;
+}
+
+async function subjectInputs({ contract, directory, phase, state }) {
+  const paths = artifactPaths({ contract, repoRoot: state.repoRoot, state });
+  const repository = await captureRepositoryIdentity({
+    evidenceDir: directory,
+    repoRoot: state.repoRoot,
+  });
+  return {
+    paths: { ...paths, ...phaseReportPaths({ directory, phase, state }) },
+    repository,
+  };
+}
+
+function phaseSubjectHashes({
+  contractSha256,
+  paths,
+  phase,
+  repository,
+  verifyResultHash,
+}) {
+  const fileHash = (path) => sha256(readFileSync(path));
+  const shared = {
+    contract: contractSha256,
+    plan: fileHash(paths.plan),
+    repository: repository.fingerprint,
+  };
+  if (phase === 'architect-review') {
+    return {
+      ...shared,
+      'implementation-summary': fileHash(paths.summary),
+      verify: fileHash(paths.verify),
+      'verify-result': verifyResultHash,
+    };
+  }
+  if (phase === 'verify') {
+    return {
+      ...shared,
+      'evidence-ledger': fileHash(paths.ledger),
+      'implementation-summary': fileHash(paths.summary),
+      requirements: fileHash(paths.requirements),
+    };
+  }
+  return {
+    ...shared,
+    context: fileHash(paths.context),
+    requirements: fileHash(paths.requirements),
+  };
+}
+
+async function phaseFacts({
+  authored,
+  contractSha256,
+  directory,
+  loaded,
+  paths,
+  repository,
+  state,
+}) {
+  const inputs = { contractSha256, paths, phase: authored.phase, repository };
+  if (authored.phase === 'architect-review') {
+    const mechanicalFacts = architectFacts({
+      contract: loaded.contract,
+      contractSha256,
+      repository,
+      state,
+      verifyPath: paths.verify,
+    });
+    const subjects = phaseSubjectHashes({
+      ...inputs,
+      verifyResultHash: mechanicalFacts.verify_result.receipt_hash,
+    });
+    return { mechanicalFacts, subjects };
+  }
+  const subjects = phaseSubjectHashes(inputs);
+  if (authored.phase !== 'verify') return { mechanicalFacts: undefined, subjects };
+  const mechanicalFacts = await verifyFacts({
+    authored,
+    contract: loaded.contract,
+    evidenceDir: directory,
+    loaded,
+    paths,
+    repository,
+    state,
+  });
+  return { mechanicalFacts, subjects };
+}
+
+export async function computePhaseSubjects({
+  contractPath,
+  cwd = process.cwd(),
+  evidenceDir,
+  phase,
+  statePath,
+} = {}) {
+  if (!Object.hasOwn(PHASES, phase)) {
+    throw new BuildctlError(
+      'E_ARGUMENT',
+      `Unsupported phase ${String(phase)}; expected one of ${Object.keys(PHASES).join(', ')}.`,
+    );
+  }
+  const { directory, loaded, state } = loadResultContext({
+    contractPath,
+    cwd,
+    evidenceDir,
+    statePath,
+  });
+  const { paths, repository } = await subjectInputs({
+    contract: loaded.contract,
+    directory,
+    phase,
+    state,
+  });
+  const contractSha256 = sha256(readFileSync(loaded.contractPath));
+  const verifyResultHash = phase === 'architect-review'
+    ? priorVerifyResult({
+      contract: loaded.contract,
+      contractSha256,
+      repository,
+      repoRoot: state.repoRoot,
+      state,
+      verifyPath: paths.verify,
+    }).receipt_hash
+    : undefined;
+  const hashes = phaseSubjectHashes({
+    contractSha256,
+    paths,
+    phase,
+    repository,
+    verifyResultHash,
+  });
+  return {
+    phase,
+    subjects: Object.keys(hashes).sort().map((name) => ({ name, sha256: hashes[name] })),
+  };
+}
+
+export function formatSubjectsYaml(subjects) {
+  const lines = subjects.map(({ name, sha256: hash }) => (
+    `  - { name: ${name}, sha256: "${hash}" }\n`
+  ));
+  return `subjects:\n${lines.join('')}`;
+}
+
+export async function compilePhaseResult({
+  artifactPath,
+  contractPath,
+  cwd = process.cwd(),
+  evidenceDir,
+  receiptsDir,
+  statePath,
+} = {}) {
+  const context = { contractPath, cwd, evidenceDir, statePath };
+  const { directory, loaded, state } = loadResultContext(context);
   const artifactFile = resolveInsideRepo(
     artifactPath,
     state.repoRoot,
@@ -834,86 +1012,22 @@ export async function compilePhaseResult({
     );
   }
   checkVerdict(authored, source);
-  const paths = artifactPaths({
+  const { paths, repository } = await subjectInputs({
     contract: loaded.contract,
-    repoRoot: state.repoRoot,
+    directory,
+    phase: authored.phase,
     state,
   });
-  const repository = await captureRepositoryIdentity({
-    evidenceDir: directory,
-    repoRoot: state.repoRoot,
+  const contractSha256 = sha256(readFileSync(loaded.contractPath));
+  const { mechanicalFacts, subjects } = await phaseFacts({
+    authored,
+    contractSha256,
+    directory,
+    loaded,
+    paths,
+    repository,
+    state,
   });
-  let subjects;
-  let mechanicalFacts;
-  if (authored.phase === 'architect-review') {
-    const prefix = state.values.workflow_artifact_prefix || state.values.slug;
-    const summary = resolveInsideRepo(
-      join('.build', 'plans', `${prefix}-implementation-summary.md`),
-      state.repoRoot,
-      'implementation summary',
-      { mustExist: true },
-    );
-    const verify = resolveInsideRepo(
-      join('.build', 'plans', `${prefix}-verify.md`),
-      state.repoRoot,
-      'Verify report',
-      { mustExist: true },
-    );
-    const contractSha256 = sha256(readFileSync(loaded.contractPath));
-    mechanicalFacts = architectFacts({
-      contract: loaded.contract,
-      contractSha256,
-      repository,
-      state,
-      verifyPath: verify,
-    });
-    subjects = {
-      contract: contractSha256,
-      'implementation-summary': sha256(readFileSync(summary)),
-      plan: sha256(readFileSync(paths.plan)),
-      repository: repository.fingerprint,
-      verify: sha256(readFileSync(verify)),
-      'verify-result': mechanicalFacts.verify_result.receipt_hash,
-    };
-  } else if (authored.phase === 'verify') {
-    const summary = resolveInsideRepo(
-      join('.build', 'plans', `${state.values.workflow_artifact_prefix || state.values.slug}-implementation-summary.md`),
-      state.repoRoot,
-      'implementation summary',
-      { mustExist: true },
-    );
-    const ledger = resolveInsideRepo(
-      join(directory, 'ledger.json'),
-      state.repoRoot,
-      'evidence ledger',
-      { mustExist: true },
-    );
-    subjects = {
-      contract: sha256(readFileSync(loaded.contractPath)),
-      'evidence-ledger': sha256(readFileSync(ledger)),
-      'implementation-summary': sha256(readFileSync(summary)),
-      plan: sha256(readFileSync(paths.plan)),
-      repository: repository.fingerprint,
-      requirements: sha256(readFileSync(paths.requirements)),
-    };
-    mechanicalFacts = await verifyFacts({
-      authored,
-      contract: loaded.contract,
-      evidenceDir: directory,
-      loaded,
-      paths,
-      repository,
-      state,
-    });
-  } else {
-    subjects = {
-      contract: sha256(readFileSync(loaded.contractPath)),
-      context: sha256(readFileSync(paths.context)),
-      plan: sha256(readFileSync(paths.plan)),
-      repository: repository.fingerprint,
-      requirements: sha256(readFileSync(paths.requirements)),
-    };
-  }
   assertSubjects(authored, subjects);
   const core = receiptCore({
     artifact: { path: artifactFile, source },
