@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdtempSync,
   readFileSync,
@@ -61,13 +62,23 @@ function listFiles(relDir, pattern) {
   return found;
 }
 
-// Parse one golden source. `key` is "<repo-relative path>#<section>"; an empty
-// section means the whole file is YAML. Throws when the source does not parse.
-function parseKey(key) {
+// Read one golden source. `key` is "<repo-relative path>#<section>"; an empty
+// section means the whole file is YAML. Returns the source file's SHA-256 so a
+// deliberate fixture edit can be told apart from a parser change.
+function readKey(key) {
   const hash = key.lastIndexOf('#');
   const path = key.slice(0, hash);
-  const section = key.slice(hash + 1);
   const text = readFileSync(join(ROOT, path), 'utf8');
+  return {
+    section: key.slice(hash + 1),
+    sourceSha256: createHash('sha256').update(text).digest('hex'),
+    text,
+  };
+}
+
+// Parse one golden source. Throws when the source does not parse.
+function parseKey(key) {
+  const { section, text } = readKey(key);
   return section === '' ? parseYaml(text) : parseMarkdownYamlSection(text, section);
 }
 
@@ -92,7 +103,7 @@ function collectGolden() {
   const golden = {};
   for (const key of candidateKeys()) {
     try {
-      golden[key] = parseKey(key);
+      golden[key] = { source_sha256: readKey(key).sourceSha256, value: parseKey(key) };
     } catch {
       // Only successful parses are recorded.
     }
@@ -101,8 +112,10 @@ function collectGolden() {
 }
 
 test('yaml golden: fixture documents parse unchanged', () => {
-  // Regenerating the golden file is legitimate only before a deliberate parser
-  // change, never to make a failing comparison pass.
+  // Regenerate (UPDATE_YAML_GOLDEN=1) only after a deliberate fixture edit, or
+  // before a deliberate parser change. Never regenerate to silence a "parser
+  // output changed" failure: that one means the source is unchanged and the
+  // parser now reads it differently.
   if (process.env.UPDATE_YAML_GOLDEN === '1') {
     const golden = collectGolden();
     const sorted = {};
@@ -115,14 +128,23 @@ test('yaml golden: fixture documents parse unchanged', () => {
   for (const anchor of ANCHOR_KEYS) {
     assert.ok(Object.hasOwn(golden, anchor), `golden file is missing anchor key: ${anchor}`);
   }
-  for (const key of Object.keys(golden)) {
+  for (const [key, entry] of Object.entries(golden)) {
+    let source;
+    try {
+      source = readKey(key);
+    } catch (error) {
+      assert.fail(`golden source is missing for ${key}; if it was removed or renamed deliberately, regenerate with UPDATE_YAML_GOLDEN=1: ${error.message}`);
+    }
+    if (source.sourceSha256 !== entry.source_sha256) {
+      assert.fail(`fixture changed for golden key ${key}; if the edit is deliberate, regenerate with UPDATE_YAML_GOLDEN=1`);
+    }
     let parsed;
     try {
       parsed = parseKey(key);
     } catch (error) {
-      assert.fail(`golden key no longer parses: ${key}: ${error.message}`);
+      assert.fail(`parser output changed: unchanged source no longer parses for ${key}: ${error.message}`);
     }
-    assert.deepEqual(parsed, golden[key], `parse result changed for golden key: ${key}`);
+    assert.deepEqual(parsed, entry.value, `parser output changed for golden key ${key} (source unchanged)`);
   }
   console.log('yaml golden complete');
 });

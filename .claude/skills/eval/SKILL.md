@@ -20,6 +20,8 @@ Create `.build/eval/{YYYY-MM-DD-HHmm}/`. This is the run directory. Each test ca
 
 Run `git status` (short format). If there are uncommitted changes, print a warning: "Uncommitted changes detected. Eval results may vary depending on repo state." Continue regardless.
 
+Remove any `.build/` directory inside `{this-skill-dir}/fixtures/` (for example `find {this-skill-dir}/fixtures -type d -name .build -prune -exec rm -r {} +`). Standalone verify runs save a copy of their report under the fixture's own `.build/plans/`. A leftover copy changes the slug the next run picks, so each run starts from clean fixtures.
+
 ## Step 4: State the cost
 
 Count the test cases. Print: "Running {N} test cases. This will spawn {N} runner agents + {N} grader agents ({2N} total)." Wait for no acknowledgment — just proceed.
@@ -27,6 +29,10 @@ Count the test cases. Print: "Running {N} test cases. This will spawn {N} runner
 ## Step 5: Spawn runner agents (parallel)
 
 For each test case, spawn an agent. Send all independent agents in a single message so they run in parallel. Use Sonnet for all runners.
+
+Skill names: inside this repository the skills are project skills named `impl-plan`, `review-plan`, `verify` and `architect-review`; when the plugin is installed they are `build:impl-plan` and so on. Each template below names the skill as `/build:<name>`; the runner invokes whichever form the Skill tool accepts.
+
+`review-plan` and `architect-review` run in a forked context (`context: fork`), so they cannot see the runner's conversation. Their templates therefore pass fixture file paths in the skill argument and let the skill read the files itself.
 
 **For `impl-plan` test cases** (has `"prompt"` and `"target"` fields):
 ```
@@ -41,10 +47,9 @@ You are running an eval for the impl-plan skill.
 ```
 You are running an eval for the review-plan skill.
 
-1. Read the plan at {this-skill-dir}/{input_fixture}
-2. Invoke /build:review-plan via the Skill tool. The plan content is already in your context from step 1.
-3. Save the complete review output to {run-dir}/{eval-id}/output.md using the Write tool.
-4. Report DONE when the file is written.
+1. Invoke /build:review-plan via the Skill tool (named `review-plan` inside this repository) with this argument: "{this-skill-dir}/{input_fixture}". The skill runs in a forked context and cannot see this conversation, so the plan's path is how it receives the plan.
+2. Save the complete review output to {run-dir}/{eval-id}/output.md using the Write tool.
+3. Report DONE when the file is written.
 ```
 
 **For `verify` test cases** (has `"target"` field, skill is "verify"):
@@ -60,10 +65,9 @@ You are running an eval for the verify skill.
 ```
 You are running an eval for the architect-review skill.
 
-1. Read all three files in {this-skill-dir}/{input_fixture}: plan.md, verify-report.md, diff.patch.
-2. Invoke /build:architect-review via the Skill tool with this argument: "Review the diff provided in this conversation (diff.patch content) against the plan provided (plan.md content). The verification report in context is fresh evidence for this work. This is a standalone review of fixture content - do not run git commands to find a target."
-3. Save the complete review output to {run-dir}/{eval-id}/output.md using the Write tool.
-4. Report DONE when the file is written.
+1. Invoke /build:architect-review via the Skill tool (named `architect-review` inside this repository) with this argument: "Review the diff in {this-skill-dir}/{input_fixture}/diff.patch against the plan in {this-skill-dir}/{input_fixture}/plan.md. The verification report in {this-skill-dir}/{input_fixture}/verify-report.md is fresh evidence for this work. Read all three files. This is a standalone review of fixture files - do not run git commands to find a target." The skill runs in a forked context and cannot see this conversation, so the file paths are how it receives the fixture.
+2. Save the complete review output to {run-dir}/{eval-id}/output.md using the Write tool.
+3. Report DONE when the file is written.
 ```
 
 **For `build` test cases** (has `"state_fixture"` and `"state_slug"` fields):

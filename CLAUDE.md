@@ -64,7 +64,9 @@ Size targets guide authoring; hard ceilings are enforced by `scripts/transformer
 
 Target ranges: simple skill 40-90 lines; review/verify skill 70-120; `impl-plan` 150-190; `build` 230-280; reference file 80-150.
 
-Hard ceilings: `build/SKILL.md` 320, `impl-plan/SKILL.md` 230, `review-plan/SKILL.md` 160, `verify/SKILL.md` 150, `architect-review/SKILL.md` 130, `impl-plan/reference/plan-quality.md` 220 (all under `source/skills/`).
+Hard ceilings: `build/SKILL.md` 320, `build/SKILL.codex.md` 300, `impl-plan/SKILL.md` 230, `review-plan/SKILL.md` 160, `verify/SKILL.md` 150, `architect-review/SKILL.md` 130, `impl-plan/reference/plan-quality.md` 220, `build/reference/workflow-modes.md` 200, `build/reference/codex-execution.md` 150, `build/reference/codex-default-eval.md` 150 (all under `source/skills/`).
+
+`build/SKILL.codex.md` has been at its 300-line ceiling since v1.18.0. The next edit to it must start with a deliberate trim of non-pinned prose, planned as part of that change, before anything is added. Do not raise the ceiling in `HARD_LINE_LIMITS`. Much of that file is pinned scaffolding for the Codex orchestrator, so the trim needs the same care as any pinned-phrase change.
 
 ## Build pipeline
 

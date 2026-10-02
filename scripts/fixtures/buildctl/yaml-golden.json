@@ -1,1231 +1,1401 @@
 {
   "scripts/fixtures/buildctl/kemet-lite/non-atomic-task.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "deliver both legacy adoption paths",
-        "depends_on": [],
-        "task_ids": [
-          "T-001"
-        ],
-        "requirements": [
-          "REQ-001",
-          "REQ-002"
-        ],
-        "must_haves": [
-          "building and job poses are adopted"
-        ],
-        "verify": [
-          "node --test test/legacy-pose.test.js"
-        ],
-        "done": "both requirements have evidence"
-      }
-    ]
+    "source_sha256": "d7ef1bb2af7200689dd668560c35f507e8deb6a8388e895fe6f0c08ac257291b",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "deliver both legacy adoption paths",
+          "depends_on": [],
+          "task_ids": [
+            "T-001"
+          ],
+          "requirements": [
+            "REQ-001",
+            "REQ-002"
+          ],
+          "must_haves": [
+            "building and job poses are adopted"
+          ],
+          "verify": [
+            "node --test test/legacy-pose.test.js"
+          ],
+          "done": "both requirements have evidence"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/non-atomic-task.md#Execution manifest": {
-    "requirements": [
-      "REQ-001",
-      "REQ-002"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "building pose adoption",
-        "task_id": "T-001",
-        "must_have_id": "MH-001"
-      },
-      {
-        "id": "B-002",
-        "kind": "behavior",
-        "name": "job pose adoption",
-        "task_id": "T-001",
-        "must_have_id": "MH-002"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [],
-        "workstream": "legacy-pose",
-        "files_modified": [
-          "src/building-pose.js",
-          "src/job-pose.js",
-          "test/legacy-pose.test.js"
-        ],
-        "requirements": [
-          "REQ-001",
-          "REQ-002"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "legacy building poses are adopted",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+    "source_sha256": "d7ef1bb2af7200689dd668560c35f507e8deb6a8388e895fe6f0c08ac257291b",
+    "value": {
+      "requirements": [
+        "REQ-001",
+        "REQ-002"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "building pose adoption",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        },
+        {
+          "id": "B-002",
+          "kind": "behavior",
+          "name": "job pose adoption",
+          "task_id": "T-001",
+          "must_have_id": "MH-002"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [],
+          "workstream": "legacy-pose",
+          "files_modified": [
+            "src/building-pose.js",
+            "src/job-pose.js",
+            "test/legacy-pose.test.js"
+          ],
+          "requirements": [
+            "REQ-001",
+            "REQ-002"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "legacy building poses are adopted",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+              }
+            },
+            {
+              "id": "MH-002",
+              "claim": "legacy job poses are adopted",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "node --test test/legacy-pose.test.js :: adopts a legacy job pose"
+              }
             }
-          },
-          {
-            "id": "MH-002",
-            "claim": "legacy job poses are adopted",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "node --test test/legacy-pose.test.js :: adopts a legacy job pose"
-            }
-          }
-        ],
-        "verify": "node --test test/legacy-pose.test.js",
-        "done": "both unrelated adoption behaviors pass"
-      }
-    ]
+          ],
+          "verify": "node --test test/legacy-pose.test.js",
+          "done": "both unrelated adoption behaviors pass"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/unbound-api.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "deliver legacy pose adoption",
-        "depends_on": [],
-        "task_ids": [
-          "T-001"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "legacy poses are adopted"
-        ],
-        "verify": [
-          "node --test test/legacy-pose.test.js"
-        ],
-        "done": "REQ-001 has direct evidence"
-      }
-    ]
+    "source_sha256": "1d70f3fd496a63e3b5ac62e2eca660536d100da842661827596ab1e8f46dc95a",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "deliver legacy pose adoption",
+          "depends_on": [],
+          "task_ids": [
+            "T-001"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "legacy poses are adopted"
+          ],
+          "verify": [
+            "node --test test/legacy-pose.test.js"
+          ],
+          "done": "REQ-001 has direct evidence"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/unbound-api.md#Execution manifest": {
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "building pose adoption",
-        "task_id": "T-001",
-        "must_have_id": "MH-001"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [],
-        "workstream": "legacy-pose",
-        "files_modified": [
-          "src/legacy-pose.js",
-          "test/legacy-pose.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "legacy building poses are adopted",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+    "source_sha256": "1d70f3fd496a63e3b5ac62e2eca660536d100da842661827596ab1e8f46dc95a",
+    "value": {
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "building pose adoption",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [],
+          "workstream": "legacy-pose",
+          "files_modified": [
+            "src/legacy-pose.js",
+            "test/legacy-pose.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "legacy building poses are adopted",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+              }
             }
-          }
-        ],
-        "verify": "node --test test/legacy-pose.test.js",
-        "done": "the building-pose test passes"
-      }
-    ]
+          ],
+          "verify": "node --test test/legacy-pose.test.js",
+          "done": "the building-pose test passes"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/unrelated-evidence.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "deliver legacy building-pose adoption",
-        "depends_on": [],
-        "task_ids": [
-          "T-001"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "the legacy building pose is adopted"
-        ],
-        "verify": [
-          "node --test test/unrelated.test.js"
-        ],
-        "done": "REQ-001 is claimed complete"
-      }
-    ]
+    "source_sha256": "101fd28ce7412901c23647db4819a531452b2b94016766ae80a57169c401d2e1",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "deliver legacy building-pose adoption",
+          "depends_on": [],
+          "task_ids": [
+            "T-001"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "the legacy building pose is adopted"
+          ],
+          "verify": [
+            "node --test test/unrelated.test.js"
+          ],
+          "done": "REQ-001 is claimed complete"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/unrelated-evidence.md#Execution manifest": {
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "building pose adoption",
-        "task_id": "T-001",
-        "must_have_id": "MH-001"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [],
-        "workstream": "legacy-pose",
-        "files_modified": [
-          "src/legacy-pose.js",
-          "test/unrelated.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "legacy building poses are adopted",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+    "source_sha256": "101fd28ce7412901c23647db4819a531452b2b94016766ae80a57169c401d2e1",
+    "value": {
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "building pose adoption",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [],
+          "workstream": "legacy-pose",
+          "files_modified": [
+            "src/legacy-pose.js",
+            "test/unrelated.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "legacy building poses are adopted",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+              }
             }
-          }
-        ],
-        "verify": "node --test test/unrelated.test.js",
-        "done": "an unrelated green test is present"
-      }
-    ]
+          ],
+          "verify": "node --test test/unrelated.test.js",
+          "done": "an unrelated green test is present"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/valid-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "deliver legacy building-pose adoption",
-        "depends_on": [],
-        "task_ids": [
-          "T-001"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "the legacy pose is adopted"
-        ],
-        "verify": [
-          "node --test test/legacy-pose.test.js"
-        ],
-        "done": "REQ-001 has direct behavioral evidence"
-      }
-    ]
+    "source_sha256": "84396248ef27273a4aee2491e0eda80459be1eb54ff12b1cc8b4a2eddbdc2674",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "deliver legacy building-pose adoption",
+          "depends_on": [],
+          "task_ids": [
+            "T-001"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "the legacy pose is adopted"
+          ],
+          "verify": [
+            "node --test test/legacy-pose.test.js"
+          ],
+          "done": "REQ-001 has direct behavioral evidence"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/valid-plan.md#Execution manifest": {
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "TryAdoptLegacyBuildingPose adoption",
-        "task_id": "T-001",
-        "must_have_id": "MH-001"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [],
-        "workstream": "legacy-pose",
-        "files_modified": [
-          "src/legacy-pose.js",
-          "test/legacy-pose.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "legacy building poses are adopted",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+    "source_sha256": "84396248ef27273a4aee2491e0eda80459be1eb54ff12b1cc8b4a2eddbdc2674",
+    "value": {
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "TryAdoptLegacyBuildingPose adoption",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [],
+          "workstream": "legacy-pose",
+          "files_modified": [
+            "src/legacy-pose.js",
+            "test/legacy-pose.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "legacy building poses are adopted",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+              }
             }
-          }
-        ],
-        "verify": "node --test test/legacy-pose.test.js",
-        "done": "the named adoption test passes"
-      }
-    ]
+          ],
+          "verify": "node --test test/legacy-pose.test.js",
+          "done": "the named adoption test passes"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/kemet-lite/valid-plan.yaml#": {
-    "approach": "[B-001] TryAdoptLegacyBuildingPose is implemented and directly tested.\n",
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "TryAdoptLegacyBuildingPose adoption",
-        "task_id": "T-001",
-        "must_have_id": "MH-001"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [],
-        "workstream": "legacy-pose",
-        "files_modified": [
-          "src/legacy-pose.js",
-          "test/legacy-pose.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "legacy building poses are adopted",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+    "source_sha256": "9713462ea739b7ef66d1cf1105bcc1d6a42186dff9a288b07d4e3c6021bc54e9",
+    "value": {
+      "approach": "[B-001] TryAdoptLegacyBuildingPose is implemented and directly tested.\n",
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "TryAdoptLegacyBuildingPose adoption",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [],
+          "workstream": "legacy-pose",
+          "files_modified": [
+            "src/legacy-pose.js",
+            "test/legacy-pose.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "legacy building poses are adopted",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "node --test test/legacy-pose.test.js :: adopts a legacy building pose"
+              }
             }
-          }
-        ],
-        "verify": "node --test test/legacy-pose.test.js",
-        "done": "the named adoption test passes"
-      }
-    ],
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "deliver legacy building-pose adoption",
-        "depends_on": [],
-        "task_ids": [
-          "T-001"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "the legacy pose is adopted"
-        ],
-        "verify": [
-          "node --test test/legacy-pose.test.js"
-        ],
-        "done": "REQ-001 has direct behavioral evidence"
-      }
-    ]
+          ],
+          "verify": "node --test test/legacy-pose.test.js",
+          "done": "the named adoption test passes"
+        }
+      ],
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "deliver legacy building-pose adoption",
+          "depends_on": [],
+          "task_ids": [
+            "T-001"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "the legacy pose is adopted"
+          ],
+          "verify": [
+            "node --test test/legacy-pose.test.js"
+          ],
+          "done": "REQ-001 has direct behavioral evidence"
+        }
+      ]
+    }
   },
   "scripts/fixtures/buildctl/phase-results/architect-review.md#Machine result": {
-    "schema_version": 1,
-    "phase": "architect-review",
-    "verdict": "pass",
-    "subjects": [
-      {
-        "name": "plan",
-        "sha256": "__PLAN_SHA256__"
-      },
-      {
-        "name": "contract",
-        "sha256": "__CONTRACT_SHA256__"
-      },
-      {
-        "name": "implementation-summary",
-        "sha256": "__SUMMARY_SHA256__"
-      },
-      {
-        "name": "repository",
-        "sha256": "__REPOSITORY_SHA256__"
-      },
-      {
-        "name": "verify",
-        "sha256": "__VERIFY_SHA256__"
-      },
-      {
-        "name": "verify-result",
-        "sha256": "__VERIFY_RESULT_SHA256__"
-      }
-    ],
-    "findings": []
+    "source_sha256": "3d828e4851e7d53530249597fe660fc92711959b712d2306e90c6bb074c2e16c",
+    "value": {
+      "schema_version": 1,
+      "phase": "architect-review",
+      "verdict": "pass",
+      "subjects": [
+        {
+          "name": "plan",
+          "sha256": "__PLAN_SHA256__"
+        },
+        {
+          "name": "contract",
+          "sha256": "__CONTRACT_SHA256__"
+        },
+        {
+          "name": "implementation-summary",
+          "sha256": "__SUMMARY_SHA256__"
+        },
+        {
+          "name": "repository",
+          "sha256": "__REPOSITORY_SHA256__"
+        },
+        {
+          "name": "verify",
+          "sha256": "__VERIFY_SHA256__"
+        },
+        {
+          "name": "verify-result",
+          "sha256": "__VERIFY_RESULT_SHA256__"
+        }
+      ],
+      "findings": []
+    }
   },
   "scripts/fixtures/buildctl/phase-results/plan-review.md#Machine result": {
-    "schema_version": 1,
-    "phase": "plan-review",
-    "verdict": "proceed",
-    "subjects": [
-      {
-        "name": "plan",
-        "sha256": "__PLAN_SHA256__"
-      },
-      {
-        "name": "contract",
-        "sha256": "__CONTRACT_SHA256__"
-      },
-      {
-        "name": "context",
-        "sha256": "__CONTEXT_SHA256__"
-      },
-      {
-        "name": "requirements",
-        "sha256": "__REQUIREMENTS_SHA256__"
-      },
-      {
-        "name": "repository",
-        "sha256": "__REPOSITORY_SHA256__"
-      }
-    ],
-    "findings": []
+    "source_sha256": "1a6cf2a9579f272708b4535a1379295deea8740869957b22de9327f7f14b3d93",
+    "value": {
+      "schema_version": 1,
+      "phase": "plan-review",
+      "verdict": "proceed",
+      "subjects": [
+        {
+          "name": "plan",
+          "sha256": "__PLAN_SHA256__"
+        },
+        {
+          "name": "contract",
+          "sha256": "__CONTRACT_SHA256__"
+        },
+        {
+          "name": "context",
+          "sha256": "__CONTEXT_SHA256__"
+        },
+        {
+          "name": "requirements",
+          "sha256": "__REQUIREMENTS_SHA256__"
+        },
+        {
+          "name": "repository",
+          "sha256": "__REPOSITORY_SHA256__"
+        }
+      ],
+      "findings": []
+    }
   },
   "scripts/fixtures/buildctl/phase-results/verify.md#Machine result": {
-    "schema_version": 1,
-    "phase": "verify",
-    "verdict": "verified",
-    "subjects": [
-      {
-        "name": "plan",
-        "sha256": "__PLAN_SHA256__"
-      },
-      {
-        "name": "contract",
-        "sha256": "__CONTRACT_SHA256__"
-      },
-      {
-        "name": "requirements",
-        "sha256": "__REQUIREMENTS_SHA256__"
-      },
-      {
-        "name": "implementation-summary",
-        "sha256": "__SUMMARY_SHA256__"
-      },
-      {
-        "name": "evidence-ledger",
-        "sha256": "__LEDGER_SHA256__"
-      },
-      {
-        "name": "repository",
-        "sha256": "__REPOSITORY_SHA256__"
-      }
-    ],
-    "findings": []
+    "source_sha256": "ccf02d3c403e7e8018654d07f0fd4eed8f2db693c9043762f3dfb0176becc2a2",
+    "value": {
+      "schema_version": 1,
+      "phase": "verify",
+      "verdict": "verified",
+      "subjects": [
+        {
+          "name": "plan",
+          "sha256": "__PLAN_SHA256__"
+        },
+        {
+          "name": "contract",
+          "sha256": "__CONTRACT_SHA256__"
+        },
+        {
+          "name": "requirements",
+          "sha256": "__REQUIREMENTS_SHA256__"
+        },
+        {
+          "name": "implementation-summary",
+          "sha256": "__SUMMARY_SHA256__"
+        },
+        {
+          "name": "evidence-ledger",
+          "sha256": "__LEDGER_SHA256__"
+        },
+        {
+          "name": "repository",
+          "sha256": "__REPOSITORY_SHA256__"
+        }
+      ],
+      "findings": []
+    }
   },
   "source/skills/architect-review/SKILL.md#Machine result": {
-    "schema_version": 1,
-    "phase": "architect-review",
-    "verdict": "pass",
-    "subjects": [
-      {
-        "name": "verify-result",
-        "sha256": "<64 lowercase hex>"
-      }
-    ],
-    "findings": []
+    "source_sha256": "bb6caf9b306c798f7cbea7633f218196bc11a682900e751f6127b6a3e379b84b",
+    "value": {
+      "schema_version": 1,
+      "phase": "architect-review",
+      "verdict": "pass",
+      "subjects": [
+        {
+          "name": "verify-result",
+          "sha256": "<64 lowercase hex>"
+        }
+      ],
+      "findings": []
+    }
   },
   "source/skills/eval/fixtures/architect-review/plan.md#Execution manifest": {
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 0,
-        "depends_on": [],
-        "files_modified": [
-          "src/clamp.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "clamp function exported",
-          "handles below-min, in-range, above-max"
-        ],
-        "verify": "node -e \"import('./src/clamp.js').then(m => { console.assert(m.clamp(5,0,10)===5); console.assert(m.clamp(-1,0,10)===0); console.assert(m.clamp(11,0,10)===10); console.log('ok'); })\"",
-        "done": "clamp.js exports a working clamp function"
-      },
-      {
-        "id": "T-002",
-        "wave": 1,
-        "depends_on": [
-          "T-001"
-        ],
-        "files_modified": [
-          "tests/clamp.test.js"
-        ],
-        "requirements": [
-          "REQ-002"
-        ],
-        "must_haves": [
-          "node --test exits 0",
-          "two tests present"
-        ],
-        "verify": "node --test tests/clamp.test.js",
-        "done": "Tests pass against the implementation"
-      }
-    ]
+    "source_sha256": "c77e4c448fdc603d2d18eb717f86a370f01b7bcb487005df76433d10e96e0d9e",
+    "value": {
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 0,
+          "depends_on": [],
+          "files_modified": [
+            "src/clamp.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "clamp function exported",
+            "handles below-min, in-range, above-max"
+          ],
+          "verify": "node -e \"import('./src/clamp.js').then(m => { console.assert(m.clamp(5,0,10)===5); console.assert(m.clamp(-1,0,10)===0); console.assert(m.clamp(11,0,10)===10); console.log('ok'); })\"",
+          "done": "clamp.js exports a working clamp function"
+        },
+        {
+          "id": "T-002",
+          "wave": 1,
+          "depends_on": [
+            "T-001"
+          ],
+          "files_modified": [
+            "tests/clamp.test.js"
+          ],
+          "requirements": [
+            "REQ-002"
+          ],
+          "must_haves": [
+            "node --test exits 0",
+            "two tests present"
+          ],
+          "verify": "node --test tests/clamp.test.js",
+          "done": "Tests pass against the implementation"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/clean-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "Users can run /build:status to inspect active workflow state, and the command is documented in CLAUDE.md and README.md",
-        "depends_on": [],
-        "task_ids": [
-          "T-002",
-          "T-003"
-        ],
-        "requirements": [
-          "REQ-001",
-          "REQ-002"
-        ],
-        "must_haves": [
-          "status skill reports the no-workflow and active-workflow states",
-          "CLAUDE.md and README.md document /build:status"
-        ],
-        "verify": "Invoke /build:status with no state and with a known test state, then confirm grep -c '/build:status' README.md returns 1 and grep -c 'status' CLAUDE.md returns at least 1",
-        "done": "The status command reports known state values and both documentation files contain their required status entries"
-      }
-    ]
+    "source_sha256": "8b008f1874acfcc6384dc928526a4f85ab9101b5078f0ed4d00a98035a054fb8",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "Contributors can run a fast release-version parity check that skips the rebuild, and README documents it.",
+          "depends_on": [],
+          "task_ids": [
+            "T-002",
+            "T-003"
+          ],
+          "requirements": [
+            "REQ-001",
+            "REQ-002"
+          ],
+          "must_haves": [
+            "check-sync --versions-only exits 0 with the agreed version and no build",
+            "README documents the flag"
+          ],
+          "verify": [
+            "node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js",
+            "npm test"
+          ],
+          "done": "The versions-only test passes inside the full suite and README documents the flag."
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/clean-plan.md#Execution manifest": {
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 0,
-        "depends_on": [],
-        "files_modified": [],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "manual invoke of /build:status returns 'No active workflow'"
-        ],
-        "verify": "Manual: invoke /build:status with no active workflow; confirm output contains 'No active workflow'",
-        "done": "REQ-001 baseline confirmed before documentation is written"
-      },
-      {
-        "id": "T-002",
-        "wave": 1,
-        "depends_on": [
-          "T-001"
-        ],
-        "files_modified": [
-          ".claude/skills/status/SKILL.md"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "SKILL.md exists with frontmatter name: status and allowed-tools: Read, Glob",
-          "all 9 numbered instruction steps present"
-        ],
-        "verify": "Read .claude/skills/status/SKILL.md; confirm name field is 'status' and 9 instruction steps are present",
-        "done": "Status skill file created matching specification"
-      },
-      {
-        "id": "T-003",
-        "wave": 2,
-        "depends_on": [
-          "T-002"
-        ],
-        "files_modified": [
-          "CLAUDE.md",
-          "README.md"
-        ],
-        "requirements": [
-          "REQ-002"
-        ],
-        "must_haves": [
-          "CLAUDE.md contains status skill entry in Structure section",
-          "README.md contains /build:status row in skills table"
-        ],
-        "verify": "grep -c 'status' CLAUDE.md (expect >=1); grep -c '/build:status' README.md (expect 1)",
-        "done": "Documentation updated with status skill"
-      }
-    ]
+    "source_sha256": "8b008f1874acfcc6384dc928526a4f85ab9101b5078f0ed4d00a98035a054fb8",
+    "value": {
+      "requirements": [
+        "REQ-001",
+        "REQ-002"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "invariant",
+          "name": "Wave 0 test names the versions-only behavior",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        },
+        {
+          "id": "B-002",
+          "kind": "behavior",
+          "name": "check-sync versions-only early exit",
+          "task_id": "T-002",
+          "must_have_id": "MH-002"
+        },
+        {
+          "id": "B-003",
+          "kind": "invariant",
+          "name": "README documents the versions-only flag",
+          "task_id": "T-003",
+          "must_have_id": "MH-003"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 0,
+          "depends_on": [],
+          "workstream": "validation",
+          "files_modified": [
+            "scripts/transformers/check-sync-versions.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "The test file defines the versions-only test with exit, version and no-build assertions.",
+              "evidence": {
+                "kind": "structural",
+                "ref": "scripts/transformers/check-sync-versions.test.js test named check-sync --versions-only reports agreeing versions without building"
+              }
+            }
+          ],
+          "verify": "node --check scripts/transformers/check-sync-versions.test.js",
+          "done": "The Wave 0 test exists and parses before the script changes."
+        },
+        {
+          "id": "T-002",
+          "wave": 1,
+          "depends_on": [
+            "T-001"
+          ],
+          "workstream": "check-sync",
+          "files_modified": [
+            "scripts/check-sync.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-002",
+              "claim": "With --versions-only and agreeing carriers, check-sync prints the agreed version, exits 0 and does not build.",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js :: ok 1 - check-sync --versions-only reports agreeing versions without building"
+              }
+            }
+          ],
+          "verify": "node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js",
+          "done": "The Wave 0 test passes."
+        },
+        {
+          "id": "T-003",
+          "wave": 2,
+          "depends_on": [
+            "T-002"
+          ],
+          "workstream": "docs",
+          "files_modified": [
+            "README.md"
+          ],
+          "requirements": [
+            "REQ-002"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-003",
+              "claim": "README.md documents npm run check-sync -- --versions-only next to the existing check-sync sentence.",
+              "evidence": {
+                "kind": "structural",
+                "ref": "README.md line after the check-sync sentence names npm run check-sync -- --versions-only"
+              }
+            }
+          ],
+          "verify": "grep -n \"check-sync -- --versions-only\" README.md",
+          "done": "README names the flag and what it skips."
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/debt-project-deferred/plan.md#Execution manifest": {
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 0,
-        "depends_on": [],
-        "files_modified": [
-          "src/cache.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "cache.test.js asserts the put/get round-trip"
-        ],
-        "verify": "npm test",
-        "done": "REQ-001 has command evidence and a named assertion"
-      }
-    ]
+    "source_sha256": "d3667c966e206121b124a9a711ad9bb3a2c7fea7e48887ef0d49df4bafcec981",
+    "value": {
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 0,
+          "depends_on": [],
+          "files_modified": [
+            "src/cache.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "cache.test.js asserts the put/get round-trip"
+          ],
+          "verify": "npm test",
+          "done": "REQ-001 has command evidence and a named assertion"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/debt-project/plan.md#Execution manifest": {
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 0,
-        "depends_on": [],
-        "files_modified": [
-          "src/cache.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "cache.test.js asserts the put/get round-trip"
-        ],
-        "verify": "npm test",
-        "done": "REQ-001 has command evidence and a named assertion"
-      }
-    ]
+    "source_sha256": "d3667c966e206121b124a9a711ad9bb3a2c7fea7e48887ef0d49df4bafcec981",
+    "value": {
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 0,
+          "depends_on": [],
+          "files_modified": [
+            "src/cache.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "cache.test.js asserts the put/get round-trip"
+          ],
+          "verify": "npm test",
+          "done": "REQ-001 has command evidence and a named assertion"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/flawed-delivery-slices-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "Foundation-only: add the shared report data and rendering foundation",
-        "depends_on": [
-          "S-002"
-        ],
-        "task_ids": [
-          "T-001",
-          "T-002"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [],
-        "verify": "inspect the changes",
-        "done": "foundation complete"
-      },
-      {
-        "id": "S-002",
-        "goal": "Users can export a tested CSV project report",
-        "depends_on": [],
-        "task_ids": [
-          "T-002"
-        ],
-        "requirements": [
-          "REQ-002"
-        ],
-        "must_haves": [
-          "report test asserts the exact header, escaped values, and empty-name error"
-        ],
-        "verify": "node --test tests/report.test.js exits 0 with three passing assertions",
-        "done": "The report behavior test passes and demonstrates the CSV export"
-      }
-    ]
+    "source_sha256": "784b1d9a4c159e13838f650f8fe60e3f9e5f46901114c0fa845f42100491682c",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "Foundation-only: add the shared report data and rendering foundation",
+          "depends_on": [
+            "S-002"
+          ],
+          "task_ids": [
+            "T-001",
+            "T-002"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [],
+          "verify": "inspect the changes",
+          "done": "foundation complete"
+        },
+        {
+          "id": "S-002",
+          "goal": "Users can export a tested CSV project report",
+          "depends_on": [],
+          "task_ids": [
+            "T-002"
+          ],
+          "requirements": [
+            "REQ-002"
+          ],
+          "must_haves": [
+            "report test asserts the exact header, escaped values, and empty-name error"
+          ],
+          "verify": "node --test tests/report.test.js exits 0 with three passing assertions",
+          "done": "The report behavior test passes and demonstrates the CSV export"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/flawed-delivery-slices-plan.md#Execution manifest": {
-    "execution_manifest": [
-      {
-        "id": "T-000",
-        "wave": 0,
-        "depends_on": [],
-        "files_modified": [],
-        "requirements": [],
-        "must_haves": [
-          "baseline records the missing report module"
-        ],
-        "verify": "node --test tests/report.test.js",
-        "done": "The expected missing-module baseline is recorded"
-      },
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [
-          "T-000"
-        ],
-        "files_modified": [
-          "src/report/data.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "collector returns project name and build result"
-        ],
-        "verify": "node -e \"import('./src/report/data.js').then(m => console.log(m.collectReport('demo', 'passed')))\"",
-        "done": "Collector output contains demo and passed"
-      },
-      {
-        "id": "T-002",
-        "wave": 2,
-        "depends_on": [
-          "T-001"
-        ],
-        "files_modified": [
-          "src/report/render.js"
-        ],
-        "requirements": [
-          "REQ-002"
-        ],
-        "must_haves": [
-          "renderCsv emits a header and escaped value row"
-        ],
-        "verify": "node -e \"import('./src/report/render.js').then(m => console.log(m.renderCsv({name:'demo',result:'passed'})))\"",
-        "done": "Renderer output contains the expected CSV header and row"
-      },
-      {
-        "id": "T-003",
-        "wave": 3,
-        "depends_on": [
-          "T-002"
-        ],
-        "files_modified": [
-          "tests/report.test.js"
-        ],
-        "requirements": [
-          "REQ-001",
-          "REQ-002"
-        ],
-        "must_haves": [
-          "test asserts normal output, escaping, and empty-name rejection"
-        ],
-        "verify": "node --test tests/report.test.js",
-        "done": "All report behavior assertions pass"
-      }
-    ]
+    "source_sha256": "784b1d9a4c159e13838f650f8fe60e3f9e5f46901114c0fa845f42100491682c",
+    "value": {
+      "execution_manifest": [
+        {
+          "id": "T-000",
+          "wave": 0,
+          "depends_on": [],
+          "files_modified": [],
+          "requirements": [],
+          "must_haves": [
+            "baseline records the missing report module"
+          ],
+          "verify": "node --test tests/report.test.js",
+          "done": "The expected missing-module baseline is recorded"
+        },
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [
+            "T-000"
+          ],
+          "files_modified": [
+            "src/report/data.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "collector returns project name and build result"
+          ],
+          "verify": "node -e \"import('./src/report/data.js').then(m => console.log(m.collectReport('demo', 'passed')))\"",
+          "done": "Collector output contains demo and passed"
+        },
+        {
+          "id": "T-002",
+          "wave": 2,
+          "depends_on": [
+            "T-001"
+          ],
+          "files_modified": [
+            "src/report/render.js"
+          ],
+          "requirements": [
+            "REQ-002"
+          ],
+          "must_haves": [
+            "renderCsv emits a header and escaped value row"
+          ],
+          "verify": "node -e \"import('./src/report/render.js').then(m => console.log(m.renderCsv({name:'demo',result:'passed'})))\"",
+          "done": "Renderer output contains the expected CSV header and row"
+        },
+        {
+          "id": "T-003",
+          "wave": 3,
+          "depends_on": [
+            "T-002"
+          ],
+          "files_modified": [
+            "tests/report.test.js"
+          ],
+          "requirements": [
+            "REQ-001",
+            "REQ-002"
+          ],
+          "must_haves": [
+            "test asserts normal output, escaping, and empty-name rejection"
+          ],
+          "verify": "node --test tests/report.test.js",
+          "done": "All report behavior assertions pass"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/flawed-evidence-contract-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "legacy pose adoption and footprint propagation work end to end",
-        "depends_on": [],
-        "task_ids": [
-          "T-200"
-        ],
-        "requirements": [
-          "REQ-200"
-        ],
-        "must_haves": [
-          "MH-200"
-        ],
-        "verify": "dotnet test",
-        "done": "all named behavior is complete"
-      }
-    ]
+    "source_sha256": "30d480123c514d257492a4d07b19160f5ee48ed9165c6a1af89bec7e1a3e48b1",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "Legacy saves load with adopted poses and placement handles 2x2, 4x4 and 8x8 footprints",
+          "depends_on": [],
+          "task_ids": [
+            "T-200"
+          ],
+          "requirements": [
+            "REQ-200"
+          ],
+          "must_haves": [
+            "legacy saves load with adopted poses and varied footprints place correctly"
+          ],
+          "verify": [
+            "dotnet test"
+          ],
+          "done": "dotnet test passes on the integrated change"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/flawed-evidence-contract-plan.md#Execution manifest": {
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "varied footprints persist",
-        "task_id": "T-200",
-        "must_have_id": "MH-200"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-200",
-        "wave": 1,
-        "depends_on": [],
-        "files_modified": [
-          "src/catalog.cs",
-          "src/placement.cs",
-          "src/persistence.cs",
-          "src/migration.cs",
-          "src/validation.cs",
-          "src/jobs.cs",
-          "src/buildings.cs",
-          "src/geometry.cs",
-          "tests/catalog.cs",
-          "tests/placement.cs",
-          "tests/persistence.cs",
-          "tests/migration.cs",
-          "tests/validation.cs",
-          "tests/jobs.cs",
-          "tests/buildings.cs",
-          "tests/geometry.cs",
-          "tests/autoplayer.cs",
-          "tests/balance.cs"
-        ],
-        "requirements": [
-          "REQ-200"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-200",
-            "claim": "all pose, persistence, migration, fixture, and balance behavior is complete",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "dotnet test"
+    "source_sha256": "30d480123c514d257492a4d07b19160f5ee48ed9165c6a1af89bec7e1a3e48b1",
+    "value": {
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "varied footprints persist",
+          "task_id": "T-200",
+          "must_have_id": "MH-200"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-200",
+          "wave": 1,
+          "depends_on": [],
+          "files_modified": [
+            "src/catalog.cs",
+            "src/placement.cs",
+            "src/persistence.cs",
+            "src/migration.cs",
+            "src/validation.cs",
+            "src/jobs.cs",
+            "src/buildings.cs",
+            "src/geometry.cs",
+            "tests/catalog.cs",
+            "tests/placement.cs",
+            "tests/persistence.cs",
+            "tests/migration.cs",
+            "tests/validation.cs",
+            "tests/jobs.cs",
+            "tests/buildings.cs",
+            "tests/geometry.cs",
+            "tests/fixtures/placement.json",
+            "data/balance.json"
+          ],
+          "requirements": [
+            "REQ-200"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-200",
+              "claim": "Legacy building and job poses are adopted, migration step 3 to 4 keeps valid 8x8 buildings and drops invalid records, the six placement fixtures use 2x2, 4x4 and 8x8 footprints, and balance costs scale with footprint area",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "dotnet test :: Passed!"
+              }
             }
-          }
-        ],
-        "verify": "dotnet test",
-        "done": "all named behavior is complete"
-      }
-    ]
+          ],
+          "verify": "dotnet test",
+          "done": "dotnet test passes with the pose, migration, persistence, fixture and balance tests green"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-architect-phase-no-verify/cache-ttl-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "Cached entries expire after the configured TTL",
-        "depends_on": [],
-        "task_ids": [
-          "T-002"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "a cache read after the TTL elapses reports a miss"
-        ],
-        "verify": [
-          "npm test -- test/cache-ttl.test.js"
-        ],
-        "done": "REQ-001 has exact boundary evidence"
-      }
-    ]
+    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "Cached entries expire after the configured TTL",
+          "depends_on": [],
+          "task_ids": [
+            "T-002"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "a cache read after the TTL elapses reports a miss"
+          ],
+          "verify": [
+            "npm test -- test/cache-ttl.test.js"
+          ],
+          "done": "REQ-001 has exact boundary evidence"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-architect-phase-no-verify/cache-ttl-plan.md#Execution manifest": {
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "cache entries expire after the configured TTL",
-        "task_id": "T-002",
-        "must_have_id": "MH-002"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 0,
-        "depends_on": [],
-        "workstream": "cache-ttl",
-        "files_modified": [
-          "test/cache-ttl.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "test names and asserts TTL expiry",
-            "evidence": {
-              "kind": "structural",
-              "ref": "test/cache-ttl.test.js test name and assertion"
+    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "value": {
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "cache entries expire after the configured TTL",
+          "task_id": "T-002",
+          "must_have_id": "MH-002"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 0,
+          "depends_on": [],
+          "workstream": "cache-ttl",
+          "files_modified": [
+            "test/cache-ttl.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "test names and asserts TTL expiry",
+              "evidence": {
+                "kind": "structural",
+                "ref": "test/cache-ttl.test.js test name and assertion"
+              }
             }
-          }
-        ],
-        "verify": "npm test -- test/cache-ttl.test.js",
-        "done": "REQ-001 has a named failing assertion before implementation"
-      },
-      {
-        "id": "T-002",
-        "wave": 1,
-        "depends_on": [
-          "T-001"
-        ],
-        "workstream": "cache-ttl",
-        "files_modified": [
-          "src/cache.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-002",
-            "claim": "cache entries expire after the configured TTL",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "npm test -- test/cache-ttl.test.js :: expires entries once the configured TTL elapses"
+          ],
+          "verify": "npm test -- test/cache-ttl.test.js",
+          "done": "REQ-001 has a named failing assertion before implementation"
+        },
+        {
+          "id": "T-002",
+          "wave": 1,
+          "depends_on": [
+            "T-001"
+          ],
+          "workstream": "cache-ttl",
+          "files_modified": [
+            "src/cache.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-002",
+              "claim": "cache entries expire after the configured TTL",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "npm test -- test/cache-ttl.test.js :: expires entries once the configured TTL elapses"
+              }
             }
-          }
-        ],
-        "verify": "npm test -- test/cache-ttl.test.js",
-        "done": "REQ-001 passes the named Wave 0 assertion"
-      }
-    ]
+          ],
+          "verify": "npm test -- test/cache-ttl.test.js",
+          "done": "REQ-001 passes the named Wave 0 assertion"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode-relay-pending/relay-pending-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "A well-formed CSV import creates matching customer records",
-        "depends_on": [],
-        "task_ids": [
-          "T-001"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "a well-formed CSV row creates one customer record"
-        ],
-        "verify": [
-          "npm test -- test/csv-import.test.js"
-        ],
-        "done": "REQ-001 has exact import evidence"
-      }
-    ]
+    "source_sha256": "fb99a3e6b59d5ee10a7d0d022b6afcde5a2fbe1c341b42762ad6d623a94282a6",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "A well-formed CSV import creates matching customer records",
+          "depends_on": [],
+          "task_ids": [
+            "T-001"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "a well-formed CSV row creates one customer record"
+          ],
+          "verify": [
+            "npm test -- test/csv-import.test.js"
+          ],
+          "done": "REQ-001 has exact import evidence"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode-relay-pending/relay-pending-plan.md#Execution manifest": {
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "a well-formed CSV row creates one customer record",
-        "task_id": "T-001",
-        "must_have_id": "MH-001"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [],
-        "workstream": "csv-import",
-        "files_modified": [
-          "src/csv-import.js",
-          "test/csv-import.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "a well-formed CSV row creates one customer record",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "npm test -- test/csv-import.test.js :: imports a well-formed row as one customer record"
+    "source_sha256": "fb99a3e6b59d5ee10a7d0d022b6afcde5a2fbe1c341b42762ad6d623a94282a6",
+    "value": {
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "a well-formed CSV row creates one customer record",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [],
+          "workstream": "csv-import",
+          "files_modified": [
+            "src/csv-import.js",
+            "test/csv-import.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "a well-formed CSV row creates one customer record",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "npm test -- test/csv-import.test.js :: imports a well-formed row as one customer record"
+              }
             }
-          }
-        ],
-        "verify": "npm test -- test/csv-import.test.js",
-        "done": "REQ-001 passes the named assertion"
-      }
-    ]
+          ],
+          "verify": "npm test -- test/csv-import.test.js",
+          "done": "REQ-001 passes the named assertion"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode-relay-pending/relay-pending-review.md#Machine result": {
-    "schema_version": 1,
-    "phase": "plan-review",
-    "verdict": "proceed",
-    "subjects": [
-      {
-        "name": "plan",
-        "sha256": "562bec26b004ac635f5ba55103a020b9672c4ac360bf0636b30d8adc7c99b5e1"
-      },
-      {
-        "name": "contract",
-        "sha256": "388de9625b37a2270d8091f82149452f1122c4bdf8716668484c1e16f0d47b6e"
-      },
-      {
-        "name": "context",
-        "sha256": "fb549ff250e9bd130dc9082342b61ed7d3f7cc14eafabce442552a7bf7df348d"
-      },
-      {
-        "name": "requirements",
-        "sha256": "ea76a7c08dbed8d151ac265bbc90b64f0495ce288252964d2b698db2a1ed7f46"
-      },
-      {
-        "name": "repository",
-        "sha256": "24e07821c1ff4c92a247d66b53a3f99daad9ac1171e5e3abbf438a00bb0b4452"
-      }
-    ],
-    "findings": []
+    "source_sha256": "e1507ddcd25e5a14b3cd7b593b24548b4af0778e8ebd7bc4783cca175297a2e5",
+    "value": {
+      "schema_version": 1,
+      "phase": "plan-review",
+      "verdict": "proceed",
+      "subjects": [
+        {
+          "name": "plan",
+          "sha256": "562bec26b004ac635f5ba55103a020b9672c4ac360bf0636b30d8adc7c99b5e1"
+        },
+        {
+          "name": "contract",
+          "sha256": "388de9625b37a2270d8091f82149452f1122c4bdf8716668484c1e16f0d47b6e"
+        },
+        {
+          "name": "context",
+          "sha256": "fb549ff250e9bd130dc9082342b61ed7d3f7cc14eafabce442552a7bf7df348d"
+        },
+        {
+          "name": "requirements",
+          "sha256": "ea76a7c08dbed8d151ac265bbc90b64f0495ce288252964d2b698db2a1ed7f46"
+        },
+        {
+          "name": "repository",
+          "sha256": "24e07821c1ff4c92a247d66b53a3f99daad9ac1171e5e3abbf438a00bb0b4452"
+        }
+      ],
+      "findings": []
+    }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode/mixed-mode-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "A well-formed CSV import creates matching customer records",
-        "depends_on": [],
-        "task_ids": [
-          "T-001"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "a well-formed CSV row creates one customer record"
-        ],
-        "verify": [
-          "npm test -- test/csv-import.test.js"
-        ],
-        "done": "REQ-001 has exact import evidence"
-      }
-    ]
+    "source_sha256": "31f4cb7250f27b122d8779426f47ec572f8de39a5b4913d37df88c521dd89a44",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "A well-formed CSV import creates matching customer records",
+          "depends_on": [],
+          "task_ids": [
+            "T-001"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "a well-formed CSV row creates one customer record"
+          ],
+          "verify": [
+            "npm test -- test/csv-import.test.js"
+          ],
+          "done": "REQ-001 has exact import evidence"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode/mixed-mode-plan.md#Execution manifest": {
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "a well-formed CSV row creates one customer record",
-        "task_id": "T-001",
-        "must_have_id": "MH-001"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 1,
-        "depends_on": [],
-        "workstream": "csv-import",
-        "files_modified": [
-          "src/csv-import.js",
-          "test/csv-import.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "a well-formed CSV row creates one customer record",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "npm test -- test/csv-import.test.js :: imports a well-formed row as one customer record"
+    "source_sha256": "31f4cb7250f27b122d8779426f47ec572f8de39a5b4913d37df88c521dd89a44",
+    "value": {
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "a well-formed CSV row creates one customer record",
+          "task_id": "T-001",
+          "must_have_id": "MH-001"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 1,
+          "depends_on": [],
+          "workstream": "csv-import",
+          "files_modified": [
+            "src/csv-import.js",
+            "test/csv-import.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "a well-formed CSV row creates one customer record",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "npm test -- test/csv-import.test.js :: imports a well-formed row as one customer record"
+              }
             }
-          }
-        ],
-        "verify": "npm test -- test/csv-import.test.js",
-        "done": "REQ-001 passes the named assertion"
-      }
-    ]
+          ],
+          "verify": "npm test -- test/csv-import.test.js",
+          "done": "REQ-001 passes the named assertion"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-verify-phase-clean-summary/cache-ttl-plan.md#Delivery slices": {
-    "delivery_slices": [
-      {
-        "id": "S-001",
-        "goal": "Cached entries expire after the configured TTL",
-        "depends_on": [],
-        "task_ids": [
-          "T-002"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "must_haves": [
-          "a cache read after the TTL elapses reports a miss"
-        ],
-        "verify": [
-          "npm test -- test/cache-ttl.test.js"
-        ],
-        "done": "REQ-001 has exact boundary evidence"
-      }
-    ]
+    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "value": {
+      "delivery_slices": [
+        {
+          "id": "S-001",
+          "goal": "Cached entries expire after the configured TTL",
+          "depends_on": [],
+          "task_ids": [
+            "T-002"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "must_haves": [
+            "a cache read after the TTL elapses reports a miss"
+          ],
+          "verify": [
+            "npm test -- test/cache-ttl.test.js"
+          ],
+          "done": "REQ-001 has exact boundary evidence"
+        }
+      ]
+    }
   },
   "source/skills/eval/fixtures/orchestrator-verify-phase-clean-summary/cache-ttl-plan.md#Execution manifest": {
-    "requirements": [
-      "REQ-001"
-    ],
-    "decisions": [
-      "D-001"
-    ],
-    "assumptions": [
-      "A-001"
-    ],
-    "evidence_mode": "typed",
-    "bindings": [
-      {
-        "id": "B-001",
-        "kind": "behavior",
-        "name": "cache entries expire after the configured TTL",
-        "task_id": "T-002",
-        "must_have_id": "MH-002"
-      }
-    ],
-    "execution_manifest": [
-      {
-        "id": "T-001",
-        "wave": 0,
-        "depends_on": [],
-        "workstream": "cache-ttl",
-        "files_modified": [
-          "test/cache-ttl.test.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-001",
-            "claim": "test names and asserts TTL expiry",
-            "evidence": {
-              "kind": "structural",
-              "ref": "test/cache-ttl.test.js test name and assertion"
+    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "value": {
+      "requirements": [
+        "REQ-001"
+      ],
+      "decisions": [
+        "D-001"
+      ],
+      "assumptions": [
+        "A-001"
+      ],
+      "evidence_mode": "typed",
+      "bindings": [
+        {
+          "id": "B-001",
+          "kind": "behavior",
+          "name": "cache entries expire after the configured TTL",
+          "task_id": "T-002",
+          "must_have_id": "MH-002"
+        }
+      ],
+      "execution_manifest": [
+        {
+          "id": "T-001",
+          "wave": 0,
+          "depends_on": [],
+          "workstream": "cache-ttl",
+          "files_modified": [
+            "test/cache-ttl.test.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-001",
+              "claim": "test names and asserts TTL expiry",
+              "evidence": {
+                "kind": "structural",
+                "ref": "test/cache-ttl.test.js test name and assertion"
+              }
             }
-          }
-        ],
-        "verify": "npm test -- test/cache-ttl.test.js",
-        "done": "REQ-001 has a named failing assertion before implementation"
-      },
-      {
-        "id": "T-002",
-        "wave": 1,
-        "depends_on": [
-          "T-001"
-        ],
-        "workstream": "cache-ttl",
-        "files_modified": [
-          "src/cache.js"
-        ],
-        "requirements": [
-          "REQ-001"
-        ],
-        "decisions": [
-          "D-001"
-        ],
-        "must_haves": [
-          {
-            "id": "MH-002",
-            "claim": "cache entries expire after the configured TTL",
-            "evidence": {
-              "kind": "behavioral-test",
-              "ref": "npm test -- test/cache-ttl.test.js :: expires entries once the configured TTL elapses"
+          ],
+          "verify": "npm test -- test/cache-ttl.test.js",
+          "done": "REQ-001 has a named failing assertion before implementation"
+        },
+        {
+          "id": "T-002",
+          "wave": 1,
+          "depends_on": [
+            "T-001"
+          ],
+          "workstream": "cache-ttl",
+          "files_modified": [
+            "src/cache.js"
+          ],
+          "requirements": [
+            "REQ-001"
+          ],
+          "decisions": [
+            "D-001"
+          ],
+          "must_haves": [
+            {
+              "id": "MH-002",
+              "claim": "cache entries expire after the configured TTL",
+              "evidence": {
+                "kind": "behavioral-test",
+                "ref": "npm test -- test/cache-ttl.test.js :: expires entries once the configured TTL elapses"
+              }
             }
-          }
-        ],
-        "verify": "npm test -- test/cache-ttl.test.js",
-        "done": "REQ-001 passes the named Wave 0 assertion"
-      }
-    ]
+          ],
+          "verify": "npm test -- test/cache-ttl.test.js",
+          "done": "REQ-001 passes the named Wave 0 assertion"
+        }
+      ]
+    }
   },
   "source/skills/review-plan/SKILL.md#Machine result": {
-    "schema_version": 1,
-    "phase": "plan-review",
-    "verdict": "proceed",
-    "subjects": [
-      {
-        "name": "plan",
-        "sha256": "<64 lowercase hex>"
-      }
-    ],
-    "findings": []
+    "source_sha256": "e6329ae10f3c1c4aff99f395334a285bce73db0db46ee52bbb664231b39afaff",
+    "value": {
+      "schema_version": 1,
+      "phase": "plan-review",
+      "verdict": "proceed",
+      "subjects": [
+        {
+          "name": "plan",
+          "sha256": "<64 lowercase hex>"
+        }
+      ],
+      "findings": []
+    }
   },
   "source/skills/verify/SKILL.md#Machine result": {
-    "schema_version": 1,
-    "phase": "verify",
-    "verdict": "verified",
-    "subjects": [
-      {
-        "name": "plan",
-        "sha256": "<64 lowercase hex>"
-      }
-    ],
-    "findings": []
+    "source_sha256": "fd3459fa83c77587c66e17e11184c7973c969ee84cdaca8c792706d954033fe7",
+    "value": {
+      "schema_version": 1,
+      "phase": "verify",
+      "verdict": "verified",
+      "subjects": [
+        {
+          "name": "plan",
+          "sha256": "<64 lowercase hex>"
+        }
+      ],
+      "findings": []
+    }
   }
 }

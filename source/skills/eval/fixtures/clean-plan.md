@@ -1,190 +1,132 @@
-# Implementation Plan: Add Status Command
+Tier: compact (discovery level: quick_verify)
 
-## File structure mapping
-
-| File | New/Modified | Responsibility | Depends on |
-|------|-------------|----------------|------------|
-| `.claude/skills/status/SKILL.md` | New | Status skill — reads and displays current workflow state | None |
-| `CLAUDE.md` | Modified | Add status skill to structure documentation | `.claude/skills/status/SKILL.md` |
-| `README.md` | Modified | Add status skill to skills table | `.claude/skills/status/SKILL.md` |
+# Implementation Plan: check-sync --versions-only
 
 ## Discovery level
 
-`quick_verify` — single new skill file plus two one-line documentation edits; the read-only protocol and output format are fully specified in this plan.
+`quick_verify`. The change touches one existing script (`scripts/check-sync.js`, 80 lines), adds one test file, and adds one README sentence. `scripts/check-sync.js` already runs the version-parity pre-check (lines 21–37) before it starts the build (line 40), so the new flag only has to stop after that pre-check.
 
 ## Requirements and decisions
 
-- **REQ-001**: The status command reads `.build/plans/*-state.md` and prints a formatted summary of the active workflow state.
-- **REQ-002**: CLAUDE.md and README.md document the new skill in the structure section and skills table respectively.
-- **D-001**: The skill is read-only — no writes, no state mutation.
-- **A-001**: State file format is defined by the orchestrator and treated as stable for this plan.
+- **REQ-001**: `node scripts/check-sync.js --versions-only` runs only the release-version parity check. When all carriers agree it prints `Release versions agree: <version>` and exits 0, without printing `Running build...` or running `scripts/build.js`.
+- **REQ-002**: README.md documents `npm run check-sync -- --versions-only` beside the existing check-sync sentence.
+- **D-001**: The flag reuses the existing pre-check unchanged, so version drift still prints `Version drift across release files:` and exits 1 before the flag is consulted.
+- **A-001** (high): `VERSION_CARRIERS` in `scripts/transformers/version-carriers.js` is the single list of version carriers, as check-sync's own comment states.
 
 ## Problem
 
-Users have no quick way to check what phase a build workflow is in without manually reading the state file in `.build/plans/`.
+Contributors who bumped a version want a fast parity check, but `npm run check-sync` always regenerates all five provider trees first.
 
 ## Approach
 
-Add a `/build:status` skill that reads the current `*-state.md` file from `.build/plans/`, parses the YAML-like fields, and prints a formatted summary: current phase, task description, when it started, workstream progress, and any blockers or rework notes.
+- [B-001] Before touching the script, add `scripts/transformers/check-sync-versions.test.js` with one test named `check-sync --versions-only reports agreeing versions without building`. It runs `node scripts/check-sync.js --versions-only` from the repo root with `spawnSync`, reads the expected version from `package.json`, and asserts exit status 0, stdout containing `Release versions agree: <version>`, and stdout not containing `Running build...`.
+- [B-002] In `scripts/check-sync.js`, directly after the existing version-drift block (after line 37) and before `console.log('Running build...')`, add: if `process.argv.includes('--versions-only')`, print `Release versions agree: ${unique[0]}` and `process.exit(0)`.
+- [B-003] In README.md, after the sentence ending "because it compares generated outputs against git." (line 151), add: "Run `npm run check-sync -- --versions-only` to check only that the release version carriers agree, without rebuilding."
 
-This is a read-only skill — it changes nothing, just reports. It follows the same pattern as verify (read state, report what you find) but for workflow state instead of code quality.
-
-## Who uses this and how
-
-**User mid-workflow**: Runs `/build:status` to see which phase they're in and what's left. Useful after resuming a session where the previous one was interrupted.
-
-**User with no active workflow**: Runs `/build:status`, gets "No active workflow. Run /build to start one." The skill checks for `.build/plans/` directory and `*-state.md` files.
-
-**User with a halted workflow**: Runs `/build:status`, sees the halt reason and which circuit breaker fired, plus the halt context. Helps them decide how to resume.
-
-**User with an archived workflow**: Only active state files are shown. Archived workflows in `.build/plans/archive/` are not listed unless the user passes `--all` (out of scope for v1).
+No new abstraction: the flag is one guarded early exit.
 
 ## Files to change
 
-### `.claude/skills/status/SKILL.md` (New, ~50 lines)
-Frontmatter: `name: status`, `description: Show current build workflow state`, `user-invocable: true`, `allowed-tools: Read, Glob`. No model override — lightweight read-only skill.
+| File | New/Modified | Responsibility | Depends on |
+|------|-------------|----------------|------------|
+| `scripts/transformers/check-sync-versions.test.js` | New (~25 lines) | Wave 0 test for REQ-001 | `scripts/check-sync.js` |
+| `scripts/check-sync.js` | Modified (+4 lines) | `--versions-only` early exit | `scripts/transformers/version-carriers.js` |
+| `README.md` | Modified (+1 sentence) | Document the flag | `scripts/check-sync.js` |
 
-Instructions:
-1. Glob for `.build/plans/*-state.md`. If no matches, print "No active workflow" and exit.
-2. If multiple state files exist, list all with their slug and phase, then read the most recently modified one.
-3. Read the state file and extract: slug, phase, task, started, last_updated, complexity, workstreams, and any optional fields (rework_notes, halted, halt_reason, halt_context, verification_failures, architect_fixes).
-4. Print a formatted summary:
-   ```
-   Workflow: {slug}
-   Task: {task}
-   Phase: {phase} (started {started}, last updated {last_updated})
-   Complexity: {complexity}
-   Workstreams: {workstreams as comma-separated list}
-   ```
-5. If halted: print `Status: HALTED — {halt_reason}` and the halt context.
-6. If rework_notes exist: print `Rework needed: {notes}`.
-7. If verification_failures exist: print `Verification failures: {failures}`.
-8. If architect_fixes exist: print `Architect fixes needed: {fixes}`.
-9. Print the last 5 history entries.
-
-### `CLAUDE.md` (Modified, +1 line)
-Add to the Structure section: `- .claude/skills/status/ - Status display. Shows current workflow state.`
-
-### `README.md` (Modified, +1 line in skills table)
-Add row: `| /build:status | Shows current build workflow phase, progress, and any blockers |`
-
-## Data impact
-
-None. Read-only skill — reads existing `.build/plans/*-state.md` files, writes nothing.
+None of these files is generated output: `scripts/` and `README.md` are hand-authored, so `npm run build` does not touch them.
 
 ## What existing behavior changes
 
-Nothing. New skill, read-only, no side effects on existing files or workflows.
-
-## New dependencies
-
-None.
-
-## Access control and authorization
-
-N/A — local CLI skill, no endpoints, no auth.
-
-## Abuse and edge cases
-
-- **Malformed state file**: If the state file has invalid YAML or missing fields, the skill should print what it can parse and note which fields are missing rather than failing entirely.
-- **Very long history**: If the history section has hundreds of entries, only print the last 5 with a note "(N more entries, see state file for full history)".
-- **Multiple active workflows**: Print a summary line for each, then show details for the most recent.
-
-## Out of scope
-
-- Listing archived workflows (would need `--all` flag support)
-- Modifying workflow state (that's the orchestrator's job)
-- Displaying plan or review content (just state — use `cat` for the full files)
-
-## Risks and rollback
-
-1. **State file format changes**: If the orchestrator changes the state file format, this skill's parsing breaks. Low risk — the format is simple YAML-like key-value pairs. Rollback: delete `.claude/skills/status/`.
-
-## Observability & monitoring
-
-N/A — local CLI skill, no production deployment.
-
-## Open questions
-
-None. The state file format is defined by the orchestrator's SKILL.md and is stable.
+None for existing callers. `npm run check-sync` without the flag runs exactly as today. The new test runs inside `npm test` (the `scripts/transformers/*.test.js` glob) and does not modify any file.
 
 ## Wave 0 validation design
 
-REQ-001 is proven by manually invoking `/build:status` with no active workflow before any doc edits — expected output is "No active workflow." This confirms the skill executes before T-003 writes documentation.
-
-REQ-002 has no pre-implementation evidence; T-003 is the implementation. Evidence is the two one-line additions visible in CLAUDE.md and README.md after T-003 completes.
+T-001 writes the REQ-001 test before the script changes. It fails until T-002 lands, because without the flag check-sync prints `Running build...`. REQ-002 is documentation; T-003 proves it by direct inspection.
 
 ## Execution manifest
 
 ```yaml
+requirements: [REQ-001, REQ-002]
+decisions: [D-001]
+assumptions: [A-001]
+evidence_mode: typed
+bindings:
+  - { id: B-001, kind: invariant, name: "Wave 0 test names the versions-only behavior", task_id: T-001, must_have_id: MH-001 }
+  - { id: B-002, kind: behavior, name: "check-sync versions-only early exit", task_id: T-002, must_have_id: MH-002 }
+  - { id: B-003, kind: invariant, name: "README documents the versions-only flag", task_id: T-003, must_have_id: MH-003 }
 execution_manifest:
   - id: T-001
     wave: 0
     depends_on: []
-    files_modified: []
-    requirements: ["REQ-001"]
-    must_haves: ["manual invoke of /build:status returns 'No active workflow'"]
-    verify: "Manual: invoke /build:status with no active workflow; confirm output contains 'No active workflow'"
-    done: "REQ-001 baseline confirmed before documentation is written"
+    workstream: validation
+    files_modified: ["scripts/transformers/check-sync-versions.test.js"]
+    requirements: [REQ-001]
+    decisions: [D-001]
+    must_haves:
+      - { id: MH-001, claim: "The test file defines the versions-only test with exit, version and no-build assertions.", evidence: { kind: structural, ref: "scripts/transformers/check-sync-versions.test.js test named check-sync --versions-only reports agreeing versions without building" } }
+    verify: "node --check scripts/transformers/check-sync-versions.test.js"
+    done: "The Wave 0 test exists and parses before the script changes."
   - id: T-002
     wave: 1
-    depends_on: ["T-001"]
-    files_modified: [".claude/skills/status/SKILL.md"]
-    requirements: ["REQ-001"]
-    must_haves: ["SKILL.md exists with frontmatter name: status and allowed-tools: Read, Glob", "all 9 numbered instruction steps present"]
-    verify: "Read .claude/skills/status/SKILL.md; confirm name field is 'status' and 9 instruction steps are present"
-    done: "Status skill file created matching specification"
+    depends_on: [T-001]
+    workstream: check-sync
+    files_modified: ["scripts/check-sync.js"]
+    requirements: [REQ-001]
+    decisions: [D-001]
+    must_haves:
+      - { id: MH-002, claim: "With --versions-only and agreeing carriers, check-sync prints the agreed version, exits 0 and does not build.", evidence: { kind: behavioral-test, ref: "node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js :: ok 1 - check-sync --versions-only reports agreeing versions without building" } }
+    verify: "node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js"
+    done: "The Wave 0 test passes."
   - id: T-003
     wave: 2
-    depends_on: ["T-002"]
-    files_modified: ["CLAUDE.md", "README.md"]
-    requirements: ["REQ-002"]
-    must_haves: ["CLAUDE.md contains status skill entry in Structure section", "README.md contains /build:status row in skills table"]
-    verify: "grep -c 'status' CLAUDE.md (expect >=1); grep -c '/build:status' README.md (expect 1)"
-    done: "Documentation updated with status skill"
+    depends_on: [T-002]
+    workstream: docs
+    files_modified: ["README.md"]
+    requirements: [REQ-002]
+    decisions: [D-001]
+    must_haves:
+      - { id: MH-003, claim: "README.md documents npm run check-sync -- --versions-only next to the existing check-sync sentence.", evidence: { kind: structural, ref: "README.md line after the check-sync sentence names npm run check-sync -- --versions-only" } }
+    verify: "grep -n \"check-sync -- --versions-only\" README.md"
+    done: "README names the flag and what it skips."
 ```
-
-## Workflow artifacts
-
-N/A — standalone plan. User saves this file if durable context is needed.
-
-## UI contract
-
-N/A — no UI files changed.
 
 ## Delivery slices
 
 ```yaml
 delivery_slices:
   - id: S-001
-    goal: "Users can run /build:status to inspect active workflow state, and the command is documented in CLAUDE.md and README.md"
+    goal: "Contributors can run a fast release-version parity check that skips the rebuild, and README documents it."
     depends_on: []
     task_ids: ["T-002", "T-003"]
     requirements: ["REQ-001", "REQ-002"]
-    must_haves: ["status skill reports the no-workflow and active-workflow states", "CLAUDE.md and README.md document /build:status"]
-    verify: "Invoke /build:status with no state and with a known test state, then confirm grep -c '/build:status' README.md returns 1 and grep -c 'status' CLAUDE.md returns at least 1"
-    done: "The status command reports known state values and both documentation files contain their required status entries"
+    must_haves: ["check-sync --versions-only exits 0 with the agreed version and no build", "README documents the flag"]
+    verify: ["node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js", "npm test"]
+    done: "The versions-only test passes inside the full suite and README documents the flag."
 ```
 
-Wave 0 task `T-001` is global. The only implementation tasks, `T-002` and `T-003`, belong exactly once to `S-001`.
+Wave 0 task `T-001` is global. The implementation tasks `T-002` and `T-003` each belong to `S-001` exactly once.
 
 ## Parallel workstreams
 
 | Workstream | Task IDs | Files | Complexity | Depends on |
 |-----------|----------|-------|------------|------------|
-| status-skill | `T-002` | `.claude/skills/status/SKILL.md` | simple | None |
-| docs | `T-003` | `CLAUDE.md`, `README.md` | simple | status-skill |
+| validation | `T-001` | `scripts/transformers/check-sync-versions.test.js` | simple | none |
+| check-sync | `T-002` | `scripts/check-sync.js` | simple | validation |
+| docs | `T-003` | `README.md` | simple | check-sync |
+
+Everything is sequential: each task needs the previous one.
 
 ## Implementation order
 
-1. Create `.claude/skills/status/SKILL.md` with frontmatter and instructions as described above
-2. Add status skill entry to `CLAUDE.md` structure section
-3. Add status skill row to `README.md` skills table
+1. T-001: create `scripts/transformers/check-sync-versions.test.js` with the one test described in [Approach]; run `node --check` on it.
+2. T-001: run the test once and confirm it fails because stdout contains `Running build...`.
+3. T-002: add the `--versions-only` early exit to `scripts/check-sync.js` after the version-drift block.
+4. T-002: run `node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js` and confirm `ok 1 - check-sync --versions-only reports agreeing versions without building`.
+5. T-003: add the README sentence after line 151 and run `grep -n "check-sync -- --versions-only" README.md`.
 
 ## Verification
 
-- Run `/build:status` with no active workflow — confirm "No active workflow" message (covers REQ-001)
-- Create a test state file in `.build/plans/test-state.md` with known values, run `/build:status`, confirm output matches (covers REQ-001)
-- Create a halted state file, run `/build:status`, confirm halt reason and context are displayed (covers REQ-001)
-- Delete test state files after verification
-- Confirm CLAUDE.md and README.md contain the new entries (covers REQ-002)
+- `node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js` exits 0 and prints `ok 1 - check-sync --versions-only reports agreeing versions without building`.
+- `npm test` exits 0 with `ℹ fail 0`.
+- `npm run check-sync` without the flag still prints `Running build...` and `Outputs are in sync.` on a committed tree.
+- `grep -n "check-sync -- --versions-only" README.md` prints one line.
