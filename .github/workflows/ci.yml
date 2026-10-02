@@ -12,7 +12,9 @@ permissions:
 jobs:
   verify:
     name: Verify
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: the E_EVIDENCE_PIPE rule's reason for refusing
+    # `set -o pipefail` is this image's dash /bin/sh. Re-check it before moving.
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
