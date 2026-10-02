@@ -115,7 +115,7 @@ rather than from semantic review quality.
   standalone-artifact clause, and a PHASES-derived drift test; manual relay stop as fallback.
 - Three graded mode eval cases plus contract phrase pins with negative-mutation coverage.
 
-## v1.18.0 — buildctl friction
+## v1.18.0 — buildctl friction (shipped)
 
 Cut `buildctl` friction without weakening any judgment gate. Reviewer runs were being discarded
 for formatting, and halted review loops needed hand edits to state.
