@@ -70,6 +70,19 @@
   older skill installs keep working. `subjects=` is now authoritative. Both tokens will be
   removed after 1.18.
 
+### Fixed
+
+- The `eval` skill now passes fixture file paths to `review-plan` and `architect-review`.
+  Both run in a forked context and could not see fixtures that the runner had read into its
+  own conversation, so their eval cases reviewed nothing. Each eval run also clears
+  leftover `.build/` copies from fixture folders first.
+- Refreshed two `review-plan` eval fixtures. The "clean" plan now matches the typed plan
+  format and targets hand-authored files. The evidence-contract plan now uses concrete
+  wording, so the review reaches the binding and task-size checks the case grades instead of
+  stopping at the placeholder scan.
+- The YAML golden test records each source file's hash. An edited fixture now reports
+  "fixture changed; regenerate", and a real parser change reports "parser output changed".
+
 ## 1.17.0 - 2026-09-09
 
 ### Changed
