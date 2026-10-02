@@ -159,6 +159,31 @@ test('test-shrink: a binary fixture is never counted as lost assertions', () => 
   assert.deepEqual(result.shrunk, [], 'a binary blob has no assertion lines to lose');
 });
 
+test('test-shrink: an English "should" in a prose fixture is not an assertion', () => {
+  const repo = sandbox();
+  mkdirSync(join(repo, 'fixtures'), { recursive: true });
+  writeFileSync(join(repo, 'fixtures/plan.md'), '# Plan\n\nThe skill should print what it can parse.\n', 'utf8');
+  const base = commit(repo, 'prose fixture');
+  writeFileSync(join(repo, 'fixtures/plan.md'), '# Plan\n\nThe skill prints what it can parse.\n', 'utf8');
+  commit(repo, 'reword the fixture');
+
+  const result = repositoryTestShrink({ baseRef: base, repoRoot: repo });
+  assert.deepEqual(result.shrunk, [], 'rewording prose never reads as lost coverage');
+  assert.equal(result.bounds.prose_path_pattern.length > 0, true);
+});
+
+test('test-shrink: a removed assert in a prose code block still counts', () => {
+  const repo = sandbox();
+  mkdirSync(join(repo, 'fixtures'), { recursive: true });
+  writeFileSync(join(repo, 'fixtures/guide.md'), '# Guide\n\n```js\nassert.equal(clamp(5, 0, 3), 3);\n```\n', 'utf8');
+  const base = commit(repo, 'doctest-style fixture');
+  writeFileSync(join(repo, 'fixtures/guide.md'), '# Guide\n\n```js\nclamp(5, 0, 3);\n```\n', 'utf8');
+  commit(repo, 'drop the check');
+
+  const result = repositoryTestShrink({ baseRef: base, repoRoot: repo });
+  assert.deepEqual(result.shrunk, [{ after: 0, before: 1, path: 'fixtures/guide.md' }]);
+});
+
 test('test-shrink: bounds are reported so a narrow scan never reads as whole-repository', () => {
   const repo = sandbox();
   writeFileSync(join(repo, 'clamp.test.js'), `${STRONG}\n`, 'utf8');

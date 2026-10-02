@@ -80,6 +80,11 @@
   format and targets hand-authored files. The evidence-contract plan now uses concrete
   wording, so the review reaches the binding and task-size checks the case grades instead of
   stopping at the placeholder scan.
+- Verify's test-shrink check no longer counts the English word "should" in prose files
+  (`.md`, `.txt`, `.rst` and similar) under test or fixture folders as an assertion, so
+  rewording a Markdown fixture no longer reads as lost test coverage. Code-shaped assertions
+  in prose code blocks (`assert`, `expect(`) still count. The receipt's `test_shrink.bounds`
+  names the prose rule.
 - The YAML golden test records each source file's hash. An edited fixture now reports
   "fixture changed; regenerate", and a real parser change reports "parser output changed".
 
