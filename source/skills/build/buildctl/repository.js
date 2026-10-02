@@ -253,9 +253,16 @@ const TEST_PATH_PATTERN = /(^|\/)(__tests__|tests?|spec|fixtures?|seeds?)\/|\.(t
 // the number is comparable across a reformat but still falls when checks go.
 const ASSERTION_PATTERN = /\bassert\b|\bexpect\s*\(|\bshould\b|^\s*(?:async\s+)?(?:test|it)\s*\(|^\s*def\s+test_|^\s*func\s+Test[A-Z]|#\[test\]/;
 
-function assertionLines(source) {
+// Prose documents (plans, READMEs, notes) live beside fixtures too. There
+// "should" is ordinary English, not an assertion, so prose counts only the
+// code-shaped forms; a removed assert in a doctest code block still counts.
+const PROSE_PATH_PATTERN = /\.(md|markdown|mdx|txt|rst|adoc)$/i;
+const PROSE_ASSERTION_PATTERN = /\bassert\b|\bexpect\s*\(|^\s*(?:async\s+)?(?:test|it)\s*\(|^\s*def\s+test_|^\s*func\s+Test[A-Z]|#\[test\]/;
+
+function assertionLines(source, path) {
   if (source === null) return 0;
-  return source.split(/\r?\n/).filter((line) => ASSERTION_PATTERN.test(line)).length;
+  const pattern = PROSE_PATH_PATTERN.test(path) ? PROSE_ASSERTION_PATTERN : ASSERTION_PATTERN;
+  return source.split(/\r?\n/).filter((line) => pattern.test(line)).length;
 }
 
 // Binary fixtures (images, snapshots) live under the same directories as tests.
@@ -316,8 +323,10 @@ export function repositoryTestShrink({
     // A path absent at base_ref is new; a new file cannot have lost coverage.
     const source = blobAt(root, baseRef, change.before);
     if (source === null) continue;
-    const before = assertionLines(source);
-    const after = change.after ? assertionLines(blobAt(root, headRef, change.after)) : 0;
+    const before = assertionLines(source, change.before);
+    const after = change.after
+      ? assertionLines(blobAt(root, headRef, change.after), change.after)
+      : 0;
     examined.push(change.after || change.before);
     if (after < before) {
       shrunk.push({
@@ -333,6 +342,8 @@ export function repositoryTestShrink({
     bounds: {
       assertion_pattern: ASSERTION_PATTERN.source,
       path_pattern: TEST_PATH_PATTERN.source,
+      prose_assertion_pattern: PROSE_ASSERTION_PATTERN.source,
+      prose_path_pattern: PROSE_PATH_PATTERN.source,
       unit: 'lines matching assertion_pattern',
     },
     examined: examined.sort(),
