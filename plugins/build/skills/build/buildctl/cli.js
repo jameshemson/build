@@ -76,6 +76,46 @@ async function writeSubjects(flags) {
   process.stdout.write(yaml);
 }
 
+async function checkCounters(flags) {
+  const [{ evaluateCircuitEvents }, { loadWorkflowState }] = await Promise.all([
+    import('./counters.js'),
+    import('./workflow-state.js'),
+  ]);
+  const state = loadWorkflowState({
+    statePath: required(flags, 'state'),
+    required: ['counter_events'],
+  });
+  const result = evaluateCircuitEvents(state.values.counter_events);
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+  if (result.status !== 'allow') process.exitCode = 1;
+}
+
+async function compileResult(flags) {
+  const { compilePhaseResult } = await import('./phase-results.js');
+  const result = await compilePhaseResult({
+    artifactPath: required(flags, 'artifact'),
+    contractPath: required(flags, 'contract'),
+    evidenceDir: flags['evidence-dir'],
+    receiptsDir: flags['receipts-dir'],
+    statePath: required(flags, 'state'),
+  });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+}
+
+async function completeSlice(flags) {
+  const { completeSlice: completeSliceResult } = await import('./completion.js');
+  const result = await completeSliceResult({
+    contractPath: required(flags, 'contract'),
+    evidenceDir: flags['evidence-dir'],
+    judgmentsPath: required(flags, 'judgments'),
+    receiptsDir: flags['receipts-dir'],
+    statePath: required(flags, 'state'),
+    summaryPath: required(flags, 'summary'),
+  });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+  if (result.status === 'blocked') process.exitCode = 1;
+}
+
 function printError(error) {
   if (Array.isArray(error.diagnostics)) {
     for (const item of error.diagnostics) {
@@ -142,29 +182,11 @@ async function main() {
     return;
   }
   if (command === 'check-counters') {
-    const [{ evaluateCircuitEvents }, { loadWorkflowState }] = await Promise.all([
-      import('./counters.js'),
-      import('./workflow-state.js'),
-    ]);
-    const state = loadWorkflowState({
-      statePath: required(flags, 'state'),
-      required: ['counter_events'],
-    });
-    const result = evaluateCircuitEvents(state.values.counter_events);
-    process.stdout.write(`${JSON.stringify(result)}\n`);
-    if (result.status !== 'allow') process.exitCode = 1;
+    await checkCounters(flags);
     return;
   }
   if (command === 'compile-result') {
-    const { compilePhaseResult } = await import('./phase-results.js');
-    const result = await compilePhaseResult({
-      artifactPath: required(flags, 'artifact'),
-      contractPath: required(flags, 'contract'),
-      evidenceDir: flags['evidence-dir'],
-      receiptsDir: flags['receipts-dir'],
-      statePath: required(flags, 'state'),
-    });
-    process.stdout.write(`${JSON.stringify(result)}\n`);
+    await compileResult(flags);
     return;
   }
   if (command === 'subjects') {
@@ -172,17 +194,7 @@ async function main() {
     return;
   }
   if (command === 'complete-slice') {
-    const { completeSlice } = await import('./completion.js');
-    const result = await completeSlice({
-      contractPath: required(flags, 'contract'),
-      evidenceDir: flags['evidence-dir'],
-      judgmentsPath: required(flags, 'judgments'),
-      receiptsDir: flags['receipts-dir'],
-      statePath: required(flags, 'state'),
-      summaryPath: required(flags, 'summary'),
-    });
-    process.stdout.write(`${JSON.stringify(result)}\n`);
-    if (result.status === 'blocked') process.exitCode = 1;
+    await completeSlice(flags);
     return;
   }
   throw new BuildctlError('E_ARGUMENT', `Unknown subcommand: ${command}\n${usage()}`);

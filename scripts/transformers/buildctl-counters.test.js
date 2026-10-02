@@ -1,10 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ROOT } from './utils.js';
 import { BuildctlError } from '../../source/skills/build/buildctl/plan-contract.js';
 import {
   CIRCUIT_LIMITS,
   evaluateCircuitEvents,
 } from '../../source/skills/build/buildctl/counters.js';
+
+const CLI = join(ROOT, 'source/skills/build/buildctl/cli.js');
 
 function increments(kind, scope, count, prefix = `${kind}-${scope}`) {
   return Array.from({ length: count }, (_, index) => ({
@@ -119,6 +126,56 @@ test('counter extend: duplicate extend IDs count once and conflicting replay fai
     [grant, extend('plan_review', 'plan', 'extend-dup', 'A different reason')],
     'E_COUNTER_EVENT_CONFLICT',
   );
+});
+
+function counterState(events) {
+  return [
+    'slug: "counter-extend-fixture"',
+    'phase: "plan-review"',
+    'active_slice: null',
+    'completed_slices: []',
+    'completed_tasks: []',
+    'checkpoint_commits: []',
+    'transition_references: []',
+    'transition_history: []',
+    `counter_events: ${JSON.stringify(events)}`,
+    '',
+  ].join('\n');
+}
+
+test('counter extend: check-counters CLI honours an extend event in a state file', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'buildctl-counter-extend-'));
+  try {
+    const init = spawnSync('git', ['init', '-q'], { cwd: repo, encoding: 'utf8' });
+    assert.equal(init.status, 0, init.stderr);
+    const statePath = join(repo, 'state.md');
+    const events = [
+      ...increments('plan_review', 'plan', 4),
+      extend('plan_review', 'plan', 'extend-plan_review-plan-1'),
+    ];
+    const run = () => spawnSync(process.execPath, [CLI, 'check-counters', '--state', statePath], {
+      cwd: repo,
+      encoding: 'utf8',
+    });
+
+    writeFileSync(statePath, counterState(events), 'utf8');
+    const allowed = run();
+    assert.equal(allowed.status, 0, allowed.stderr);
+    assert.equal(JSON.parse(allowed.stdout).status, 'allow');
+
+    const fifth = increments('plan_review', 'plan', 5).at(-1);
+    writeFileSync(statePath, counterState([...events, fifth]), 'utf8');
+    const halted = run();
+    assert.equal(halted.status, 1, halted.stderr);
+    const result = JSON.parse(halted.stdout);
+    assert.equal(result.status, 'halt');
+    assert.ok(
+      result.diagnostics.some((item) => item.kind === 'plan_review' && item.halt_at === 5),
+      JSON.stringify(result.diagnostics),
+    );
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
 });
 
 test('counter extend: base limits and result shape are unchanged', () => {

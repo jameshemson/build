@@ -601,31 +601,13 @@ function architectFacts({
   };
 }
 
-async function verifyFacts({
-  authored,
+async function currentEvidence({
   contract,
   evidenceDir,
   loaded,
-  paths,
   repository,
   state,
 }) {
-  const clean = repositoryCleanStatus({ repoRoot: state.repoRoot });
-  if (!clean.clean) {
-    fail('E_RESULT_DIRTY', 'repository', 'Verify result requires a clean worktree.');
-  }
-  const scope = repositoryFileScope({
-    baseRef: state.values.base_ref,
-    plannedPaths: contract.execution_manifest.flatMap((task) => task.files_modified),
-    repoRoot: state.repoRoot,
-  });
-  if (scope.out_of_plan.length > 0) {
-    fail(
-      'E_RESULT_SCOPE',
-      'repository.out_of_plan',
-      `Changed paths are outside the plan: ${scope.out_of_plan.join(', ')}.`,
-    );
-  }
   const checked = await checkEvidence({
     contractPath: loaded.contractPath,
     evidenceDir,
@@ -660,6 +642,75 @@ async function verifyFacts({
       })),
     });
   }
+  return { checked, receipts };
+}
+
+function checkVerifyVerdict({ authored, gaps, failedCommands }) {
+  // The receipt records gaps and failed commands as mechanical facts, so the
+  // findings need not restate them; they bound the verdict instead.
+  if (failedCommands.length > 0 && authored.verdict !== 'failed') {
+    fail(
+      'E_RESULT_VERDICT',
+      'artifact.machine_result.verdict',
+      `Failed evidence commands require a failed verdict: ${failedCommands.join(', ')}.`,
+    );
+  } else if (gaps.length > 0 && authored.verdict === 'verified') {
+    fail(
+      'E_RESULT_VERDICT',
+      'artifact.machine_result.verdict',
+      `Mechanical gaps forbid a verified verdict: ${gaps.join(', ')}.`,
+    );
+  }
+  const severities = new Set(authored.findings.map((finding) => finding.severity));
+  const critical = severities.has('critical');
+  const important = severities.has('important');
+  const compatible = authored.verdict === 'verified'
+    ? !critical && !important
+    : authored.verdict === 'partial'
+      ? !critical && (important || gaps.length > 0)
+      : authored.verdict === 'failed'
+        && (critical || important || failedCommands.length > 0);
+  if (!compatible) {
+    fail(
+      'E_RESULT_VERDICT',
+      'artifact.machine_result.verdict',
+      `Verdict ${authored.verdict} is incompatible with finding severities and mechanical facts.`,
+    );
+  }
+}
+
+async function verifyFacts({
+  authored,
+  contract,
+  evidenceDir,
+  loaded,
+  paths,
+  repository,
+  state,
+}) {
+  const clean = repositoryCleanStatus({ repoRoot: state.repoRoot });
+  if (!clean.clean) {
+    fail('E_RESULT_DIRTY', 'repository', 'Verify result requires a clean worktree.');
+  }
+  const scope = repositoryFileScope({
+    baseRef: state.values.base_ref,
+    plannedPaths: contract.execution_manifest.flatMap((task) => task.files_modified),
+    repoRoot: state.repoRoot,
+  });
+  if (scope.out_of_plan.length > 0) {
+    fail(
+      'E_RESULT_SCOPE',
+      'repository.out_of_plan',
+      `Changed paths are outside the plan: ${scope.out_of_plan.join(', ')}.`,
+    );
+  }
+  const { checked, receipts } = await currentEvidence({
+    contract,
+    evidenceDir,
+    loaded,
+    repository,
+    state,
+  });
   const completions = completionReceipts({
     contract,
     repository,
@@ -693,37 +744,7 @@ async function verifyFacts({
       ? [prior.bootstrap ? 'prior:plan-review-receipt-bootstrap' : 'prior:plan-review-result']
       : []),
   ])].sort();
-  // The receipt records gaps and failed commands as mechanical facts, so the
-  // findings need not restate them; they bound the verdict instead.
-  if (coverage.failedCommands.length > 0 && authored.verdict !== 'failed') {
-    fail(
-      'E_RESULT_VERDICT',
-      'artifact.machine_result.verdict',
-      `Failed evidence commands require a failed verdict: ${coverage.failedCommands.join(', ')}.`,
-    );
-  } else if (gaps.length > 0 && authored.verdict === 'verified') {
-    fail(
-      'E_RESULT_VERDICT',
-      'artifact.machine_result.verdict',
-      `Mechanical gaps forbid a verified verdict: ${gaps.join(', ')}.`,
-    );
-  }
-  const severities = new Set(authored.findings.map((finding) => finding.severity));
-  const critical = severities.has('critical');
-  const important = severities.has('important');
-  const compatible = authored.verdict === 'verified'
-    ? !critical && !important
-    : authored.verdict === 'partial'
-      ? !critical && (important || gaps.length > 0)
-      : authored.verdict === 'failed'
-        && (critical || important || coverage.failedCommands.length > 0);
-  if (!compatible) {
-    fail(
-      'E_RESULT_VERDICT',
-      'artifact.machine_result.verdict',
-      `Verdict ${authored.verdict} is incompatible with finding severities and mechanical facts.`,
-    );
-  }
+  checkVerifyVerdict({ authored, gaps, failedCommands: coverage.failedCommands });
   return {
     evidence: {
       failed_commands: coverage.failedCommands,
