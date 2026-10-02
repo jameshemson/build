@@ -90,7 +90,7 @@ planned/changed/out-of-plan/planned-but-unchanged/planned-ignored paths, and pri
 status. A `planned_ignored` path matches an ignore rule, so file scope cannot see whether it was
 produced; only its must-have evidence can. They also
 carry `test_shrink`: every test or fixture path that existed at `base_ref` and reaches `HEAD` with
-fewer assertion lines, with the `bounds` naming the paths and pattern the scan read. Such a path is
+fewer assertion lines, with the `bounds` naming the paths and patterns the scan read. Such a path is
 in-plan by definition, so file scope cannot see it and its must-have observation still matches — a
 shrink is a recorded gap that forbids `verified`, not a failure on its own. Deciding whether it was a
 legitimate consolidation or a weakened gate is Verify's semantic call. An earlier

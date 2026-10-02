@@ -62,16 +62,32 @@ function listFiles(relDir, pattern) {
   return found;
 }
 
+// The text the parser reads for one key: the whole file for an empty section,
+// otherwise the `## <section>` heading through the next `## ` heading, the same
+// bounds markdownSection uses. Hashing only that span keeps a prose edit
+// elsewhere in a skill file from reading as a fixture change.
+function sectionSource(text, section) {
+  if (section === '') return text;
+  const heading = new RegExp(`^##[ \\t]+${section}[ \\t]*$`, 'm').exec(text);
+  if (!heading) return text;
+  const next = /^##[ \t]+[^#].*$/gm;
+  next.lastIndex = heading.index + heading[0].length;
+  const end = next.exec(text);
+  return text.slice(heading.index, end ? end.index : text.length);
+}
+
 // Read one golden source. `key` is "<repo-relative path>#<section>"; an empty
-// section means the whole file is YAML. Returns the source file's SHA-256 so a
-// deliberate fixture edit can be told apart from a parser change.
+// section means the whole file is YAML. Returns the SHA-256 of the span the
+// parser reads so a deliberate fixture edit can be told apart from a parser
+// change.
 function readKey(key) {
   const hash = key.lastIndexOf('#');
   const path = key.slice(0, hash);
   const text = readFileSync(join(ROOT, path), 'utf8');
+  const section = key.slice(hash + 1);
   return {
-    section: key.slice(hash + 1),
-    sourceSha256: createHash('sha256').update(text).digest('hex'),
+    section,
+    sourceSha256: createHash('sha256').update(sectionSource(text, section)).digest('hex'),
     text,
   };
 }

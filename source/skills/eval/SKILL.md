@@ -20,7 +20,7 @@ Create `.build/eval/{YYYY-MM-DD-HHmm}/`. This is the run directory. Each test ca
 
 Run `git status` (short format). If there are uncommitted changes, print a warning: "Uncommitted changes detected. Eval results may vary depending on repo state." Continue regardless.
 
-Remove any `.build/` directory inside `{this-skill-dir}/fixtures/` (for example `find {this-skill-dir}/fixtures -type d -name .build -prune -exec rm -r {} +`). Standalone verify runs save a copy of their report under the fixture's own `.build/plans/`. A leftover copy changes the slug the next run picks, so each run starts from clean fixtures.
+Remove any `.build/` directory inside `{this-skill-dir}/fixtures/` (for example `find {this-skill-dir}/fixtures -type d -name .build -prune -exec rm -r {} +`). A standalone verify run against a fixture project may save a copy of its report under that fixture's `.build/plans/`, and a leftover copy changes the slug the next run picks, so each run starts from clean fixtures. Copies saved under the repository's own `.build/plans/` are left alone; they only add a `-2` suffix to the next slug, which grading ignores because it reads `output.md`.
 
 ## Step 4: State the cost
 

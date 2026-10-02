@@ -344,7 +344,7 @@ export function repositoryTestShrink({
       path_pattern: TEST_PATH_PATTERN.source,
       prose_assertion_pattern: PROSE_ASSERTION_PATTERN.source,
       prose_path_pattern: PROSE_PATH_PATTERN.source,
-      unit: 'lines matching assertion_pattern',
+      unit: 'lines matching assertion_pattern, or prose_assertion_pattern for paths matching prose_path_pattern',
     },
     examined: examined.sort(),
     shrunk: shrunk.sort((left, right) => left.path.localeCompare(right.path)),
