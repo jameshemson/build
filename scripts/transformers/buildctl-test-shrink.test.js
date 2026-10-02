@@ -192,7 +192,7 @@ test('test-shrink: bounds are reported so a narrow scan never reads as whole-rep
   commit(repo, 'weaken');
 
   const { bounds } = repositoryTestShrink({ baseRef: base, repoRoot: repo });
-  assert.equal(bounds.unit, 'lines matching assertion_pattern');
+  assert.equal(bounds.unit, 'lines matching assertion_pattern, or prose_assertion_pattern for paths matching prose_path_pattern');
   assert.ok(bounds.path_pattern.length > 0);
   assert.ok(bounds.assertion_pattern.length > 0);
 });

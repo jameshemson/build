@@ -1,6 +1,6 @@
 {
   "scripts/fixtures/buildctl/kemet-lite/non-atomic-task.md#Delivery slices": {
-    "source_sha256": "d7ef1bb2af7200689dd668560c35f507e8deb6a8388e895fe6f0c08ac257291b",
+    "source_sha256": "61897578aa9c88064b3aa48880cca6c24cd3e2804eebab49493a5675bab309ce",
     "value": {
       "delivery_slices": [
         {
@@ -26,7 +26,7 @@
     }
   },
   "scripts/fixtures/buildctl/kemet-lite/non-atomic-task.md#Execution manifest": {
-    "source_sha256": "d7ef1bb2af7200689dd668560c35f507e8deb6a8388e895fe6f0c08ac257291b",
+    "source_sha256": "26c80c17622a57f8628142e5eb1f64b796ddc3d464cb759467d526730ec64e24",
     "value": {
       "requirements": [
         "REQ-001",
@@ -98,7 +98,7 @@
     }
   },
   "scripts/fixtures/buildctl/kemet-lite/unbound-api.md#Delivery slices": {
-    "source_sha256": "1d70f3fd496a63e3b5ac62e2eca660536d100da842661827596ab1e8f46dc95a",
+    "source_sha256": "9be17d035c90c1ff0317ae26f64fedfdc99dcbd179b93d7860ce00c684ae6550",
     "value": {
       "delivery_slices": [
         {
@@ -123,7 +123,7 @@
     }
   },
   "scripts/fixtures/buildctl/kemet-lite/unbound-api.md#Execution manifest": {
-    "source_sha256": "1d70f3fd496a63e3b5ac62e2eca660536d100da842661827596ab1e8f46dc95a",
+    "source_sha256": "86a775c281cfb81b09a29a2f6da8890eef9ee923d0ee9702e566f165576ac04d",
     "value": {
       "requirements": [
         "REQ-001"
@@ -177,7 +177,7 @@
     }
   },
   "scripts/fixtures/buildctl/kemet-lite/unrelated-evidence.md#Delivery slices": {
-    "source_sha256": "101fd28ce7412901c23647db4819a531452b2b94016766ae80a57169c401d2e1",
+    "source_sha256": "c766cc46b17786bb97723171c9f4b16501e017f971184238b5ae6ac6293eacc9",
     "value": {
       "delivery_slices": [
         {
@@ -202,7 +202,7 @@
     }
   },
   "scripts/fixtures/buildctl/kemet-lite/unrelated-evidence.md#Execution manifest": {
-    "source_sha256": "101fd28ce7412901c23647db4819a531452b2b94016766ae80a57169c401d2e1",
+    "source_sha256": "a70c3bc5e0939b28b7a631683db29e000938e1e5feb17050f095fe855c468a96",
     "value": {
       "requirements": [
         "REQ-001"
@@ -256,7 +256,7 @@
     }
   },
   "scripts/fixtures/buildctl/kemet-lite/valid-plan.md#Delivery slices": {
-    "source_sha256": "84396248ef27273a4aee2491e0eda80459be1eb54ff12b1cc8b4a2eddbdc2674",
+    "source_sha256": "b41bfa416544912487a51f2e40182a6955c319a6f7d2b461d99a0f63c248d137",
     "value": {
       "delivery_slices": [
         {
@@ -281,7 +281,7 @@
     }
   },
   "scripts/fixtures/buildctl/kemet-lite/valid-plan.md#Execution manifest": {
-    "source_sha256": "84396248ef27273a4aee2491e0eda80459be1eb54ff12b1cc8b4a2eddbdc2674",
+    "source_sha256": "341059f5c8c4b9dbe1966ff91c7f5e4b61d3ee1e488b3e9d3f12fef5b8e1b481",
     "value": {
       "requirements": [
         "REQ-001"
@@ -410,7 +410,7 @@
     }
   },
   "scripts/fixtures/buildctl/phase-results/architect-review.md#Machine result": {
-    "source_sha256": "3d828e4851e7d53530249597fe660fc92711959b712d2306e90c6bb074c2e16c",
+    "source_sha256": "140a58c75d5ee63bbe550a432f27b74fd0dc9865f4746eda23c419e67b774109",
     "value": {
       "schema_version": 1,
       "phase": "architect-review",
@@ -445,7 +445,7 @@
     }
   },
   "scripts/fixtures/buildctl/phase-results/plan-review.md#Machine result": {
-    "source_sha256": "1a6cf2a9579f272708b4535a1379295deea8740869957b22de9327f7f14b3d93",
+    "source_sha256": "a226473ffee57eb714f97f8b80d5b3af1f896bdc25b42d69222ee7d612e95bf6",
     "value": {
       "schema_version": 1,
       "phase": "plan-review",
@@ -476,7 +476,7 @@
     }
   },
   "scripts/fixtures/buildctl/phase-results/verify.md#Machine result": {
-    "source_sha256": "ccf02d3c403e7e8018654d07f0fd4eed8f2db693c9043762f3dfb0176becc2a2",
+    "source_sha256": "da7a41b4cab2e98eb7ad1e0997fb9b36f7dd5c9e1c007b14b9ab9a3209351dbc",
     "value": {
       "schema_version": 1,
       "phase": "verify",
@@ -511,7 +511,7 @@
     }
   },
   "source/skills/architect-review/SKILL.md#Machine result": {
-    "source_sha256": "bb6caf9b306c798f7cbea7633f218196bc11a682900e751f6127b6a3e379b84b",
+    "source_sha256": "f6f67501a4d841b4109acefc2f754860b5bf9c8a46ac0e91a0c8da4ea5d78053",
     "value": {
       "schema_version": 1,
       "phase": "architect-review",
@@ -526,7 +526,7 @@
     }
   },
   "source/skills/eval/fixtures/architect-review/plan.md#Execution manifest": {
-    "source_sha256": "c77e4c448fdc603d2d18eb717f86a370f01b7bcb487005df76433d10e96e0d9e",
+    "source_sha256": "2cb6d21a046b3e3bd5e34389a274f30f85adbd8988a428159fea927e9ed83457",
     "value": {
       "execution_manifest": [
         {
@@ -569,7 +569,7 @@
     }
   },
   "source/skills/eval/fixtures/clean-plan.md#Delivery slices": {
-    "source_sha256": "8b008f1874acfcc6384dc928526a4f85ab9101b5078f0ed4d00a98035a054fb8",
+    "source_sha256": "a6a740180ed07416b39b33688a5a947f2760fdc0af5d4ef31eed82c9ad6b978c",
     "value": {
       "delivery_slices": [
         {
@@ -590,6 +590,7 @@
           ],
           "verify": [
             "node --test --test-reporter=tap scripts/transformers/check-sync-versions.test.js",
+            "grep -n \"check-sync -- --versions-only\" README.md",
             "npm test"
           ],
           "done": "The versions-only test passes inside the full suite and README documents the flag."
@@ -598,7 +599,7 @@
     }
   },
   "source/skills/eval/fixtures/clean-plan.md#Execution manifest": {
-    "source_sha256": "8b008f1874acfcc6384dc928526a4f85ab9101b5078f0ed4d00a98035a054fb8",
+    "source_sha256": "350ca717d097fd748093b4d9364f96ab5f6dbc38e89ae066fe492c6325619d7b",
     "value": {
       "requirements": [
         "REQ-001",
@@ -724,7 +725,7 @@
     }
   },
   "source/skills/eval/fixtures/debt-project-deferred/plan.md#Execution manifest": {
-    "source_sha256": "d3667c966e206121b124a9a711ad9bb3a2c7fea7e48887ef0d49df4bafcec981",
+    "source_sha256": "ff8c0253e3f85f098ec44bce839a65d793d5e37aaa8ed8a1ba55953a40b820df",
     "value": {
       "execution_manifest": [
         {
@@ -747,7 +748,7 @@
     }
   },
   "source/skills/eval/fixtures/debt-project/plan.md#Execution manifest": {
-    "source_sha256": "d3667c966e206121b124a9a711ad9bb3a2c7fea7e48887ef0d49df4bafcec981",
+    "source_sha256": "ff8c0253e3f85f098ec44bce839a65d793d5e37aaa8ed8a1ba55953a40b820df",
     "value": {
       "execution_manifest": [
         {
@@ -770,7 +771,7 @@
     }
   },
   "source/skills/eval/fixtures/flawed-delivery-slices-plan.md#Delivery slices": {
-    "source_sha256": "784b1d9a4c159e13838f650f8fe60e3f9e5f46901114c0fa845f42100491682c",
+    "source_sha256": "618fc809dccceb9616eb3e5422bfd9f513bc3d8de63daf79a180c887bbd51595",
     "value": {
       "delivery_slices": [
         {
@@ -810,7 +811,7 @@
     }
   },
   "source/skills/eval/fixtures/flawed-delivery-slices-plan.md#Execution manifest": {
-    "source_sha256": "784b1d9a4c159e13838f650f8fe60e3f9e5f46901114c0fa845f42100491682c",
+    "source_sha256": "e3825d33a825cd8840d7943e0315345b4f9240d81546a82a9bddfa9bc576ae76",
     "value": {
       "execution_manifest": [
         {
@@ -884,7 +885,7 @@
     }
   },
   "source/skills/eval/fixtures/flawed-evidence-contract-plan.md#Delivery slices": {
-    "source_sha256": "30d480123c514d257492a4d07b19160f5ee48ed9165c6a1af89bec7e1a3e48b1",
+    "source_sha256": "22c7f416d5b2809c4da5fa230bacac20dacd0b6aea00b2f9d01d4ffa7c48f050",
     "value": {
       "delivery_slices": [
         {
@@ -898,7 +899,7 @@
             "REQ-200"
           ],
           "must_haves": [
-            "legacy saves load with adopted poses and varied footprints place correctly"
+            "legacy saves load with adopted poses and varied footprints place without overlap"
           ],
           "verify": [
             "dotnet test"
@@ -909,8 +910,17 @@
     }
   },
   "source/skills/eval/fixtures/flawed-evidence-contract-plan.md#Execution manifest": {
-    "source_sha256": "30d480123c514d257492a4d07b19160f5ee48ed9165c6a1af89bec7e1a3e48b1",
+    "source_sha256": "2e835f2cf452a25c5a53a85bc2422ad29a905ed2510771e20abafa58ece550ec",
     "value": {
+      "requirements": [
+        "REQ-200"
+      ],
+      "decisions": [
+        "D-200"
+      ],
+      "assumptions": [
+        "A-200"
+      ],
       "evidence_mode": "typed",
       "bindings": [
         {
@@ -926,6 +936,7 @@
           "id": "T-200",
           "wave": 1,
           "depends_on": [],
+          "workstream": "migration",
           "files_modified": [
             "src/catalog.cs",
             "src/placement.cs",
@@ -949,6 +960,9 @@
           "requirements": [
             "REQ-200"
           ],
+          "decisions": [
+            "D-200"
+          ],
           "must_haves": [
             {
               "id": "MH-200",
@@ -960,13 +974,13 @@
             }
           ],
           "verify": "dotnet test",
-          "done": "dotnet test passes with the pose, migration, persistence, fixture and balance tests green"
+          "done": "dotnet test exits 0 and prints Passed!"
         }
       ]
     }
   },
   "source/skills/eval/fixtures/orchestrator-architect-phase-no-verify/cache-ttl-plan.md#Delivery slices": {
-    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "source_sha256": "f41e34e0481c4fab097899b7ba140d08ea65b12b41f30a1dfb1710b454a435b4",
     "value": {
       "delivery_slices": [
         {
@@ -991,7 +1005,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-architect-phase-no-verify/cache-ttl-plan.md#Execution manifest": {
-    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "source_sha256": "4fc41bcac0a3059edcf1573e1dbda8d5c1209ba519e0c20a7f8553a7430fb149",
     "value": {
       "requirements": [
         "REQ-001"
@@ -1073,7 +1087,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode-relay-pending/relay-pending-plan.md#Delivery slices": {
-    "source_sha256": "fb99a3e6b59d5ee10a7d0d022b6afcde5a2fbe1c341b42762ad6d623a94282a6",
+    "source_sha256": "6578e0f65ec65179207830bd79697437eddae67ce92917d4d57393884ed90550",
     "value": {
       "delivery_slices": [
         {
@@ -1098,7 +1112,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode-relay-pending/relay-pending-plan.md#Execution manifest": {
-    "source_sha256": "fb99a3e6b59d5ee10a7d0d022b6afcde5a2fbe1c341b42762ad6d623a94282a6",
+    "source_sha256": "ce14181c473e70d2cd6851a54113298700b3323ee946b3f4836087d595ef6950",
     "value": {
       "requirements": [
         "REQ-001"
@@ -1152,7 +1166,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode-relay-pending/relay-pending-review.md#Machine result": {
-    "source_sha256": "e1507ddcd25e5a14b3cd7b593b24548b4af0778e8ebd7bc4783cca175297a2e5",
+    "source_sha256": "44c9965b7168b47097d68e9654e600bf2e59057a24c24b0528f7726a2363f8b1",
     "value": {
       "schema_version": 1,
       "phase": "plan-review",
@@ -1183,7 +1197,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode/mixed-mode-plan.md#Delivery slices": {
-    "source_sha256": "31f4cb7250f27b122d8779426f47ec572f8de39a5b4913d37df88c521dd89a44",
+    "source_sha256": "6578e0f65ec65179207830bd79697437eddae67ce92917d4d57393884ed90550",
     "value": {
       "delivery_slices": [
         {
@@ -1208,7 +1222,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-review-phase-mixed-mode/mixed-mode-plan.md#Execution manifest": {
-    "source_sha256": "31f4cb7250f27b122d8779426f47ec572f8de39a5b4913d37df88c521dd89a44",
+    "source_sha256": "ce14181c473e70d2cd6851a54113298700b3323ee946b3f4836087d595ef6950",
     "value": {
       "requirements": [
         "REQ-001"
@@ -1262,7 +1276,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-verify-phase-clean-summary/cache-ttl-plan.md#Delivery slices": {
-    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "source_sha256": "f41e34e0481c4fab097899b7ba140d08ea65b12b41f30a1dfb1710b454a435b4",
     "value": {
       "delivery_slices": [
         {
@@ -1287,7 +1301,7 @@
     }
   },
   "source/skills/eval/fixtures/orchestrator-verify-phase-clean-summary/cache-ttl-plan.md#Execution manifest": {
-    "source_sha256": "678121ea456bf5d39ea6d2aa828eeb9dd370f21f28e1edf15dcfbee5db495143",
+    "source_sha256": "4fc41bcac0a3059edcf1573e1dbda8d5c1209ba519e0c20a7f8553a7430fb149",
     "value": {
       "requirements": [
         "REQ-001"
@@ -1369,7 +1383,7 @@
     }
   },
   "source/skills/review-plan/SKILL.md#Machine result": {
-    "source_sha256": "e6329ae10f3c1c4aff99f395334a285bce73db0db46ee52bbb664231b39afaff",
+    "source_sha256": "608245ff95e30d699ccb1ec45aad0943ac6082c61d5b226542495b7ac99577c6",
     "value": {
       "schema_version": 1,
       "phase": "plan-review",
@@ -1384,7 +1398,7 @@
     }
   },
   "source/skills/verify/SKILL.md#Machine result": {
-    "source_sha256": "fd3459fa83c77587c66e17e11184c7973c969ee84cdaca8c792706d954033fe7",
+    "source_sha256": "6fc1c7d4931633773cebc3088a5b04d86a1d7f10627c7788d9688087b88185bc",
     "value": {
       "schema_version": 1,
       "phase": "verify",

@@ -561,7 +561,7 @@ test('phase-result verify: an in-plan test file that lost assertions cannot comp
   assert.deepEqual(receipt.mechanical_facts.test_shrink.shrunk, []);
   assert.equal(
     receipt.mechanical_facts.test_shrink.bounds.unit,
-    'lines matching assertion_pattern',
+    'lines matching assertion_pattern, or prose_assertion_pattern for paths matching prose_path_pattern',
   );
 });
 

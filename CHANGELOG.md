@@ -77,16 +77,21 @@
   own conversation, so their eval cases reviewed nothing. Each eval run also clears
   leftover `.build/` copies from fixture folders first.
 - Refreshed two `review-plan` eval fixtures. The "clean" plan now matches the typed plan
-  format and targets hand-authored files. The evidence-contract plan now uses concrete
-  wording, so the review reaches the binding and task-size checks the case grades instead of
-  stopping at the placeholder scan.
+  format, targets hand-authored files and cites correct line anchors. The evidence-contract
+  plan now has no placeholder wording and compiles up to its one intended defect, the
+  unbound Approach obligations, so the review reaches the binding and task-size checks the
+  case grades instead of stopping at the placeholder scan.
+- `review-plan` findings for unbound Approach obligations now name each unbound symbol,
+  behavior or invariant as the Approach writes it. A finding that gave only a count ("two
+  symbols") left the plan author to work out which ones.
 - Verify's test-shrink check no longer counts the English word "should" in prose files
   (`.md`, `.txt`, `.rst` and similar) under test or fixture folders as an assertion, so
   rewording a Markdown fixture no longer reads as lost test coverage. Code-shaped assertions
   in prose code blocks (`assert`, `expect(`) still count. The receipt's `test_shrink.bounds`
   names the prose rule.
-- The YAML golden test records each source file's hash. An edited fixture now reports
-  "fixture changed; regenerate", and a real parser change reports "parser output changed".
+- The YAML golden test records a hash of the section each key parses. An edited fixture
+  section now reports "fixture changed; regenerate", a real parser change reports "parser
+  output changed", and a prose edit elsewhere in the same skill file reports nothing.
 
 ## 1.17.0 - 2026-09-09
 
