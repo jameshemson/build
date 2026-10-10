@@ -287,6 +287,13 @@ test('assignment: keeps the key outside the run directory', () => {
     /key directory must be outside the run directory and the repository/,
   );
   assert.equal(existsSync(nestedRunDir), false);
+
+  const sameName = join(tempDir(), 'run-key');
+  assert.throws(
+    () => ab.prepare({ repo, skill: 'alpha', runs: 2, seed: 4, keyDir, runDir: sameName }),
+    /key already exists/,
+  );
+  assert.equal(existsSync(sameName), false);
 });
 
 test('assignment: assigns runs reproducibly from a seed', () => {
@@ -364,6 +371,12 @@ test('unblind: rejects grades that do not match the assignment', () => {
   assert.throws(
     () => ab.unblind({ runDir, grades: [...allGrades(runs), { run: 'r01', q1: true }], keyDir }),
     /graded twice/,
+  );
+  const otherRunDir = join(tempDir(), 'run-u1');
+  mkdirSync(otherRunDir, { recursive: true });
+  assert.throws(
+    () => ab.unblind({ runDir: otherRunDir, grades: allGrades(runs), keyDir }),
+    /belongs to run directory/,
   );
 });
 
