@@ -320,6 +320,9 @@ export function prepare({
   if (existsSync(runDir) && readdirSync(runDir).length > 0) {
     throw new Error(`run directory already exists: ${runDir}`);
   }
+  const runId = basename(runDir);
+  const keyPath = headroom ? null : join(keyDir, `${runId}.json`);
+  if (keyPath && existsSync(keyPath)) throw new Error(`key already exists: ${keyPath}`);
 
   const { base: baseRef, baseSha } = resolveBase(repo, base);
   const skillsAtBase = new Map();
@@ -333,7 +336,6 @@ export function prepare({
   const oldSkill = skillsAtBase.get(skill);
   if (!oldSkill) throw new Error(`skill ${skill} does not exist at ${baseRef}`);
   const siblings = [...skillsAtBase].filter(([name]) => name !== skill);
-  const runId = basename(runDir);
 
   if (headroom) {
     // One unblinded base arm, no key: measures headroom before an A/B comparison.
@@ -389,7 +391,6 @@ export function prepare({
     reason: skipped ? PLACEBO_SKIP_REASON : null,
     insertions: placebo.insertions,
   };
-  const keyPath = join(keyDir, `${runId}.json`);
   writeJson(keyPath, {
     run_id: runId,
     run_dir: runDir,
@@ -426,6 +427,9 @@ export function unblind({ runDir, grades, keyDir = DEFAULT_KEY_DIR, margin = 2 }
   const keyPath = join(resolve(keyDir), `${runId}.json`);
   if (!existsSync(keyPath)) throw new Error(`no key for run ${runId} at ${keyPath}`);
   const key = JSON.parse(readFileSync(keyPath, 'utf8'));
+  if (key.run_dir && resolve(key.run_dir) !== runDir) {
+    throw new Error(`key ${keyPath} belongs to run directory ${key.run_dir}, not ${runDir}`);
+  }
 
   const keyRuns = new Map(key.runs.map((entry) => [entry.run, entry]));
   const graded = new Map();
