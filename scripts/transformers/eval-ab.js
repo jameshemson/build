@@ -415,3 +415,81 @@ export function prepare({
     keyPath,
   };
 }
+
+// Join grades with the key: true counts per arm per question, noise reference, and keep/drop.
+export function unblind({ runDir, grades, keyDir = DEFAULT_KEY_DIR, margin = 2 } = {}) {
+  if (!runDir) throw new Error('run directory is required');
+  if (!Array.isArray(grades)) throw new Error('grades must be a JSON array of objects');
+  if (typeof margin !== 'number' || Number.isNaN(margin)) throw new Error('margin must be a number');
+  runDir = resolve(runDir);
+  const runId = basename(runDir);
+  const keyPath = join(resolve(keyDir), `${runId}.json`);
+  if (!existsSync(keyPath)) throw new Error(`no key for run ${runId} at ${keyPath}`);
+  const key = JSON.parse(readFileSync(keyPath, 'utf8'));
+
+  const keyRuns = new Map(key.runs.map((entry) => [entry.run, entry]));
+  const graded = new Map();
+  for (const grade of grades) {
+    const id = grade?.run;
+    if (!keyRuns.has(id)) throw new Error(`grade for unknown run ${id}`);
+    if (graded.has(id)) throw new Error(`run ${id} graded twice`);
+    graded.set(id, grade);
+  }
+  for (const id of keyRuns.keys()) {
+    if (!graded.has(id)) throw new Error(`run ${id} has no grade`);
+  }
+
+  const questions = [];
+  for (const grade of grades) {
+    for (const [field, value] of Object.entries(grade)) {
+      if (field !== 'run' && typeof value === 'boolean' && !questions.includes(field)) questions.push(field);
+    }
+  }
+
+  const placeboSkipped = !key.arms.placebo;
+  const armOrder = placeboSkipped ? ['old', 'new'] : ['old', 'placebo', 'new'];
+  const tally = () => ({ n: 0, counts: Object.fromEntries(questions.map((q) => [q, 0])) });
+  const arms = Object.fromEntries(armOrder.map((arm) => [arm, tally()]));
+  const control = tally();
+  for (const [id, grade] of graded) {
+    const entry = keyRuns.get(id);
+    const bucket = entry.input === 'control' ? control : arms[entry.arm];
+    if (!bucket) throw new Error(`key maps run ${id} to unknown arm ${entry.arm}`);
+    bucket.n += 1;
+    for (const q of questions) if (grade[q] === true) bucket.counts[q] += 1;
+  }
+
+  const count = (arm, q) => arms[arm].counts[q];
+  const noise = placeboSkipped
+    ? null
+    : Object.fromEntries(questions.map((q) => [q, Math.abs(count('placebo', q) - count('old', q))]));
+  const decisions = Object.fromEntries(questions.map((q) => {
+    const beatsOld = count('new', q) - count('old', q) >= margin;
+    const beatsPlacebo = placeboSkipped || count('new', q) - count('placebo', q) >= margin;
+    return [q, beatsOld && beatsPlacebo ? 'keep' : 'drop'];
+  }));
+
+  const row = (cells) => `| ${cells.join(' | ')} |`;
+  const countCells = ({ n, counts }) => questions.map((q) => `${counts[q]}/${n}`);
+  const lines = [row(['Arm', ...questions]), row(['Arm', ...questions].map(() => '---'))];
+  for (const arm of armOrder) lines.push(row([arm, ...countCells(arms[arm])]));
+  if (control.n > 0) lines.push(row(['new (control input)', ...countCells(control)]));
+  if (noise) lines.push(row(['noise (abs placebo - old)', ...questions.map((q) => String(noise[q]))]));
+  lines.push(row([`decision (margin ${margin})`, ...questions.map((q) => decisions[q])]));
+  const markdown = `${lines.join('\n')}\n`;
+
+  const summary = {
+    run_id: runId,
+    skill: key.skill,
+    base_ref: key.base_ref,
+    margin,
+    questions,
+    placebo_skipped: placeboSkipped,
+    arms,
+    control: control.n > 0 ? control : null,
+    noise,
+    decisions,
+  };
+  writeJson(join(runDir, 'unblinded.json'), summary);
+  return { markdown, summary };
+}
