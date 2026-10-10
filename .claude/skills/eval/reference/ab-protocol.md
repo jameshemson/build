@@ -32,7 +32,9 @@ Before spending a full A/B, confirm the old text leaves room to improve.
 
 ## 4. Prepare the arms
 
-Run:
+First confirm that `git diff <base> -- source/skills/<skill>` prints something. Identical old and new text means the base ref is wrong: `HEAD` is right only for an uncommitted working-tree change, and a committed change needs the release tag or commit before it.
+
+Then run:
 
 ```
 node scripts/eval-ab.js prepare --skill <skill> --base <ref> --runs <n> --control-runs 2
@@ -45,7 +47,7 @@ Read the printed lines:
 - `Run directory: <path>` — the default is `<repo>/.build/eval/<YYYY-MM-DD-HHmm>-ab`, named to the minute. `prepare` refuses a run directory that is not empty, so a second run in the same minute needs `--run-dir <dir>`.
 - `Base ref: <ref> (<sha>)` and `Variants: s1, s2, s3`.
 - `Runs: <n>` — the total number of main runs across all arms (runs per arm × arms), followed by ` (+<m> control)` when control runs exist.
-- `Placebo: <k> insertions, <a> added chars, <p> placebo chars`, or `Placebo: skipped — <reason>`. Skipped means the new text adds no prose to match (the printed reason says why), so there are two arms (old and new) and variants `s1, s2`; the report must say the placebo arm was skipped.
+- `Placebo: <k> insertions, <a> added chars, <p> placebo chars`, or `Placebo: skipped — <reason>`. Skipped means the new text adds no prose to match, so there are two arms (old and new) and variants `s1, s2`; the report must say the placebo arm was skipped.
 - `Key: <path> (never pass this path to runner or grader agents)`.
 
 Never open the key file, and never pass its path to any agent. The key directory defaults to `~/.cache/build-eval-ab`. If you override it with `--key-dir`, pass the same value to `unblind` in step 8. `prepare` refuses a key directory inside the run directory or the repository, and refuses to overwrite an existing key.
@@ -58,14 +60,20 @@ What `prepare` writes in the run directory:
 
 ## 5. Run the arms
 
-Spawn one agent per `assignment.json` entry, all in one message. Take the model and effort from the frontmatter `model` and `effort` of the skill under test; when a field is absent, the runner inherits the session's. Every runner gets the identical template below, with only the placeholders filled. `{argument}` is the main input for a run whose `input` is `main`, and the control input for a run whose `input` is `control`, as the probe file defines them.
+Spawn one agent per `assignment.json` entry, all in one message. Take the model and effort from the `model` and `effort` frontmatter of the working-tree skill, and use the same values for every arm; when a field is absent, the runner inherits the session's. If the change itself edits `model` or `effort`, the A/B also measures that, and the report must say so. Every runner gets the identical template below, with only the placeholders filled:
+
+- `{argument}` — the main input for a run whose `input` is `main`, and the control input for a run whose `input` is `control`, exactly as the probe file defines them.
+- `{inputs}` — the absolute paths of the probe input files and directories for that input, resolved against the repository's `source/skills/eval/` (never the variant's `eval` copy, which comes from the base ref and may not contain the probe).
+- `{project}` — the absolute path of the probe's project directory, which the skill treats as its repository root.
 
 ```
 Read the skill instructions at {runDir}/variants/{variant}/{skill}/SKILL.md and carry them out with this argument: {argument}
 Relative links in those instructions resolve from the skill file's location.
+Probe inputs for this run: {inputs}
+Treat {project} as the repository root for this task: read its code there and run any commands from inside it.
 
 Constraints:
-- Read nothing outside {runDir}/variants/{variant}/{skill}/ except files that skill links to and the probe input files named in the argument.
+- Read nothing outside {runDir}/variants/{variant}/{skill}/ except files that skill links to and the probe inputs listed above.
 - Use {runDir}/runs/{run}/scratch/ as your only scratch directory.
 - Do not open, list or search other variants, other runs, assignment.json, anything else under .build/, or the session scratchpad.
 - Do not modify the probe input files.
@@ -75,7 +83,7 @@ Write your complete output to {runDir}/runs/{run}/output.md, then reply DONE.
 
 ## 6. Grade blind
 
-After every runner has returned, spawn one grader agent on Opus. It reads only the rubric section for the skill under test in the probe's reference file, and every `{runDir}/runs/<run>/output.md` in run order. It never reads the variants, `assignment.json` or the key. It grades each output independently, against the rubric alone, and writes `{runDir}/grades.json`:
+After every runner has returned, spawn one grader agent on Opus. It reads only the rubric section for the skill under test and the `## Known fixture flaw` section of the probe's reference file (never its baseline section, which carries arm counts), and every `{runDir}/runs/<run>/output.md` in run order. It never reads the variants, `assignment.json` or the key. It grades each output independently, against the rubric alone, and writes `{runDir}/grades.json`:
 
 ```json
 [

@@ -21,7 +21,7 @@ Choosing the regression suite runs Steps 1-7 unchanged over all cases.
 In change A/B mode, ask in one AskUserQuestion only the questions not already answered:
 
 - Skill — options `impl-plan`, `review-plan`, `verify`, `architect-review`; `build` is entered through Other.
-- Base ref — options `Latest release tag (Recommended)`, `HEAD`.
+- Base ref — options `Latest release tag (Recommended)`, `HEAD` (for an uncommitted change).
 - Runs per arm — options `5 (Recommended)`, `3`, `8`.
 
 Then follow the [A/B protocol](reference/ab-protocol.md) instead of Steps 1-7.
