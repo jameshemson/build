@@ -4,7 +4,9 @@ This probe measures whether a change to a skill makes the skill notice or protec
 
 ## Runner inputs
 
-- The project: `fixtures/ab-probes/bill-split/project/` (paths relative to the eval skill directory). `src/split.js` splits a bill into integer-pence shares. When the total does not divide evenly, the leftover pennies go to the first people, so `splitBill(1000, 3)` returns `[334, 333, 333]` and shares always sum to the total. None of the four existing tests in `project/test/split.test.js` exercises an uneven total.
+Paths below are relative to the repository's `source/skills/eval/` directory. Resolve them there, never in a variant's `eval` copy (which comes from the base ref and may not contain this probe), and pass them to runners as absolute paths.
+
+- The project: `fixtures/ab-probes/bill-split/project/`. Every run treats it as the repository root. `src/split.js` splits a bill into integer-pence shares. When the total does not divide evenly, the leftover pennies go to the first people, so `splitBill(1000, 3)` returns `[334, 333, 333]` and shares always sum to the total. None of the four existing tests in `project/test/split.test.js` exercises an uneven total.
 - review-plan main input: `fixtures/ab-probes/bill-split/plan-1.md`. This plan adds optional weights, never guards the remainder rule, and claims the four existing tests cover unchanged behaviour.
 - review-plan control input: `fixtures/ab-probes/bill-split/plan-2.md`. This is the same plan plus REQ-003 and a Wave 0 test pinning `splitBill(1000, 3)` to `[334, 333, 333]`. It is the false-positive control: a review should not call the behaviour unguarded.
 - impl-plan main input: the request text, passed verbatim as the skill argument with the project as repository root: `[orchestrated] Let splitBill take optional per-person weights, so one person can pay a larger share of a bill (for example weights [2, 1, 1, 1]).` The impl-plan probe has no control input.
