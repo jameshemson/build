@@ -2,11 +2,29 @@
 name: eval
 description: Run test cases against build skills, grade outputs against assertions. Use when you want to verify skills work correctly after changes.
 user-invocable: true
-argument-hint: "[skill-name]"
-allowed-tools: Read, Write, Bash, Glob, Grep, Agent, Skill
+argument-hint: "[skill-name | ab [skill-name]]"
+allowed-tools: Read, Write, Bash, Glob, Grep, Agent, Skill, AskUserQuestion
 ---
 
 You are running evaluations against the build plugin's skills. You spawn agents that run each skill, then spawn graders that check the outputs against defined assertions.
+
+## Step 0: Choose the mode
+
+- When $ARGUMENTS names a skill (for example `review-plan`), run the regression suite for that skill without asking anything.
+- When $ARGUMENTS begins with `ab`, use change A/B mode, and treat a skill name after `ab` as the answer to the skill question below.
+- When $ARGUMENTS is empty, ask one AskUserQuestion, "What should this eval run?", with these options:
+  - `Regression suite (Recommended)` — every pass/fail case in evals.json.
+  - `Change A/B` — measure whether a skill-text change alters behaviour, against the old text and a placebo.
+
+Choosing the regression suite runs Steps 1-7 unchanged over all cases.
+
+In change A/B mode, ask in one AskUserQuestion only the questions not already answered:
+
+- Skill — options `impl-plan`, `review-plan`, `verify`, `architect-review`; `build` is entered through Other.
+- Base ref — options `Latest release tag (Recommended)`, `HEAD`.
+- Runs per arm — options `5 (Recommended)`, `3`, `8`.
+
+Then follow the [A/B protocol](reference/ab-protocol.md) instead of Steps 1-7.
 
 ## Step 1: Load test cases
 
@@ -159,7 +177,9 @@ A test case PASSes if all its assertions pass. It FAILs if any assertion fails.
 
 Print the summary table to the user. Tell them where the full report is.
 
-## Rules
+## Rules (regression suite)
+
+Change A/B runs follow the rules in the A/B protocol instead.
 
 - **All runners in one message.** Don't spawn them one at a time.
 - **All graders in one message.** Don't spawn them one at a time.
