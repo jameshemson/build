@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { randomInt } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { ROOT } from './utils.js';
 
 export const DEFAULT_KEY_DIR = join(homedir(), '.cache', 'build-eval-ab');
@@ -259,21 +259,64 @@ function checkInteger(name, value, minimum) {
   }
 }
 
+function isInside(child, parent) {
+  const rel = relative(parent, child);
+  return rel === '' || !(rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
+function timestamp(now) {
+  const pad = (value) => String(value).padStart(2, '0');
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return `${date}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+}
+
+function runIds(count) {
+  const width = Math.max(2, String(count).length);
+  return Array.from({ length: count }, (_, index) => `r${String(index + 1).padStart(width, '0')}`);
+}
+
+function writeVariant(runDir, variant, skill, skillFiles, siblings) {
+  const variantDir = join(runDir, 'variants', variant);
+  writeTree(join(variantDir, skill), skillFiles);
+  for (const [name, files] of siblings) writeTree(join(variantDir, name), files);
+}
+
+function writeRuns(runDir, skill, baseRef, variants, runs) {
+  for (const { run } of runs) mkdirSync(join(runDir, 'runs', run, 'scratch'), { recursive: true });
+  writeJson(join(runDir, 'assignment.json'), {
+    run_id: basename(runDir),
+    skill,
+    base_ref: baseRef,
+    variants,
+    runs: runs.map(({ run, variant, input }) => ({ run, variant, input })),
+  });
+}
+
 export function prepare({
   repo = ROOT,
   skill,
   base,
   runs,
+  controlRuns = 0,
+  headroom = false,
   seed,
   keyDir = DEFAULT_KEY_DIR,
   runDir,
+  now = new Date(),
 } = {}) {
   if (!skill) throw new Error('skill is required');
   repo = resolve(repo);
-  const runsPerArm = runs ?? 5;
+  const runsPerArm = runs ?? (headroom ? 3 : 5);
   checkInteger('runs', runsPerArm, 1);
-  runDir = resolve(runDir);
+  checkInteger('controlRuns', controlRuns, 0);
+  if (headroom && controlRuns > 0) {
+    throw new Error('control runs need the new arm; headroom builds only the base variant');
+  }
+  runDir = resolve(runDir ?? join(repo, '.build', 'eval', `${timestamp(now)}-${headroom ? 'headroom' : 'ab'}`));
   keyDir = resolve(keyDir);
+  if (!headroom && (isInside(keyDir, runDir) || isInside(keyDir, repo))) {
+    throw new Error(`key directory must be outside the run directory and the repository: ${keyDir}`);
+  }
   if (existsSync(runDir) && readdirSync(runDir).length > 0) {
     throw new Error(`run directory already exists: ${runDir}`);
   }
@@ -290,6 +333,25 @@ export function prepare({
   const oldSkill = skillsAtBase.get(skill);
   if (!oldSkill) throw new Error(`skill ${skill} does not exist at ${baseRef}`);
   const siblings = [...skillsAtBase].filter(([name]) => name !== skill);
+  const runId = basename(runDir);
+
+  if (headroom) {
+    // One unblinded base arm, no key: measures headroom before an A/B comparison.
+    const headroomRuns = runIds(runsPerArm).map((run) => ({ run, variant: 's1', input: 'main' }));
+    writeVariant(runDir, 's1', skill, oldSkill, siblings);
+    writeRuns(runDir, skill, baseRef, ['s1'], headroomRuns);
+    return {
+      runDir,
+      runId,
+      base: baseRef,
+      baseSha,
+      variants: ['s1'],
+      runs: headroomRuns,
+      arms: null,
+      placebo: null,
+      keyPath: null,
+    };
+  }
 
   const newSkill = readWorkingSkill(repo, skill);
   if (!newSkill) throw new Error(`skill ${skill} does not exist in the working tree`);
@@ -310,22 +372,18 @@ export function prepare({
   for (const arm of armList) {
     for (let i = 0; i < runsPerArm; i += 1) slots.push({ arm, input: 'main' });
   }
-  const width = Math.max(2, String(slots.length).length);
+  for (let i = 0; i < controlRuns; i += 1) slots.push({ arm: 'new', input: 'control' });
+  const ids = runIds(slots.length);
   const keyRuns = shuffle(slots, rng).map((slot, index) => ({
-    run: `r${String(index + 1).padStart(width, '0')}`,
+    run: ids[index],
     variant: arms[slot.arm],
     arm: slot.arm,
     input: slot.input,
   }));
 
-  for (const arm of armList) {
-    const variantDir = join(runDir, 'variants', arms[arm]);
-    writeTree(join(variantDir, skill), trees[arm]);
-    for (const [name, files] of siblings) writeTree(join(variantDir, name), files);
-  }
-  for (const { run } of keyRuns) mkdirSync(join(runDir, 'runs', run, 'scratch'), { recursive: true });
+  for (const arm of armList) writeVariant(runDir, arms[arm], skill, trees[arm], siblings);
+  writeRuns(runDir, skill, baseRef, variants, keyRuns);
 
-  const runId = basename(runDir);
   const placeboRecord = {
     skipped,
     reason: skipped ? PLACEBO_SKIP_REASON : null,
