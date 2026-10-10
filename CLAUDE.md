@@ -81,6 +81,10 @@ Full version-drift coverage requires BOTH commands to pass before push:
 
 Neither command alone is a complete gate. CI (`.github/workflows/ci.yml`) runs both on pull requests and pushes to `main`; still run them locally before pushing.
 
+### Release A/B check
+
+A release whose diff changes instruction prose under `source/skills/` runs `/build:eval` in change A/B mode for each behaviour the change is meant to alter, following `source/skills/eval/reference/ab-protocol.md`. Commit the report to `docs/evals/<YYYY-MM-DD>-<skill>-<topic>.md` and link it from the CHANGELOG entry. When the A/B shows no effect, drop the text, or keep it and state the cross-harness justification from "When a second copy of a rule is justified" in the CHANGELOG entry. Changes only to tests, scripts, fixtures, generated output, manifests, docs, or the eval skill itself are exempt.
+
 ## Versioning
 
 Version lives in four files that MUST be bumped together:
