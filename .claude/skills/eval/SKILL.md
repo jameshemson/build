@@ -56,7 +56,7 @@ Skill names: inside this repository the skills are project skills named `impl-pl
 ```
 You are running an eval for the impl-plan skill.
 
-1. Invoke /build:impl-plan via the Skill tool with this argument: "{prompt}"
+1. Invoke /build:impl-plan via the Skill tool with this argument: "[no-interview] {prompt}"
 2. The skill will produce an implementation plan. When it finishes, save the complete plan output to {run-dir}/{eval-id}/output.md using the Write tool.
 3. Report DONE when the file is written.
 ```
