@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Discovery interview before planning (Claude orchestrator): on a fresh workflow, after Phase 1
+  exploration and before planning, `/build` interviews you grill-me style on AskUserQuestion
+  screens, never as plain-text questions. It settles facts from the code, asks only the
+  decisions the code cannot answer, asks in rounds (each round is every decision whose
+  prerequisites are settled, 4 per screen), puts the recommended answer first, has no cap
+  ("wrap up" ends it), and closes with a confirmation before it plans. It is skipped for tiny
+  requests (discovery level `skip` or `quick_verify` with no low-confidence assumption that
+  would change the plan), for `[no-interview]` runs, and when the screen cannot be presented. A
+  new `discovery_interview` state field makes it run once per workflow; review-to-plan returns
+  never re-ask, and a SCOPE_CHANGE or RETHINK return asks one round only when the change alters
+  what is being built. Every planning path, fable ones included, now runs `impl-plan` as
+  `[orchestrated]` with the interview's answers. A/B result: asks grounded questions before
+  planning 5/5 against 0/5 for old and placebo, nothing asked on the tiny control
+  ([report](docs/evals/2026-10-11-build-discovery-interview.md)). Codex `/build`
+  (`SKILL.codex.md`) is unchanged; bringing it there is a separate change.
+- `eval`: the A/B protocol gains runner additions for skills that ask the user (write the
+  question screens and stop) and for a read-only `/build` simulation, plus the `pay-more` probe
+  with `build` and `impl-plan` rubrics.
+
+### Changed
+
+- Standalone `impl-plan` follows a shared interview reference
+  (`impl-plan/reference/discovery-interview.md`) instead of its own question list: interactive
+  question screens when the harness has them, plain text otherwise; no "who and why now";
+  definition of done, hidden constraints and out of scope asked only when the request leaves
+  them open; rounds with the recommended answer first; a closing confirmation. A/B result: on
+  a request that states done and scope, skips both and the who/why question 5/5 against 0/5
+  for old and placebo ([report](docs/evals/2026-10-11-impl-plan-discovery-rounds.md)).
+- `eval`: the `impl-plan` regression runner passes `[no-interview]`, so a runner with no user
+  still produces a plan now that the interview waits for a confirmation.
+
 ## 1.18.0 - 2026-10-02
 
 ### Added
