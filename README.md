@@ -61,7 +61,7 @@ See [HARNESSES.md](HARNESSES.md) for the full capability matrix and install stor
 
 Both `/build <feature>` in Claude Code and `$build:build <feature>` in Codex drive a 5-phase cycle:
 
-1. **Plan** - Read the codebase, choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, emit literal `B-###` obligation bindings and delivery slices, then compile the authored plan with `buildctl validate-plan`
+1. **Plan** - Read the codebase, interview you on option screens (Claude; skipped for tiny or `[no-interview]` runs), choose a discovery level, create `REQ-*`/`D-*` inventories, define Wave 0 validation, emit literal `B-###` obligation bindings and delivery slices, then compile the authored plan with `buildctl validate-plan`
 2. **Review** - Adversarial senior engineer review: placeholder scan, workstream independence check, requirement/decision coverage, wave graph validation, test coverage mapping
 3. **Implement** - Execute one active delivery slice at a time, batching each workstream's ready task IDs into the fewest safe writer dispatches, with mid-reviews for complex changes. After its checkpoint, `buildctl complete-slice` authorizes a narrow root-applied transition or blocks by named obligation. Agents report SCOPE_CHANGE to stop work against broken plans.
 4. **Verify** - Validate the final generated receipt ledger and judge exact-command, expected-observation, requirement, and `must_haves` coverage without re-running evidence commands
