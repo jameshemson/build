@@ -18,7 +18,7 @@ Written before any run.
 - **Probe:** pay-more, build main input `mode=opus Let one person pay more of a bill than the others. How the extra share is expressed is not decided yet.`; control input `mode=opus In src/split.js, add a one-line comment above splitBill saying it returns integer pence shares that sum to the total.`; project `fixtures/ab-probes/bill-split/project/`.
 - **Base ref:** `8c7d44c368d806538a603e6b5406217af3769ff0`, the S-001 checkpoint. At that commit `build` is unchanged from `v1.18.0` and the sibling `impl-plan` already holds `reference/discovery-interview.md`, which the new `build` step links; `eval-ab.js prepare` copies siblings from the base ref, so every arm resolves that link.
 - **New:** working tree at `1c38202` (`build/SKILL.md` Phase 1 step 3 and the orchestrated planning paths; `state-schema.md` row).
-- **Runners:** session model (Opus; `build` has no `model` frontmatter); step 5 template plus block A (write question screens and stop) and block B (read-only simulation of a fresh workflow, no git, stop before the planning step).
+- **Runners:** session model and effort (Opus; `build` has no `model` or `effort` frontmatter, so both are inherited); step 5 template plus block A (write question screens and stop) and block B (read-only simulation of a fresh workflow, no git, stop before the planning step).
 - **Runs:** 5 per arm, 3 arms, plus 2 control runs on the new arm (17 runners). One blind Opus grader.
 - **Placebo:** `5 insertions, 4824 added chars, 4815 placebo chars`.
 - **Headroom (step 3):** 3 base runs on the main input; none asked a question, all three ended at `/build:impl-plan`.
@@ -44,7 +44,8 @@ Both target questions decide **keep**: every new-arm run on the main input stopp
 ## Caveats
 
 - Block A stops each runner at its first question screen, so this A/B measures that the interview starts and how its first round looks. It does not measure later rounds, the "no cap" rule, the closing confirmation screen or the recording of answers; the contract tests pin that prose, and the root session's own interview in this workflow exercised it once by hand.
-- Runners could list `variants/`, and the `eval` sibling, which holds this rubric, sits inside each variant, so blinding rests on instructions rather than file access.
+- Runners could list `variants/`. The variants' `eval` copies come from the base ref, which predates this probe, so they hold no `pay-more` rubric; the rubric lived only in the repository's `source/skills/eval/`, two directories above the probe inputs. Blinding still rests on the instruction not to read outside the variant and the listed inputs, not on file access.
 - The placebo filler is visibly nonsense; several placebo-arm runners said they noticed and ignored it, and one noticed a stray single-character line left by an insertion. The placebo controls for length, not for a plausible inert instruction.
 - One runner (r11) listed the probe's parent fixture directory with `ls -la ..` and saw the bill-split probe's `plan-1.md` and `plan-2.md` names; it opened neither, and they bear on another probe's rubric, not this one.
+- The comparison is near-binary: the old text explicitly limits the pre-start stops to three (several old and placebo runners cited that rule when going straight to planning), so the new step is the only text that licenses asking, and the placebo controls for length only. A larger effect than 5/5 is not possible here.
 - One probe, one project, Claude only. The Codex orchestrator (`SKILL.codex.md`) was not changed and is not measured.

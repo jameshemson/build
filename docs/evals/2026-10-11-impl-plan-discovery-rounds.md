@@ -43,7 +43,7 @@ Both target questions decide **keep**: the new text moved `q1_no_who_why` and `q
 
 ## Caveats
 
-- Runners could list `variants/`, and the `eval` sibling, which holds this rubric, sits inside each variant, so blinding rests on instructions rather than file access.
+- Runners could list `variants/`. The variants' `eval` copies come from the base ref, which predates this probe, so they hold no `pay-more` rubric; the rubric lived only in the repository's `source/skills/eval/`, two directories above the probe inputs. Blinding still rests on the instruction not to read outside the variant and the listed inputs, not on file access.
 - The placebo filler is visibly nonsense (unit conversions, character codes); several placebo-arm runners said they noticed and ignored it. The placebo still controls for length, not for a plausible-looking but inert instruction.
 - The placebo variant contains `reference/discovery-interview.md` as length-matched filler (`eval-ab.js` replaces a new file with filler), and the old variant has no such file. Placebo-arm runners reported that their `SKILL.md` does not link it and did not open it.
 - One probe, one project, Claude only. The behaviour is close to binary on this probe, so a larger effect size than 5/5 is not possible here.
