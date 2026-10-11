@@ -7,7 +7,8 @@ import { join, relative, sep } from 'node:path';
 import { ROOT } from './utils.js';
 import * as ab from './eval-ab.js';
 
-const REASON = 'the change only deletes text, so there is no added prose to match; placebo arm skipped';
+const REASON =
+  'the change adds no Markdown prose (it only deletes text or edits other files), so there is nothing to match; placebo arm skipped';
 
 const sandboxes = [];
 
@@ -85,14 +86,15 @@ function readKey(keyPath) {
 }
 
 // A hand-written key: old=s1, placebo=s2, new=s3, five main runs each (r01..r15).
-function handKey() {
+// Without the placebo arm: old=s1, new=s2 (r01..r10).
+function handKey({ placebo = true } = {}) {
   const keyDir = tempDir();
   const runDir = join(tempDir(), 'run-u1');
   mkdirSync(runDir, { recursive: true });
-  const arms = { old: 's1', placebo: 's2', new: 's3' };
-  const order = ['old', 'placebo', 'new'];
+  const arms = placebo ? { old: 's1', placebo: 's2', new: 's3' } : { old: 's1', new: 's2', placebo: null };
+  const order = placebo ? ['old', 'placebo', 'new'] : ['old', 'new'];
   const runs = [];
-  for (let i = 0; i < 15; i += 1) {
+  for (let i = 0; i < 5 * order.length; i += 1) {
     const arm = order[Math.floor(i / 5)];
     runs.push({ run: `r${String(i + 1).padStart(2, '0')}`, variant: arms[arm], arm, input: 'main' });
   }
@@ -106,7 +108,7 @@ function handKey() {
     seed: 1,
     arms,
     runs,
-    placebo: { skipped: false, reason: null, insertions: [] },
+    placebo: { skipped: !placebo, reason: placebo ? null : REASON, insertions: [] },
   };
   writeFileSync(join(keyDir, 'run-u1.json'), JSON.stringify(key, null, 2));
   return { keyDir, runDir, runs };
@@ -142,13 +144,25 @@ test('placebo: inserts neutral text where new adds prose', () => {
   assert.equal(insertion.oldLine, 2);
   assert.equal(insertion.addedChars, 20);
   assert.ok(Math.abs(insertion.placeboChars - 20) <= 1, `placeboChars ${insertion.placeboChars}`);
-  const at = 'a\nKeep this line.'.length;
-  const insertedLength = result.text.length - oldText.length;
-  assert.equal(result.text.slice(at, at + insertedLength), ` ${ab.neutralText(20)}`);
-  assert.equal(result.text.slice(0, at) + result.text.slice(at + insertedLength), oldText);
-  const lines = result.text.split('\n');
-  assert.equal(lines[0], 'a');
-  assert.equal(lines[2], 'b');
+  assert.equal(result.text, `a\nKeep this line.\n${ab.neutralText(20)}\nb\n`);
+});
+
+test('placebo: keeps old lines and the frontmatter whole', () => {
+  const inLine = ab.buildPlacebo('Use the plan.\n', 'Always use the plan.\n');
+  assert.equal(inLine.text, `Use the plan.\n${ab.neutralText(8)}\n`);
+
+  const oldText = '---\nname: x\neffort: high\n---\n\n## Rules\n\nBody.\n';
+  const newText = '---\nname: x\neffort: high\nargument-hint: "[skill]"\n---\n\n## Rules and limits\n\nBody.\n';
+  const result = ab.buildPlacebo(oldText, newText);
+  const head = 'argument-hint: "[skill]"'.length;
+  assert.deepEqual(
+    result.insertions.map(({ oldLine, addedChars }) => ({ oldLine, addedChars })),
+    [{ oldLine: 5, addedChars: head }, { oldLine: 6, addedChars: 'and limits'.length }],
+  );
+  assert.equal(
+    result.text,
+    `---\nname: x\neffort: high\n---\n${ab.neutralText(head)}\n\n## Rules\n${ab.neutralText(10)}\n\nBody.\n`,
+  );
 });
 
 test('placebo: matches a new paragraph without removing old text', () => {
@@ -188,6 +202,27 @@ test('variants: skips the placebo arm when the change only deletes text', () => 
   const key = readKey(result.keyPath);
   assert.equal(key.placebo.skipped, true);
   assert.equal(key.arms.placebo, null);
+});
+
+test('variants: refuses an unchanged skill, a bad base, a used run directory and a missing skill', () => {
+  const repo = alphaRepo();
+  const keyDir = tempDir();
+  const options = (extra) => ({ repo, skill: 'alpha', runs: 1, seed: 1, keyDir, runDir: join(tempDir(), 'run-bad'), ...extra });
+
+  write(repo, 'source/skills/alpha/SKILL.md', BASE_ALPHA);
+  rmSync(join(repo, 'source', 'skills', 'alpha', 'reference'), { recursive: true });
+  assert.throws(() => ab.prepare(options()), /skill alpha is identical at v0\.1\.0 and in the working tree; check --base/);
+
+  assert.throws(() => ab.prepare(options({ base: 'v9.9.9' })), /base ref does not resolve: v9\.9\.9/);
+
+  const usedRunDir = join(tempDir(), 'run-used');
+  write(usedRunDir, 'leftover.txt', 'x');
+  assert.throws(() => ab.prepare(options({ runDir: usedRunDir })), /run directory already exists/);
+
+  assert.throws(() => ab.prepare(options({ skill: 'gamma' })), /skill gamma does not exist at v0\.1\.0/);
+  rmSync(join(repo, 'source', 'skills', 'alpha'), { recursive: true });
+  assert.throws(() => ab.prepare(options()), /skill alpha does not exist in the working tree/);
+  assert.deepEqual(readdirSync(keyDir), []);
 });
 
 test('variants: builds three variants with base-ref siblings', () => {
@@ -356,6 +391,20 @@ test('unblind: prints per-arm counts and the noise reference', () => {
   assert.ok(markdown.includes('| decision (margin 2) | keep | drop |'), markdown);
   assert.ok(!markdown.includes('evidence'), markdown);
   assert.ok(existsSync(join(runDir, 'unblinded.json')));
+});
+
+test('unblind: decides against old alone when the placebo was skipped', () => {
+  const { keyDir, runDir, runs } = handKey({ placebo: false });
+  const trueQ1 = new Set(['r06', 'r07', 'r08']);
+  const grades = runs.map(({ run }) => ({ run, q1: trueQ1.has(run) }));
+  const { markdown, summary } = ab.unblind({ runDir, grades, keyDir });
+  assert.ok(markdown.includes('| old | 0/5 |'), markdown);
+  assert.ok(markdown.includes('| new | 3/5 |'), markdown);
+  assert.ok(markdown.includes('| decision (margin 2) | keep |'), markdown);
+  assert.ok(!markdown.includes('placebo'), markdown);
+  assert.ok(!markdown.includes('noise'), markdown);
+  assert.equal(summary.placebo_skipped, true);
+  assert.equal(summary.noise, null);
 });
 
 test('unblind: rejects grades that do not match the assignment', () => {
