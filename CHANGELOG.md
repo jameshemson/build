@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.19.0 - 2026-10-11
 
 ### Added
 
@@ -19,6 +19,18 @@
   planning 5/5 against 0/5 for old and placebo, nothing asked on the tiny control
   ([report](docs/evals/2026-10-11-build-discovery-interview.md)). Codex `/build`
   (`SKILL.codex.md`) is unchanged; bringing it there is a separate change.
+- `eval` change A/B mode: `/build:eval ab [skill]` measures whether a skill-text change alters
+  the behaviour it is meant to alter. It compares the new text against the old text and a
+  placebo of matched length, grades blind, and keeps the change only if it beats both by a
+  margin fixed before any run (`eval/reference/ab-protocol.md`). `scripts/eval-ab.js prepare`
+  builds the blinded variant trees, assigns runs at random and writes the arm key; `unblind`
+  joins the grades with the key and applies the margin. The first probe, `bill-split`, ships
+  with a small project fixture. `/build:eval` with no argument now asks whether to run the
+  regression suite or a change A/B.
+- Release A/B check (CLAUDE.md): a release whose diff changes a skill's `SKILL.md` or
+  `reference/**/*.md` (every skill except `eval`) runs a change A/B for each behaviour it is
+  meant to alter and links the report from its CHANGELOG entry. This release is the first
+  under the rule.
 - `eval`: the A/B protocol gains runner additions for skills that ask the user (write the
   question screens and stop) and for a read-only `/build` simulation, plus the `pay-more` probe
   with `build` and `impl-plan` rubrics.
@@ -34,6 +46,9 @@
   for old and placebo ([report](docs/evals/2026-10-11-impl-plan-discovery-rounds.md)).
 - `eval`: the `impl-plan` regression runner passes `[no-interview]`, so a runner with no user
   still produces a plan now that the interview waits for a confirmation.
+- CI pins its runner to `ubuntu-24.04` instead of `ubuntu-latest`, which moves to Ubuntu 26 on
+  2026-10-19. The `E_EVIDENCE_PIPE` rule's reason for refusing `set -o pipefail` is this
+  image's dash `/bin/sh`.
 
 ## 1.18.0 - 2026-10-02
 

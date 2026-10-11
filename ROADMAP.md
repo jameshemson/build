@@ -137,6 +137,15 @@ for formatting, and halted review loops needed hand edits to state.
 - `peer` workflow mode: opus plans, and fresh fable-model agents run plan review, mid-review,
   Verify and Architect Review.
 
+## v1.19.0 — discovery interview and change A/B (shipped)
+
+- `/build:eval ab`: measure a skill-text change against the old text and a length-matched
+  placebo with blind grading, and require that A/B at release for skill instruction changes.
+- Claude `/build` interviews the user grill-me style on option screens before planning, once
+  per workflow; standalone `impl-plan` follows the same shared interview reference.
+- Codex `/build` does not interview yet. `SKILL.codex.md` is at its 300-line ceiling, so that
+  change starts with a trim.
+
 ## Deferred
 
 - Full leases beyond rejecting expired handoffs.
