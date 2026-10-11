@@ -1922,3 +1922,31 @@ test('discovery interview: every build planning path runs impl-plan as orchestra
     path,
   );
 });
+
+test('discovery interview: resume and rework eval cases are wired to fixtures and grading', () => {
+  const evals = JSON.parse(readRel('source/skills/eval/evals.json')).evals;
+  const grading = readRel('source/skills/eval/reference/grading.md');
+  const headings = [...grading.matchAll(/^### ([a-z0-9-]+)$/gm)].map((match) => match[1]);
+  const cases = [
+    ['build-plan-phase-resume-csv-export', 'csv-export', '{"status":"done","rounds":2}'],
+    ['build-plan-phase-rework-group-access', 'csv-export', '{"status":"done","rounds":2}'],
+    ['build-plan-phase-rework-dependency-policy', 'csv-export', '{"status":"done","rounds":2}'],
+    ['build-plan-phase-rework-stats-rounding', 'stats-json', '{"status":"pending","trigger":"scope-change"}'],
+  ];
+  for (const [id, slug, interview] of cases) {
+    const entry = evals.find((candidate) => candidate.id === id);
+    assert.ok(entry, `${id} must be an eval case`);
+    assert.equal(entry.skill, 'build');
+    assert.equal(entry.state_slug, slug);
+    const state = readRel(`source/skills/eval/${entry.state_fixture}/${slug}-state.md`);
+    assert.ok(state.includes('phase: "plan"'), `${id} fixture must be at phase plan`);
+    assert.ok(state.includes(`discovery_interview: ${interview}`), `${id} fixture must record ${interview}`);
+    for (const assertionId of entry.assertions) {
+      assert.equal(
+        headings.filter((heading) => heading === assertionId).length,
+        1,
+        `${assertionId} must have exactly one grading heading`,
+      );
+    }
+  }
+});
