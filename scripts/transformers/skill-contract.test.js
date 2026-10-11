@@ -1840,3 +1840,84 @@ test('planner points to contract specificity and schedules risky behavior eviden
   assert.ok(planner.includes('follow the plan quality rules for exact-byte exceptions and lifecycle review'));
   assert.ok(planner.includes('Run risky behavior tests in the first implementing batch'));
 });
+
+test('discovery interview: shared reference carries the interview rules', () => {
+  const path = 'source/skills/impl-plan/reference/discovery-interview.md';
+  const content = readRel(path);
+  assertRequiredTerms(
+    normalizeOrchestrationWhitespace(content),
+    [
+      "Facts are yours to find; decisions are the user's.",
+      'Never ask who is affected or why now',
+      'Each round asks the whole frontier',
+      'When the harness provides an interactive question tool, use it',
+      'otherwise ask in plain text',
+      'with the recommended answer first',
+      'There is no cap on rounds or questions',
+      'End with a confirmation',
+    ].map(normalizeOrchestrationWhitespace),
+    path,
+  );
+  assert.ok(lineCount(content) <= 150, `${path} has ${lineCount(content)} lines, exceeding 150`);
+});
+
+test('discovery interview: impl-plan Step 0 links the shared reference', () => {
+  const path = 'source/skills/impl-plan/SKILL.md';
+  const content = readRel(path);
+  assertRequiredTerms(
+    normalizeOrchestrationWhitespace(content),
+    ['[discovery interview](reference/discovery-interview.md)'].map(normalizeOrchestrationWhitespace),
+    path,
+  );
+  assert.ok(!content.includes('Who & why now'), `${path} must not include "Who & why now"`);
+});
+
+test('discovery interview: state schema records the interview', () => {
+  const path = 'source/skills/build/reference/state-schema.md';
+  assertRequiredTerms(
+    normalizeOrchestrationWhitespace(readRel(path)),
+    ['| `discovery_interview` |', 'Claude orchestrator only'].map(normalizeOrchestrationWhitespace),
+    path,
+  );
+});
+
+test('discovery interview: build Phase 1 interviews before planning', () => {
+  const path = 'source/skills/build/SKILL.md';
+  const content = readRel(path);
+  assertRequiredTerms(
+    normalizeOrchestrationWhitespace(content),
+    [
+      '**Discovery interview**',
+      '`discovery_interview`',
+      '../impl-plan/reference/discovery-interview.md',
+      'never as plain-text questions',
+      'and the step 3 discovery interview are the only allowed pre-start stops',
+      '`[no-interview]`',
+      'changes what is being built',
+      'discovery levels',
+      'no low-confidence assumption would materially change the plan',
+      'a `pending` state carrying `trigger` runs one round',
+      'discovery_interview: {"status":"pending"}',
+      "keeping the discovery interview's user statements",
+      'Carry every discovery-interview',
+    ].map(normalizeOrchestrationWhitespace),
+    path,
+  );
+  const exploration = content.indexOf('**Parallel codebase exploration**');
+  const interview = content.indexOf('**Discovery interview**');
+  const planning = content.indexOf('Invoke `/build:impl-plan`');
+  assert.ok(exploration >= 0, `${path} must include **Parallel codebase exploration**`);
+  assert.ok(interview >= 0, `${path} must include **Discovery interview**`);
+  assert.ok(planning >= 0, `${path} must include Invoke \`/build:impl-plan\``);
+  assert.ok(exploration < interview, `${path} must place the discovery interview after codebase exploration`);
+  assert.ok(interview < planning, `${path} must place the discovery interview before invoking impl-plan`);
+});
+
+test('discovery interview: every build planning path runs impl-plan as orchestrated', () => {
+  const path = 'source/skills/build/SKILL.md';
+  assertRequiredTerms(
+    normalizeOrchestrationWhitespace(readRel(path)),
+    ['Every planning path runs the `impl-plan` protocol as `[orchestrated]`'].map(normalizeOrchestrationWhitespace),
+    path,
+  );
+});
