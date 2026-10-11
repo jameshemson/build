@@ -153,7 +153,7 @@ export function buildPlacebo(oldText, newText) {
     out.push(render(neutral));
     insertions.push({ oldLine: headLines + oldLine, addedChars, placeboChars: neutral.length });
   };
-  if (headChars > 0) insert(1, headChars, (neutral) => `${neutral}\n`);
+  if (headChars > 0) insert(1, headChars, (neutral) => (oldHead.endsWith('\n') ? `${neutral}\n` : `\n${neutral}`));
   let cursor = 0;
   for (const change of changes(oldLines, newLines)) {
     out.push(...oldLines.slice(cursor, change.oldStart));

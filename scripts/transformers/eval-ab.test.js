@@ -163,6 +163,9 @@ test('placebo: keeps old lines and the frontmatter whole', () => {
     result.text,
     `---\nname: x\neffort: high\n---\n${ab.neutralText(head)}\n\n## Rules\n${ab.neutralText(10)}\n\nBody.\n`,
   );
+
+  const headOnly = ab.buildPlacebo('---\nname: x\n---', '---\nname: x\nmodel: opus\n---');
+  assert.equal(headOnly.text, `---\nname: x\n---\n${ab.neutralText('model: opus'.length)}`);
 });
 
 test('placebo: matches a new paragraph without removing old text', () => {
