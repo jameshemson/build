@@ -151,6 +151,34 @@
       "assertions": ["orchestrator-fable-plan-active-session"]
     },
     {
+      "id": "build-plan-phase-resume-csv-export",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-plan-phase-resume-csv-export",
+      "state_slug": "csv-export",
+      "assertions": ["orchestrator-resume-plans-without-asking", "orchestrator-plan-carries-interview-answers"]
+    },
+    {
+      "id": "build-plan-phase-rework-group-access",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-plan-phase-rework-group-access",
+      "state_slug": "csv-export",
+      "assertions": ["orchestrator-rework-asks-about-change"]
+    },
+    {
+      "id": "build-plan-phase-rework-dependency-policy",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-plan-phase-rework-dependency-policy",
+      "state_slug": "csv-export",
+      "assertions": ["orchestrator-rework-replans-without-asking"]
+    },
+    {
+      "id": "build-plan-phase-rework-stats-rounding",
+      "skill": "build",
+      "state_fixture": "fixtures/orchestrator-plan-phase-rework-stats-rounding",
+      "state_slug": "stats-json",
+      "assertions": ["orchestrator-rework-asks-about-change"]
+    },
+    {
       "id": "build-review-phase-mixed-mode",
       "skill": "build",
       "state_fixture": "fixtures/orchestrator-review-phase-mixed-mode",

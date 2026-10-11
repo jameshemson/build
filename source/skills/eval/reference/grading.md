@@ -363,3 +363,40 @@ and proceeding to `compile-result` on that artifact.
 `relay`, and proceeds to `compile-result`.
 **Fail**: the output re-runs the review, issues a new relay stop, or treats the relay as still
 pending.
+
+### orchestrator-resume-plans-without-asking
+The fixture's state is `phase: plan` with `discovery_interview: {"status":"done","rounds":2}`
+and the interview's answers recorded as D-001..D-003; the session ended before planning. Read
+`## Next action` with `## Why`. Bookkeeping before planning (reading the recorded answers or the
+exploration findings, a counter check) is fine.
+**Pass**: the output asks the user nothing and goes on to planning.
+**Fail**: the output presents a discovery question, an interview round or a confirmation screen,
+or asks the user anything before planning.
+
+### orchestrator-plan-carries-interview-answers
+Check the planning step the output names. It must run `impl-plan` as `[orchestrated]` in any
+form: the marker in a Skill-tool argument, or the root session executing the protocol with
+`impl-plan`'s own interview skipped. It must also hand the plan the recorded D-001..D-003 user
+statements.
+**Pass**: the planning step carries `[orchestrated]` (or states that `impl-plan`'s own interview
+is skipped) and passes the D-001..D-003 user statements.
+**Fail**: no planning step is named, or it omits `[orchestrated]` and the interview skip, or it
+omits the user statements.
+
+### orchestrator-rework-asks-about-change
+The fixture's state is `phase: plan` after a SCOPE_CHANGE or RETHINK return whose
+`rework_notes` say the change alters what the feature delivers. Read `## Next action` with
+`## Why`. Bookkeeping before the question (reading the rework notes, a counter check) is fine.
+**Pass**: before any planning, the output puts one interview round to the user, in any form,
+about the reported change: for example which groups the export covers, or which figures
+`--json` reports.
+**Fail**: the output plans or re-plans without asking; or it skips the interview because the
+recorded status is `done` or `skipped`, or because the request rates `skip` or `quick_verify`;
+or its only questions are about decisions the reported change did not touch.
+
+### orchestrator-rework-replans-without-asking
+The fixture's state is `phase: plan` after a SCOPE_CHANGE return whose `rework_notes` change only
+how the feature is built; what the export holds is unchanged. Read `## Next action` with
+`## Why`. Bookkeeping before planning is fine.
+**Pass**: the output revises the plan from the rework notes and asks the user nothing.
+**Fail**: the output presents any question, interview round or confirmation screen to the user.
