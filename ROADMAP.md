@@ -145,6 +145,8 @@ for formatting, and halted review loops needed hand edits to state.
   per workflow; standalone `impl-plan` follows the same shared interview reference.
 - Codex `/build` does not interview yet. `SKILL.codex.md` is at its 300-line ceiling, so that
   change starts with a trim.
+- v1.19.1: graded `build` eval cases for the interview's resume and scope-change paths. A
+  headroom check showed the re-open rule already works, so its proposed reword was dropped.
 
 ## Deferred
 
