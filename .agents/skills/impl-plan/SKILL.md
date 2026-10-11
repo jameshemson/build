@@ -22,22 +22,9 @@ Otherwise, run a brief targeted read of the area of the codebase this feature to
 - **standard_research**: normal feature/change touching multiple files
 - **deep_dive**: ambiguous, high-risk, cross-cutting, data/security, or UI-heavy change
 
-For standalone use, ask the discovery questions below only when the level is `standard_research` or `deep_dive`, or when a low-confidence assumption would materially change the plan. For `[orchestrated]` use, do not ask; record assumptions with IDs and proceed.
+For standalone use, interview the user before Step 1 when the level is `standard_research` or `deep_dive`, or when a low-confidence assumption would materially change the plan: follow the [discovery interview](reference/discovery-interview.md). For `[orchestrated]` use, do not ask; record assumptions with IDs and proceed.
 
-Before drafting any question, list every ambiguity you noticed during the targeted read. Resolve what the codebase can answer by reading further; only what the code cannot answer becomes a question.
-
-**Standard hygiene (ask when interviewing):**
-
-1. **Who & why now**: Who's running into this today, and what are they doing instead? If it's net-new, who asked for it and what triggered the ask now?
-2. **Definition of done**: What does "shipped and working" look like in concrete terms — a metric, a workflow that completes, a complaint that stops? If unmeasurable, what would you check manually to know it shipped?
-3. **Constraints I won't see in the code**: Deadlines, cross-team dependencies, things-that-must-not-change, prior attempts that failed and why?
-4. **Out of scope**: What's the obvious next ask we are explicitly NOT building now?
-
-**Feature-specific (2–5 questions you draft after the brief code read):**
-
-Based on what you actually saw in the code, ask 2–5 questions about ambiguities specific to this feature. Name real files, functions, or existing patterns. No generic questions — if a question's answer is obviously inferable from the code or from `the user's request`, don't ask it. With every question, state your recommended answer and a one-line rationale, so the user can confirm or override instead of composing from scratch.
-
-If the user answers tersely or says "just plan it," proceed to Step 1 with what you have. Carry the user's answers into the relevant plan sections. Record assumptions as `A-001`, `A-002`, etc. with confidence (`high`, `medium`, `low`) and evidence from files, commands, or user statements.
+Carry the user's answers into the relevant plan sections as `D-*` decisions with user-statement evidence. Record assumptions as `A-001`, `A-002`, etc. with confidence (`high`, `medium`, `low`) and evidence from files, commands, or user statements.
 
 ## Step 1: File structure mapping
 
