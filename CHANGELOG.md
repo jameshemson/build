@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.19.1 - 2026-10-11
+
+### Added
+
+- `eval`: four graded `build` regression cases for the discovery interview's state paths.
+  - A fable-mode workflow resumed after the interview asks nothing. It plans as
+    `[orchestrated]` with the recorded answers.
+  - A SCOPE_CHANGE that makes a user decision undeliverable, with state still `done`, asks one
+    round about the change.
+  - A SCOPE_CHANGE that changes only how the feature is built re-plans without asking.
+  - A RETHINK on a `quick_verify` request whose interview was skipped asks one round.
+
+  The regression run (Sonnet runners and graders) passed 4/4 cases.
+- A contract test ties those cases to their fixtures and grading entries.
+
+### Changed
+
+- The shared discovery-interview reference's 150-line ceiling is now in `HARD_LINE_LIMITS` and
+  CLAUDE.md's ceiling list, like every other ceiling (v1.19.0 architect review AR-002).
+
+### Not changed
+
+- The re-open rule in `build` Phase 1 step 3 keeps its wording. The v1.19.0 architect review
+  (AR-001) and an earlier mid-review note proposed rewording it. A headroom check of the current
+  text on the new fixtures came first. Across 10 Opus runs it re-opened the interview 6/6 where
+  it should and never where it should not, so a reword had nothing to improve
+  ([headroom report](docs/evals/2026-10-11-build-reopen-headroom.md)). No skill instruction text
+  changed in this release, so no A/B runs.
+
 ## 1.19.0 - 2026-10-11
 
 ### Added
