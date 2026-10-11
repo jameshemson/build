@@ -79,6 +79,22 @@ Constraints:
 Write your complete output to {runDir}/runs/{run}/output.md, then reply DONE.
 ```
 
+### Runner additions for skills that ask the user
+
+A skill that can stop to ask the user (standalone `impl-plan`, `build`) has no user in an A/B run. Append block A to the template above for every arm, so each runner writes out what it would ask instead of waiting for an answer:
+
+```
+This run has no user. Do not call any question tool. Where the instructions would ask the user anything, write each question screen or message exactly as you would present it, every question and every option in order with its labels, and then stop. Writing a screen counts as presenting it: never skip or shorten a question because no question tool is available.
+```
+
+For `build`, also append block B, for every arm. A real `/build` run would cut a branch and write state in this repository, and its git preflight would read the plugin repository's tree, so the runner simulates a fresh workflow read-only:
+
+```
+This is a read-only simulation of a fresh /build workflow. The project's working tree is clean and holds no .build/ state. Do not run git: treat the git preflight as passed and base_ref as HEAD. Do not run any command that changes files, and create no branch, state file or plan; where the instructions would write state or an artifact, describe the write in one line. Where they would dispatch exploration agents, read the project's code yourself. Stop before the planning step (invoking or executing the impl-plan protocol, or dispatching a planning agent), and make its name the last line of your output. A run that block A has stopped at a question ends there; the planning-step name line applies only to a run that reaches planning without asking.
+```
+
+A `build` probe passes a `mode=` token in every argument, so the mode ask never fires. Run both A/Bs of a change from a committed tree.
+
 ## 6. Grade blind
 
 After every runner has returned, spawn one grader agent on Opus. It reads only the rubric section for the skill under test and the `## Known fixture flaw` section of the probe's reference file (never its baseline section, which carries arm counts), and every `{runDir}/runs/<run>/output.md` in run order. It never reads the variants, `assignment.json` or the key. It grades each output independently, against the rubric alone, and writes `{runDir}/grades.json`:
