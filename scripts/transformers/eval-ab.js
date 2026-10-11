@@ -10,7 +10,11 @@ import { ROOT } from './utils.js';
 
 export const DEFAULT_KEY_DIR = join(homedir(), '.cache', 'build-eval-ab');
 export const PLACEBO_SKIP_REASON =
-  'the change only deletes text, so there is no added prose to match; placebo arm skipped';
+  'the change adds no Markdown prose (it only deletes text or edits other files), so there is nothing to match; placebo arm skipped';
+export const PLACEBO_TOLERANCE = 0.05;
+const DEFAULT_RUNS = 5;
+const DEFAULT_HEADROOM_RUNS = 3;
+const GIT_MAX_BUFFER = 256 * 1024 * 1024;
 const SKILLS_PREFIX = 'source/skills/';
 const SKIPPED_NAMES = new Set(['.build', 'node_modules', '.DS_Store']);
 
@@ -50,7 +54,7 @@ export function neutralText(targetChars) {
     full += (full ? ' ' : '') + NEUTRAL_SENTENCES[i % NEUTRAL_SENTENCES.length];
   }
   const cut = full.lastIndexOf(' ', targetChars);
-  if (cut >= targetChars - Math.ceil(0.05 * targetChars)) return full.slice(0, cut);
+  if (cut >= targetChars - Math.ceil(PLACEBO_TOLERANCE * targetChars)) return full.slice(0, cut);
   return full.slice(0, targetChars).replace(/ $/, '');
 }
 
@@ -112,39 +116,73 @@ function commonSuffixLength(a, b) {
   return k;
 }
 
-// Old text with neutral text inserted wherever new text adds prose. Old text is never removed.
-export function buildPlacebo(oldText, newText) {
-  const oldLines = splitLines(oldText);
-  const newLines = splitLines(newText);
-  const insertions = [];
-  const out = [];
-  let cursor = 0;
-  for (const hunk of diffHunks(oldLines, newLines)) {
-    out.push(...oldLines.slice(cursor, hunk.oldStart));
-    cursor = hunk.oldStart + hunk.oldLines.length;
+// Each changed hunk with the prose it adds: the new text left once the characters it
+// shares with the old hunk at either end are trimmed.
+function changes(oldLines, newLines) {
+  return diffHunks(oldLines, newLines).map((hunk) => {
     const oldHunk = hunk.oldLines.join('');
     const newHunk = hunk.newLines.join('');
     const prefix = commonPrefixLength(oldHunk, newHunk);
     const oldRest = oldHunk.slice(prefix);
     const newRest = newHunk.slice(prefix);
     const added = newRest.slice(0, newRest.length - commonSuffixLength(oldRest, newRest));
-    if (added.trim() === '') {
+    return { ...hunk, oldHunk, prefix, added, core: added.trim() };
+  });
+}
+
+// The leading YAML frontmatter block, delimiters included, or '' when the text has none.
+function frontmatter(text) {
+  return text.match(/^---\n[\s\S]*?\n---(?:\n|$)/)?.[0] ?? '';
+}
+
+// Old text with neutral text inserted wherever new text adds prose. Old text is never removed,
+// and filler never splits an old line: an edit inside a line gets its filler on the next line.
+// Prose added to the frontmatter is matched at the top of the body, so the YAML stays valid.
+export function buildPlacebo(oldText, newText) {
+  const oldHead = frontmatter(oldText);
+  const newHead = oldHead ? frontmatter(newText) : '';
+  const headLines = splitLines(oldHead).length;
+  const headChars = changes(splitLines(oldHead), splitLines(newHead))
+    .reduce((sum, change) => sum + change.core.length, 0);
+  const oldLines = splitLines(oldText.slice(oldHead.length));
+  const newLines = splitLines(newText.slice(newHead.length));
+  const insertions = [];
+  const out = [oldHead];
+  const insert = (oldLine, addedChars, render) => {
+    const neutral = neutralText(addedChars);
+    out.push(render(neutral));
+    insertions.push({ oldLine: headLines + oldLine, addedChars, placeboChars: neutral.length });
+  };
+  if (headChars > 0) insert(1, headChars, (neutral) => `${neutral}\n`);
+  let cursor = 0;
+  for (const change of changes(oldLines, newLines)) {
+    out.push(...oldLines.slice(cursor, change.oldStart));
+    cursor = change.oldStart + change.oldLines.length;
+    const { oldHunk, prefix, added, core } = change;
+    if (core === '') {
       out.push(oldHunk);
       continue;
     }
-    const lead = added.match(/^\s*/)[0];
-    const trail = added.match(/\s*$/)[0];
-    const core = added.slice(lead.length, added.length - trail.length);
-    const neutral = neutralText(core.length);
-    out.push(oldHunk.slice(0, prefix), lead, neutral, trail, oldHunk.slice(prefix));
-    insertions.push({ oldLine: hunk.oldStart + 1, addedChars: core.length, placeboChars: neutral.length });
+    const startsLine = prefix === 0 || oldHunk[prefix - 1] === '\n';
+    const endsLine = added.endsWith('\n') || (prefix === oldHunk.length && cursor === oldLines.length);
+    if (startsLine && endsLine) {
+      // Whole new lines: the filler goes where they go, with the same surrounding whitespace.
+      const lead = added.match(/^\s*/)[0];
+      const trail = added.match(/\s*$/)[0];
+      out.push(oldHunk.slice(0, prefix));
+      insert(change.oldStart + 1, core.length, (neutral) => lead + neutral + trail);
+      out.push(oldHunk.slice(prefix));
+    } else {
+      out.push(oldHunk);
+      insert(change.oldStart + 1, core.length, (neutral) => (oldHunk.endsWith('\n') ? `${neutral}\n` : `\n${neutral}`));
+    }
   }
   out.push(...oldLines.slice(cursor));
   return { text: out.join(''), insertions };
 }
 
 function git(repo, args, encoding = 'utf8') {
-  return spawnSync('git', ['-C', repo, ...args], { encoding, maxBuffer: 256 * 1024 * 1024 });
+  return spawnSync('git', ['-C', repo, ...args], { encoding, maxBuffer: GIT_MAX_BUFFER });
 }
 
 export function resolveBase(repo, base) {
@@ -281,6 +319,50 @@ function writeVariant(runDir, variant, skill, skillFiles, siblings) {
   for (const [name, files] of siblings) writeTree(join(variantDir, name), files);
 }
 
+function sameTree(a, b) {
+  if (a.size !== b.size) return false;
+  for (const [path, content] of a) {
+    if (!b.has(path) || !Buffer.from(content).equals(Buffer.from(b.get(path)))) return false;
+  }
+  return true;
+}
+
+// Every skill under source/skills/ at `sha`: skill name -> (path within the skill -> content).
+function readSkillsAtRef(repo, sha) {
+  const skills = new Map();
+  for (const [path, content] of readTreeAtRef(repo, sha, SKILLS_PREFIX)) {
+    const slash = path.indexOf('/');
+    if (slash < 0) continue;
+    const name = path.slice(0, slash);
+    if (!skills.has(name)) skills.set(name, new Map());
+    skills.get(name).set(path.slice(slash + 1), content);
+  }
+  return skills;
+}
+
+// Random arm -> variant mapping, then `runsPerArm` main runs per arm plus `controlRuns`
+// control runs on the new arm, shuffled and numbered r01, r02, ...
+export function assignRuns(armList, runsPerArm, controlRuns, rng) {
+  const variants = armList.map((_, index) => `s${index + 1}`);
+  const arms = { old: null, new: null, placebo: null };
+  shuffle(armList, rng).forEach((arm, index) => {
+    arms[arm] = variants[index];
+  });
+  const slots = [];
+  for (const arm of armList) {
+    for (let i = 0; i < runsPerArm; i += 1) slots.push({ arm, input: 'main' });
+  }
+  for (let i = 0; i < controlRuns; i += 1) slots.push({ arm: 'new', input: 'control' });
+  const ids = runIds(slots.length);
+  const runs = shuffle(slots, rng).map((slot, index) => ({
+    run: ids[index],
+    variant: arms[slot.arm],
+    arm: slot.arm,
+    input: slot.input,
+  }));
+  return { variants, arms, runs };
+}
+
 function writeRuns(runDir, skill, baseRef, variants, runs) {
   for (const { run } of runs) mkdirSync(join(runDir, 'runs', run, 'scratch'), { recursive: true });
   writeJson(join(runDir, 'assignment.json'), {
@@ -306,7 +388,7 @@ export function prepare({
 } = {}) {
   if (!skill) throw new Error('skill is required');
   repo = resolve(repo);
-  const runsPerArm = runs ?? (headroom ? 3 : 5);
+  const runsPerArm = runs ?? (headroom ? DEFAULT_HEADROOM_RUNS : DEFAULT_RUNS);
   checkInteger('runs', runsPerArm, 1);
   checkInteger('controlRuns', controlRuns, 0);
   if (headroom && controlRuns > 0) {
@@ -325,65 +407,36 @@ export function prepare({
   if (keyPath && existsSync(keyPath)) throw new Error(`key already exists: ${keyPath}`);
 
   const { base: baseRef, baseSha } = resolveBase(repo, base);
-  const skillsAtBase = new Map();
-  for (const [path, content] of readTreeAtRef(repo, baseSha, SKILLS_PREFIX)) {
-    const slash = path.indexOf('/');
-    if (slash < 0) continue;
-    const name = path.slice(0, slash);
-    if (!skillsAtBase.has(name)) skillsAtBase.set(name, new Map());
-    skillsAtBase.get(name).set(path.slice(slash + 1), content);
-  }
+  const skillsAtBase = readSkillsAtRef(repo, baseSha);
   const oldSkill = skillsAtBase.get(skill);
   if (!oldSkill) throw new Error(`skill ${skill} does not exist at ${baseRef}`);
   const siblings = [...skillsAtBase].filter(([name]) => name !== skill);
+  const result = { runDir, runId, base: baseRef, baseSha };
 
   if (headroom) {
     // One unblinded base arm, no key: measures headroom before an A/B comparison.
     const headroomRuns = runIds(runsPerArm).map((run) => ({ run, variant: 's1', input: 'main' }));
     writeVariant(runDir, 's1', skill, oldSkill, siblings);
     writeRuns(runDir, skill, baseRef, ['s1'], headroomRuns);
-    return {
-      runDir,
-      runId,
-      base: baseRef,
-      baseSha,
-      variants: ['s1'],
-      runs: headroomRuns,
-      arms: null,
-      placebo: null,
-      keyPath: null,
-    };
+    return { ...result, variants: ['s1'], runs: headroomRuns, arms: null, placebo: null, keyPath: null };
   }
 
   const newSkill = readWorkingSkill(repo, skill);
   if (!newSkill) throw new Error(`skill ${skill} does not exist in the working tree`);
+  if (sameTree(oldSkill, newSkill)) {
+    throw new Error(`skill ${skill} is identical at ${baseRef} and in the working tree; check --base`);
+  }
   const placebo = placeboTree(oldSkill, newSkill);
   const skipped = placebo.insertions.length === 0;
   const trees = { old: oldSkill, new: newSkill, placebo: placebo.files };
 
   const usedSeed = seed ?? randomInt(2 ** 31);
-  const rng = mulberry32(usedSeed);
   const armList = skipped ? ['old', 'new'] : ['old', 'new', 'placebo'];
-  const variants = armList.map((_, index) => `s${index + 1}`);
-  const arms = { old: null, new: null, placebo: null };
-  shuffle(armList, rng).forEach((arm, index) => {
-    arms[arm] = variants[index];
-  });
+  const { variants, arms, runs: keyRuns } = assignRuns(armList, runsPerArm, controlRuns, mulberry32(usedSeed));
 
-  const slots = [];
-  for (const arm of armList) {
-    for (let i = 0; i < runsPerArm; i += 1) slots.push({ arm, input: 'main' });
-  }
-  for (let i = 0; i < controlRuns; i += 1) slots.push({ arm: 'new', input: 'control' });
-  const ids = runIds(slots.length);
-  const keyRuns = shuffle(slots, rng).map((slot, index) => ({
-    run: ids[index],
-    variant: arms[slot.arm],
-    arm: slot.arm,
-    input: slot.input,
-  }));
-
-  for (const arm of armList) writeVariant(runDir, arms[arm], skill, trees[arm], siblings);
+  // Write in variant order, not arm order, so file timestamps cannot rank the arms.
+  const armOf = Object.fromEntries(armList.map((arm) => [arms[arm], arm]));
+  for (const variant of variants) writeVariant(runDir, variant, skill, trees[armOf[variant]], siblings);
   writeRuns(runDir, skill, baseRef, variants, keyRuns);
 
   const placeboRecord = {
@@ -405,10 +458,7 @@ export function prepare({
   });
 
   return {
-    runDir,
-    runId,
-    base: baseRef,
-    baseSha,
+    ...result,
     variants,
     runs: keyRuns.map(({ run, variant, input }) => ({ run, variant, input })),
     arms,

@@ -2,7 +2,7 @@
 
 This protocol measures whether a change to a skill's instruction text alters the behaviour it is meant to alter. It compares the new text against the old text and against a placebo of matched length, because both versions of a skill usually pass the regression suite. When a release must run this check is set by CLAUDE.md `### Release A/B check`.
 
-The three arms are **old** (the skill at a base ref), **new** (the skill in the working tree) and **placebo** (the old skill with neutral text of matched length inserted at each place the new text adds prose). `scripts/eval-ab.js` does the bookkeeping: it builds the blinded variant trees, assigns runs to them at random, keeps the arm mapping in a key file, and joins grades with that key at the end.
+The three arms are **old** (the skill at a base ref), **new** (the skill in the working tree) and **placebo** (the old skill with neutral text of matched length inserted at each place the new text adds prose, never inside an old line or the frontmatter). `scripts/eval-ab.js` does the bookkeeping: it builds the blinded variant trees, assigns runs to them at random, keeps the arm mapping in a key file, and joins grades with that key at the end.
 
 ## 1. State the question and the decision rule
 
@@ -32,15 +32,13 @@ Before spending a full A/B, confirm the old text leaves room to improve.
 
 ## 4. Prepare the arms
 
-First confirm that `git diff <base> -- source/skills/<skill>` prints something. Identical old and new text means the base ref is wrong: `HEAD` is right only for an uncommitted working-tree change, and a committed change needs the release tag or commit before it.
-
-Then run:
+Run:
 
 ```
 node scripts/eval-ab.js prepare --skill <skill> --base <ref> --runs <n> --control-runs 2
 ```
 
-`--base` defaults to the latest release tag (`v*`), and `HEAD` when there is none. `--runs` is runs per arm (default 5). Omit `--control-runs` when the probe has no control input; control runs always use the new arm.
+`--base` defaults to the latest release tag (`v*`), and `HEAD` when there is none. `prepare` refuses a skill that is identical at the base and in the working tree (`skill <skill> is identical at <base> and in the working tree; check --base`), which means the base ref is wrong: `HEAD` is right only for an uncommitted working-tree change, and a committed change needs the release tag or commit before it. `--runs` is runs per arm (default 5). Omit `--control-runs` when the probe has no control input; control runs always use the new arm.
 
 Read the printed lines:
 
