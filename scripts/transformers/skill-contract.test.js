@@ -151,6 +151,7 @@ const HARD_LINE_LIMITS = {
   'source/skills/verify/SKILL.md': 150,
   'source/skills/architect-review/SKILL.md': 130,
   'source/skills/impl-plan/reference/plan-quality.md': 220,
+  'source/skills/impl-plan/reference/discovery-interview.md': 150,
   'source/skills/build/reference/workflow-modes.md': 200,
 };
 
@@ -1858,7 +1859,7 @@ test('discovery interview: shared reference carries the interview rules', () => 
     ].map(normalizeOrchestrationWhitespace),
     path,
   );
-  assert.ok(lineCount(content) <= 150, `${path} has ${lineCount(content)} lines, exceeding 150`);
+  assert.equal(HARD_LINE_LIMITS[path], 150, `${path} must keep its 150-line ceiling in HARD_LINE_LIMITS`);
 });
 
 test('discovery interview: impl-plan Step 0 links the shared reference', () => {
