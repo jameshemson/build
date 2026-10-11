@@ -64,8 +64,8 @@ With the tool (for example AskUserQuestion on Claude Code):
 - List the options with the recommended answer first. End its label with
   `(Recommended)` and use its description for a one-line rationale.
 - Word each question so that picking the first option accepts the recommendation.
-- The tool's own free-text option covers any other answer, so do not add an "Other"
-  option.
+- When the tool offers its own free-text answer, do not add an "Other" option;
+  otherwise include one.
 
 In plain text:
 
@@ -81,7 +81,7 @@ plan is still open. Do not stop early because the interview feels long.
 
 The user can end the interview early by saying "wrap up" or "just plan it". Then every
 decision that is still open becomes an `A-*` assumption with `low` confidence, listed
-under the plan's Open questions.
+under the plan's Open questions (or with the assumptions in a compact plan).
 
 End with a confirmation. Summarise, in a few lines:
 
@@ -89,8 +89,11 @@ End with a confirmation. Summarise, in a few lines:
 - the decisions made;
 - what is out of scope.
 
-Ask the user to confirm the summary. Planning starts only after the user confirms. If the
-user corrects the summary, treat the correction as an answer and run another round.
+Ask the user to confirm the summary, presented like any other question: with the tool,
+one screen whose first option is `Yes, plan it (Recommended)` and whose other option asks
+for a correction; in plain text, a numbered line to confirm or correct. Planning starts
+only after the user confirms. If the user corrects the summary, treat the correction as
+an answer and run another round.
 
 ## Recording answers
 
