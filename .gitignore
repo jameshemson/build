@@ -18,3 +18,7 @@ dist-tmp/
 .env.*
 !.env.example
 .playwright-mcp/
+
+# Claude Code per-machine permission grants. "Don't ask again" saves approved commands here,
+# including any secret typed into them, so it must never be committed.
+.claude/settings.local.json
